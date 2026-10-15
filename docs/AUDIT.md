@@ -54,6 +54,39 @@ raw records before rollover; ring buffers and a streaming sink are useful next
 optimizations after a concrete host/storage contract is selected. The current
 arrays still incur front-removal work at their retention limits. Worker transport,
 native bindings and multi-device clock fitting are extension work, not shipped
-capabilities. A public release also needs the pending license, final repository
-metadata, contributor review and the physical/browser test matrix described in
+capabilities. A public release still needs final citation metadata and contributor review.
+Hardware claims require the physical/browser test matrix described in
 [release preparation](RELEASE.md).
+
+
+## Extension audit: 0.3.0
+
+The independent Python implementation and strict TypeScript migration were
+reviewed together against schema 2.0. Concrete repairs made during integration:
+
+| Issue | Resolution and evidence |
+| --- | --- |
+| Same capture ID for independent eyes or PoG/ray records collided. | Identity now includes eye and representation, clock ID and epoch. Per-eye identity regressions pass. |
+| Python and JavaScript float-to-string conversion generated different vendor sample IDs. | IDs use an IEEE-754 byte encoding; shared fixtures agree exactly. |
+| Geometry comparison depended on object-key ordering and omitted versus explicit active state. | Compare canonical geometry fields; identical states do not create timing ambiguity. |
+| Re-registering identical source JSON with reordered keys failed in TypeScript but passed in Python. | Canonical finite-JSON comparison; a failing regression now passes and changed rates still reject. |
+| Source cadence summaries omitted the clock ID despite tracking it internally. | Both implementations now expose the ID and epoch for each rate stream. |
+| Receipt-only sources could look suitable for exposure-time attention. | A blocking quality flag and actionable diagnostic preserve the distinction. |
+| Python sdist tests referenced a parent repository fixture. | Fixtures are packaged with the tests and checked against the shared contract. |
+| The full conformance harness could block on large subprocess pipes. | File-backed temporary transport, bounded subprocess timeout and cleanup. |
+| Twine 6.2 rejected the builder's metadata 2.5. | Packaging checks require Twine 7; wheel and sdist metadata pass. |
+
+Validation after these repairs: 65 Node tests, strict TypeScript consumer checks,
+29 Python tests, ten cross-language adapter fixtures and 78 cross-language
+experiment configurations with 107,070 observations. All matrix cases select the
+reference capture frame, drain pending data and reproduce aligned records on
+replay. The maximum viewport difference between languages is 4.55e-13 logical
+pixels. Synthetic source perturbation is kept separate from reconstruction
+residuals. These checks do not establish real tracker accuracy.
+
+Source ownership is isolated in GazeLei/GazeSync. The npm package contains the
+compiled ES modules, declarations and corresponding TypeScript source; the
+Python package contains its own standard-library core and attribution files.
+No hardware SDK or private parent-project history is imported. The release check
+also verifies GPL text, versions, shared fixtures and an explicit export list.
+Public release remains deliberately disabled.

@@ -19,3 +19,13 @@
 Version 0.1.0 recordings remain inputs for the original implementation. The current
 exact-replay API rejects them. A future migration must retain the raw original and
 record which version produced any recomputed alignments.
+
+## 0.3.0 - 2026-10-15 (development, not published)
+
+- Strict TypeScript source and generated declarations; independent Python core.
+- Schema 2.0 eye identity, source descriptors, nullable confidence and direction-only data.
+- Generic model, Tobii Pro, EyeLink bridge and Pupil Core record adapters.
+- Per-eye cadence diagnostics, receipt-time quality gate and explicit binocular pairing.
+- Shared fixture conformance and 78 rate/size/eye configurations.
+- GPL-3.0-only metadata, isolated npm/wheel/sdist builds and disabled OIDC release workflow.
+- Rewritten implementation paper with reproducible vector figures and synthetic evidence.

@@ -1,27 +1,26 @@
-# Contributing to GazeSync
+# Contributing
 
-This repository is a research software draft. Publication is disabled while the
-maintainer chooses a license and finalizes the public repository identity.
+Use Python 3.10+ and Node 22+; follow the README verification commands. The source
+of truth is `src/*.ts` and `python/src/gazesync/`. `dist/` is generated. Keep both
+cores free of runtime dependencies and keep SDK/transport setup in adapters.
 
-Use Node.js 22 or newer. Run `npm ci --ignore-scripts`, `npm test`,
-`npm run test:types`, `npm run simulate`, and `npm run release:check` before proposing
-a change. The core has no runtime dependencies. TypeScript is a pinned development
-dependency for consumer declaration checks. Browser integrations need a focused
-manual check of the affected input or lifecycle path.
+Changes to timestamps, units, identity, flags or replay affect the shared wire
+contract. Add a focused failing regression, implement the same behavior in both
+languages, update `contracts/`, synchronize packaged fixture copies, and run
+`npm run test:conformance`. Breaking records require a schema version change or
+an explicit migration preserving provenance. Do not silently relabel old logs.
 
-Preserve exposure timestamps, coordinate frames, validity flags and source
-provenance. Tests must include an independently known expected result when
-changing geometry or synchronization. Do not treat replay agreement alone as
-proof of physical accuracy. New recording semantics require a schema/implementation
-version decision and a documented migration. Never silently reinterpret old logs.
+Prefer short pure adapters with synthetic fixtures. Do not commit participant
+records, camera frames, tokens, SDK binaries, model weights or local machine
+paths. Generated working output belongs in ignored `artifacts/`. Reviewed
+aggregate synthetic paper data is deliberately included in `paper/data/`.
 
-New distributable files must be reviewed in `public-files.json` and, when shipped
-in npm, in `package.json.files`. Runtime imports must remain inside this package.
-Use synthetic fixtures; real participant recordings, identifiers, camera frames,
-credentials and unpublished reference archives do not belong in a contribution.
+Format TypeScript/JavaScript with `npm run format`; format Python with
+`ruff format python tools/*.py` (tested formatter 0.15.5). Re-review and update
+`public-files.json` when adding files. `npm run release:check` verifies that
+imports and package contents stay inside the standalone source boundary.
 
-Describe the observable bug or behavior, the change and its verification. Keep
-scientific claims proportional to the evidence. Report security issues privately
-to the repository maintainer once their contact is configured; do not place
-private data in a public issue. Contributor and citation metadata will be reviewed
-before the first public release.
+Submit code under GPL-3.0-only and identify third-party contributions and their
+licenses. Preserve scholarly credit through the two citation entries. Manuscript
+authorship is subject to contributor review; code contribution does not silently
+change paper authorship. Keep public release disabled until maintainer approval.

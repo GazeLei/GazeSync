@@ -5,14 +5,14 @@ import {
   GazeSession,
   ZoomController,
   zoomLevel,
-} from '../src/index.js'
-import { attachBrowserControls } from '../src/browser.js'
+} from '../dist/index.js'
+import { attachBrowserControls } from '../dist/browser.js'
 import {
   isScenarioPassing,
   rayForPoint,
   runScenario,
   simulatedPlane,
-} from '../src/simulation.js'
+} from '../dist/simulation.js'
 
 const $ = (id) => document.getElementById(id)
 const scene = $('scene'),
@@ -196,7 +196,7 @@ function updateLive(now) {
     for (const type of ['pog2d', 'ray3d']) {
       const sample = {
         id: `${type}-${i}`,
-        sourceId: `demo-${type}`,
+        sourceId: `demo-${type}`, eye: 'unknown',
         clockId: 'session',
         clockEpoch: '0',
         timeMs: t,

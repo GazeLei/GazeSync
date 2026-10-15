@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/GazeLei/GazeSync/contracts/gaze.schema.json",
+  "title":"GazeSync schema 2.0 gaze observation",
+  "type":"object",
+  "required":["id","sourceId","eye","clockId","clockEpoch","timeMs","surfaceId","surfaceEpoch","type","confidence","valid"],
+  "properties":{
+    "id":{"type":"string","minLength":1},"captureId":{"type":"string","minLength":1},
+    "sourceId":{"type":"string","minLength":1},"eye":{"enum":["left","right","combined","unknown"]},
+    "clockId":{"type":"string","minLength":1},"clockEpoch":{"type":"string","minLength":1},"timeMs":{"type":"number"},
+    "surfaceId":{"type":"string","minLength":1},"surfaceEpoch":{"type":"string","minLength":1},
+    "type":{"enum":["pog2d","ray3d","direction3d"]},"valid":{"type":"boolean"},"blink":{"type":"boolean"},
+    "confidence":{"anyOf":[{"type":"number","minimum":0,"maximum":1},{"type":"null"}]},
+    "space":{"enum":["viewport","normalized-viewport","normalized-display"]},
+    "point":{"$ref":"#/$defs/point"},"ray":{"$ref":"#/$defs/ray"},"direction":{"$ref":"#/$defs/vector"},"frameId":{"type":"string","minLength":1},
+    "calibrationId":{"type":"string","minLength":1},"metadata":{"type":"object"}
+  },
+  "allOf":[{"if":{"properties":{"valid":{"const":true},"blink":{"not":{"const":true}}}},"then":{"oneOf":[
+    {"properties":{"type":{"const":"pog2d"}},"required":["point","space"]},
+    {"properties":{"type":{"const":"ray3d"}},"required":["ray"]},
+    {"properties":{"type":{"const":"direction3d"}},"required":["direction","frameId"]}
+  ]}}],
+  "$defs":{
+    "point":{"type":"object","required":["x","y"],"properties":{"x":{"type":"number"},"y":{"type":"number"}}},
+    "vector":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number"}},
+    "ray":{"type":"object","required":["origin","direction","frameId"],"properties":{"origin":{"$ref":"#/$defs/vector"},"direction":{"$ref":"#/$defs/vector"},"frameId":{"type":"string","minLength":1}}}
+  }
+}

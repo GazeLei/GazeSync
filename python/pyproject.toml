@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gazesync"
+version = "0.3.0"
+description = "Capture-time synchronization of screen events and monocular/binocular 2D/3D gaze"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [{name = "GazeSync contributors"}]
+keywords = ["eye-tracking", "gaze", "synchronization", "binocular", "research"]
+classifiers = ["Development Status :: 3 - Alpha", "Intended Audience :: Science/Research", "Programming Language :: Python :: 3", "Operating System :: OS Independent", "Topic :: Scientific/Engineering"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/GazeLei/GazeSync"
+Repository = "https://github.com/GazeLei/GazeSync"
+Issues = "https://github.com/GazeLei/GazeSync/issues"
+Documentation = "https://github.com/GazeLei/GazeSync/tree/main/docs"
+
+[project.scripts]
+gazesync = "gazesync.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "jsonschema>=4.23,<5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gazesync"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/gazesync", "pyproject.toml", "README.md", "LICENSE", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

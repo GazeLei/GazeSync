@@ -19,7 +19,7 @@ const controller = new ZoomController(
 )
 const base = {
   id: 'sample',
-  sourceId: 'eye',
+  sourceId: 'eye', eye: 'unknown' as const,
   clockId: 'session',
   clockEpoch: '0',
   timeMs: 10,

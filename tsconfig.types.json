@@ -5,8 +5,13 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "types": []
   },
-  "include": ["src/*.d.ts", "tests/types/consumer.ts"]
+  "include": [
+    "tests/types/consumer.ts"
+  ]
 }

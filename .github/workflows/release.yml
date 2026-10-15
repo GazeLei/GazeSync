@@ -1,0 +1,83 @@
+name: Publish an approved tagged release
+on:
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: Public registry (never use while the repository is private)
+        type: choice
+        required: true
+        options: [testpypi, pypi, npm]
+permissions:
+  contents: read
+concurrency:
+  group: publish-${{ github.ref }}-${{ inputs.destination }}
+  cancel-in-progress: false
+jobs:
+  verify-and-build:
+    if: github.event.repository.private == false && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install './python[test]' build "twine>=7,<8"
+      - run: npm test && npm run test:types && python -m pytest python/tests -q
+      - run: npm run test:conformance
+      - run: node tools/release-check.mjs --public
+      - name: Match the tag to package metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("package.json")); if(process.env.RELEASE_TAG!==`v${p.version}`) throw Error("Tag/version mismatch")'
+      - run: python tools/package_smoke.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: approved-distributions
+          path: artifacts/release/
+  publish-python:
+    needs: verify-and-build
+    if: inputs.destination == 'pypi' || inputs.destination == 'testpypi'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.destination }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: approved-distributions
+          path: artifacts/release
+      - name: Publish to TestPyPI with OIDC
+        if: inputs.destination == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: artifacts/release/python/
+          repository-url: https://test.pypi.org/legacy/
+      - name: Publish to PyPI with OIDC
+        if: inputs.destination == 'pypi'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: artifacts/release/python/
+  publish-npm:
+    needs: verify-and-build
+    if: inputs.destination == 'npm'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: approved-distributions
+          path: artifacts/release
+      - name: Require an OIDC-capable npm
+        run: node -e 'const v=require("node:child_process").execFileSync("npm",["--version"],{encoding:"utf8"}).trim().split(".").map(Number);if(v[0]<11||(v[0]===11&&(v[1]<5||(v[1]===5&&v[2]<1))))throw Error("npm >=11.5.1 required")'
+      - run: npm publish artifacts/release/npm/*.tgz --access public --provenance

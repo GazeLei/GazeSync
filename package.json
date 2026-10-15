@@ -1,48 +1,93 @@
 {
   "name": "gazesync",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "type": "module",
-  "description": "Dependency-free zoom interaction and capture-time 2D/3D gaze synchronization",
+  "description": "Cross-language synchronization of desktop/mobile screen events and monocular/binocular 2D/3D gaze",
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
-      "import": "./src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./browser": {
-      "types": "./src/browser.d.ts",
-      "import": "./src/browser.js"
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     },
     "./simulation": {
-      "types": "./src/simulation.d.ts",
-      "import": "./src/simulation.js"
+      "types": "./dist/simulation.d.ts",
+      "import": "./dist/simulation.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters.d.ts",
+      "import": "./dist/adapters.js"
     }
   },
   "files": [
-    "src/browser.d.ts",
-    "src/browser.js",
-    "src/clocks.js",
-    "src/controller.js",
-    "src/geometry.js",
-    "src/index.d.ts",
-    "src/index.js",
-    "src/records.js",
-    "src/session.js",
-    "src/simulation.d.ts",
-    "src/simulation.js",
-    "src/version.js",
-    "demo/index.html",
-    "demo/app.js",
-    "demo/style.css",
-    "examples/canvas-integration.js",
-    "tools/serve.mjs",
-    "tools/server.mjs",
-    "tools/files.mjs",
-    "tools/simulate.mjs",
-    "tools/replay.mjs",
-    "public-files.json",
-    "README.md"
+    "dist/adapters.d.ts",
+    "dist/adapters.js",
+    "dist/adapters.js.map",
+    "dist/binocular.d.ts",
+    "dist/binocular.js",
+    "dist/binocular.js.map",
+    "dist/browser.d.ts",
+    "dist/browser.js",
+    "dist/browser.js.map",
+    "dist/clocks.d.ts",
+    "dist/clocks.js",
+    "dist/clocks.js.map",
+    "dist/controller.d.ts",
+    "dist/controller.js",
+    "dist/controller.js.map",
+    "dist/diagnostics.d.ts",
+    "dist/diagnostics.js",
+    "dist/diagnostics.js.map",
+    "dist/experiments.d.ts",
+    "dist/experiments.js",
+    "dist/experiments.js.map",
+    "dist/geometry.d.ts",
+    "dist/geometry.js",
+    "dist/geometry.js.map",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/records.d.ts",
+    "dist/records.js",
+    "dist/records.js.map",
+    "dist/session.d.ts",
+    "dist/session.js",
+    "dist/session.js.map",
+    "dist/simulation.d.ts",
+    "dist/simulation.js",
+    "dist/simulation.js.map",
+    "dist/types.d.ts",
+    "dist/types.js",
+    "dist/types.js.map",
+    "dist/version.d.ts",
+    "dist/version.js",
+    "dist/version.js.map",
+    "src/adapters.ts",
+    "src/binocular.ts",
+    "src/browser.ts",
+    "src/clocks.ts",
+    "src/controller.ts",
+    "src/diagnostics.ts",
+    "src/experiments.ts",
+    "src/geometry.ts",
+    "src/index.ts",
+    "src/records.ts",
+    "src/session.ts",
+    "src/simulation.ts",
+    "src/types.ts",
+    "src/version.ts",
+    "tsconfig.build.json",
+    "LICENSE",
+    "NOTICE",
+    "CITATION.cff",
+    "CITATION.bib",
+    "README.md",
+    "contracts/gaze.schema.json",
+    "contracts/diagnostics.json"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",
@@ -52,12 +97,32 @@
     "test:types": "tsc -p tsconfig.types.json",
     "release:check": "node tools/release-check.mjs",
     "export": "node tools/export.mjs",
-    "bench": "node tools/bench.mjs"
+    "bench": "node tools/bench.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "npm run build",
+    "presimulate": "npm run build",
+    "prestart": "npm run build",
+    "prepack": "npm run build",
+    "prebench": "npm run build",
+    "test:conformance": "npm run build && node tools/conformance.mjs --full",
+    "pretest:types": "npm run build",
+    "prerelease:check": "npm run build",
+    "preexport": "npm run build",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.js\" \"tools/**/*.mjs\" \"examples/**/*.js\""
   },
   "engines": {
     "node": ">=22"
   },
   "devDependencies": {
+    "prettier": "3.9.10",
     "typescript": "7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GazeLei/GazeSync.git"
+  },
+  "homepage": "https://github.com/GazeLei/GazeSync",
+  "bugs": {
+    "url": "https://github.com/GazeLei/GazeSync/issues"
   }
 }

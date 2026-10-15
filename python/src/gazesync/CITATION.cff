@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "Please cite both the original GazeSync paper and the implementation report in CITATION.bib. The implementation arXiv submission and author list are pending."
+type: software
+title: "GazeSync: synchronized 2D and 3D gaze during desktop and mobile view manipulation"
+version: 0.3.0
+license: GPL-3.0-only
+repository-code: "https://github.com/GazeLei/GazeSync"
+authors:
+  - family-names: Lei
+    given-names: Yaxiong
+    orcid: "https://orcid.org/0000-0002-0697-7942"
+preferred-citation:
+  type: conference-paper
+  title: "GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content"
+  year: 2026
+  doi: 10.1145/3772363.3798725
+  authors:
+    - { family-names: Lei, given-names: Yaxiong }
+    - { family-names: Talwar, given-names: Rishab }
+    - { family-names: He, given-names: Shijing }
+    - { family-names: Gong, given-names: Xinya }
+    - { family-names: Wang, given-names: Yuheng }
+    - { family-names: Cai, given-names: Xudong }
+    - { family-names: Guo, given-names: Zhongliang }
+    - { family-names: Ye, given-names: Juan }
+references:
+  - type: report
+    title: "GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking"
+    year: 2026
+    authors:
+      - name: "GazeSync contributors"
+    url: "https://github.com/GazeLei/GazeSync/tree/main/paper"
+    notes: "Implementation draft 0.3.0; author list to be finalized; arXiv submission pending."

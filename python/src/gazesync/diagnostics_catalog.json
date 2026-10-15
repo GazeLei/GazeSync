@@ -1,0 +1,102 @@
+{
+  "SOURCE_UNREGISTERED": {
+    "severity": "warning",
+    "message": "Source metadata is missing.",
+    "remedy": "Register a source descriptor before its first sample."
+  },
+  "EYE_UNSPECIFIED": {
+    "severity": "info",
+    "message": "The observation does not identify an eye.",
+    "remedy": "Declare left, right or combined when the source provides that identity; never infer it from coordinates."
+  },
+  "CONFIDENCE_UNAVAILABLE": {
+    "severity": "info",
+    "message": "The source supplies validity without a scalar confidence.",
+    "remedy": "Keep confidence null and use the source validity flag; do not manufacture a probability."
+  },
+  "SOURCE_RATE_DEVIATION": {
+    "severity": "warning",
+    "message": "Observed capture cadence differs from the declared rate.",
+    "remedy": "Inspect missing samples, source configuration and timestamp units. Register a new source ID for a changed acquisition profile."
+  },
+  "SOURCE_GAP": {
+    "severity": "warning",
+    "message": "A capture gap exceeds the expected sampling interval.",
+    "remedy": "Keep the gap in the recording; inspect tracker loss or transport buffering."
+  },
+  "OUT_OF_ORDER": {
+    "severity": "info",
+    "message": "A sample arrived behind a newer capture timestamp.",
+    "remedy": "Use capture timestamps and an appropriate reorder/history budget; do not replace them with receipt time."
+  },
+  "PRESENTATION_GAP": {
+    "severity": "warning",
+    "message": "Per-frame presentation logging contains a timing gap.",
+    "remedy": "Record each displayed intermediate state or explicitly choose change-only logging for a static state."
+  },
+  "HISTORY_EXPIRED": {
+    "severity": "warning",
+    "message": "The required presentation history is unavailable.",
+    "remedy": "Increase maxFrames or persist the complete source log for offline reconstruction."
+  },
+  "CLOCK_UNCERTAIN": {
+    "severity": "warning",
+    "message": "Clock uncertainty exceeds the configured bound.",
+    "remedy": "Measure clock alignment and drift or set a justified tolerance; do not guess the offset."
+  },
+  "FUTURE_CAPTURE": {
+    "severity": "error",
+    "message": "Capture time is later than receipt beyond its uncertainty.",
+    "remedy": "Check seconds/milliseconds/microseconds and the clock origin before using this source."
+  },
+  "SURFACE_MISMATCH": {
+    "severity": "warning",
+    "message": "The exposure-time layout epoch does not match the retained surface.",
+    "remedy": "Tag samples with layout context at exposure and record orientation/window changes."
+  },
+  "GEOMETRY_UNAVAILABLE": {
+    "severity": "warning",
+    "message": "A 3D observation cannot be projected into the registered display.",
+    "remedy": "Provide measured origin, coordinate frame and display pose. A direction alone cannot establish a display crossing."
+  },
+  "RECORDING_TRUNCATED": {
+    "severity": "warning",
+    "message": "The in-memory raw log has reached its retention limit.",
+    "remedy": "Persist source chunks before rollover or use a larger explicit recording budget."
+  },
+  "BINOCULAR_PARTIAL": {
+    "severity": "info",
+    "message": "A declared binocular capture contains a missing or invalid eye.",
+    "remedy": "Retain independent validity for each eye; do not fill one eye from the other or from a fused estimate."
+  },
+  "SURFACE_REGISTRATION_REQUIRED": {
+    "severity": "warning",
+    "message": "Scene-camera coordinates have no declared mapping to the stimulus surface.",
+    "remedy": "Use registered surface data, an explicit calibrated mapping, or a measured 3D display plane."
+  },
+  "VENDOR_TIMESTAMP_ESTIMATE": {
+    "severity": "info",
+    "message": "The vendor timestamp is an estimate rather than a verified exposure time.",
+    "remedy": "Preserve the timestamp provenance and measure its uncertainty for the experiment."
+  },
+  "CALLBACK_FAILED": {
+    "severity": "warning",
+    "message": "A diagnostics callback raised an exception.",
+    "remedy": "Handle errors in the observer; diagnostic delivery must not interrupt data acquisition."
+  },
+  "REUSED_EYE_SAMPLE": {
+    "severity": "info",
+    "message": "A vendor binocular packet reused an already emitted eye sample.",
+    "remedy": "Keep one independent observation per eye exposure; retain the vendor aggregate separately if required."
+  },
+  "DISPLAY_LAYOUT_REQUIRED": {
+    "severity": "warning",
+    "message": "Full-display gaze has no recorded display-to-viewport layout.",
+    "remedy": "Record display dimensions and the viewport offset in consistent logical units."
+  },
+  "EXPOSURE_TIME_REQUIRED": {
+    "severity": "warning",
+    "message": "Only host receipt time is available for this source.",
+    "remedy": "Preserve the original capture timestamp. Receipt-only records are retained but excluded from capture-time attention analysis."
+  }
+}
