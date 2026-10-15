@@ -1,0 +1,499 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,tabularx,array,enumitem,xcolor,tikz,listings}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[colorlinks=true,linkcolor=teal!55!black,citecolor=teal!55!black,urlcolor=teal!55!black]{hyperref}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small GazeSync: technical extension}
+\fancyhead[R]{\small Draft -- 15 October 2026}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+\setlength{\emergencystretch}{2em}
+\setlist{itemsep=2pt,topsep=4pt}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,columns=fullflexible,frame=single,rulecolor=\color{black!15},backgroundcolor=\color{black!2},xleftmargin=2mm,xrightmargin=2mm,showstringspaces=false}
+\newcommand{\code}[1]{\texttt{#1}}
+\hypersetup{pdftitle={GazeSync: Capture-Time Reconstruction of 2D and 3D Gaze during Desktop and Mobile View Manipulation},pdfauthor={GazeSync authors}}
+
+\title{\textbf{GazeSync: Capture-Time Reconstruction of 2D and 3D Gaze during Desktop and Mobile View Manipulation}}
+\author{\small Yaxiong Lei$^{1,2}$, Rishab Talwar$^1$, Shijing He$^3$, Xinya Gong$^1$,\\
+\small Yuheng Wang$^1$, Xudong Cai$^3$, Zhongliang Guo$^1$, Juan Ye$^1$\\[4pt]
+\footnotesize $^1$University of St Andrews, UK\quad $^2$University of Essex, UK\\
+\footnotesize $^3$King's College London, UK}
+\date{Technical report draft, 15 October 2026\\\small Implementation 0.2.0; recording schema 1.1}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Gaze on a screen acquires a different content location whenever a person pans,
+zooms or rotates the displayed material. The original GazeSync system addressed
+this problem through synchronized mobile gaze and image-transform logging.
+This report develops its software contribution into a standalone framework for
+desktop and mobile interaction, two-dimensional points of gaze, and
+three-dimensional eye-origin rays. The implementation distinguishes sensor
+exposure, input, presentation and delivery times; joins samples to the
+presentation history of the correct surface; and reconstructs content coordinates
+using an explicit affine transform and, when available, registered display-plane
+geometry. Clock uncertainty, tracking validity and incomplete history remain
+observable in the recording. A source audit identified and repaired errors in
+gesture interruption, surface selection, numerical conditioning, record ingestion,
+replay and distribution boundaries. Forty-seven automated tests, strict TypeScript
+consumer checks and seeded desktop/mobile scenarios verify software behavior.
+For the default scenarios, all 4,196 source records use the expected capture-time
+frame, with exact replay and numerical reconstruction residuals below
+$10^{-12}$ logical pixels. These values quantify reconstruction of synthetic
+measurements, not physical gaze accuracy. We specify the additional timing,
+geometry and participant measurements needed before making device-level claims,
+and describe preparation for a separately maintained public repository.
+\end{abstract}
+
+\noindent\textbf{Keywords:} gaze synchronization; content-relative attention;
+pan and zoom; 3D gaze rays; reproducible simulation; research software.
+
+\vspace{5pt}
+\noindent\small\textit{Draft status.} This report extends the CHI EA 2026 GazeSync
+paper~\cite{gazesync}. The author list is carried forward from that manuscript for
+author review. The new report has no publication DOI or acceptance claim.
+The code license and public repository identity remain undecided; publication
+is disabled.\normalsize
+
+\section{Introduction}
+Visual attention is often analyzed relative to an image, map or document. During
+interactive exploration, the screen and the content are different coordinate
+systems: a fixation at one screen location may correspond to many content
+locations as the view changes. This distinction becomes a timing problem when
+the eye tracker delivers a result after the interface has already changed.
+Pairing that result with the current view can introduce a reconstruction error
+even if the eye-tracking measurement itself is accurate.
+
+The original GazeSync~\cite{gazesync} combined a Flutter iOS interface, a
+commercial on-device gaze SDK and a local logging server. Its active manuscript
+describes a paired callback read of the current transform, a nearest-state merge
+within 50\,ms, and inverse-transform analysis. Its formative study involved three
+participants and twelve tasks, and reported calibration drift and failures under
+rapid compound transformations. Those observations motivate a more explicit
+temporal and geometric contract. They do not establish the accuracy of the new
+implementation reported here.
+
+This extension contributes: (1) a portable gaze/view recording contract with
+separate exposure, input, presentation and arrival times; (2) source-clock and
+surface histories with quality-tagged 2D/3D reconstruction; (3) shared desktop
+and mobile interaction logic with replayable synthetic scenarios; and (4) an
+audited implementation and a controlled path to independent distribution.
+The core has no runtime dependencies. Browser input is implemented; native SDK
+adapters and a physical validation campaign are future integration work.
+
+\section{Relationship to prior work}
+GazeSync's original contribution is content-relative attention analysis during
+touch manipulation~\cite{gazesync}. This extension retains that objective and
+makes the timestamp and coordinate assumptions inspectable at the API boundary.
+It introduces a reusable software implementation rather than another gaze
+estimator. Table~\ref{tab:extension} separates the two systems' capabilities and
+evidence.
+
+Gaze-supported interaction is a related but different use of the signal.
+Stellmach and Dachselt~\cite{stellmach} examined gaze combined with wheel,
+touch and tilt controls, including intentional activation to avoid unwanted
+actions. The present controller observes gaze independently of its manual input
+path. An application may supply a gaze-derived zoom anchor through an explicit
+command, but no dwell activation or automatic gaze steering is enabled by default.
+
+Wenclik and Touya~\cite{wenclik} describe map-viewing patterns that include
+attention near the pointer during zoom-in, surrounding context during zoom-out,
+and relatively screen-fixed attention during panning. Our simulator includes
+these distinct cases and content-landmark fixation. Their observations do not
+justify one universal behavior model, and we do not transfer their findings into
+claims about phone timing or eye-tracker precision.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Scope of the extension. Prior-study results are not new evaluation data.}
+\label{tab:extension}
+\begin{tabularx}{\linewidth}{@{}p{0.17\linewidth}YY@{}}
+\toprule
+Aspect & Original GazeSync & This implementation \\
+\midrule
+Host & Flutter/iOS with local server & Standalone JavaScript core; browser adapter \\
+Gaze & SDK screen PoG & Typed 2D PoG or metric 3D ray \\
+Timing & Callback pairing and nearest merge within 50\,ms & Exposure-to-presentation history with clock uncertainty \\
+View & Image scale, rotation and translation & General affine snapshot; surface and content identities \\
+Interaction & Mobile content manipulation & Desktop wheel/box/keys; mobile pinch/pan/double tap \\
+Recording & Combined rows and analysis & Raw records, quality flags, versioned exact replay \\
+Evidence & Formative study, $N=3$ & Software audit, regression tests and synthetic scenarios \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{System architecture and contracts}
+The system separates input interpretation, rendering, source adaptation,
+synchronization and analysis (Figure~\ref{fig:architecture}). A
+\code{ZoomController} emits timestamped input events and proposes a view. The
+host renders that view and records what it actually submitted. A tracker adapter
+retains the sensor's exposure timestamp, converts its clock, and delivers the
+measurement independently. A \code{GazeSession} reconstructs attention from the
+recorded presentation history.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\small,box/.style={draw=teal!55!black,fill=teal!4,rounded corners,align=center,minimum height=11mm,text width=33mm},arr/.style={-{Latex[length=2mm]},thick,draw=teal!60!black}]
+\node[box] (input) {Mouse, keyboard\\or touch};
+\node[box,right=6mm of input] (view) {Controller and\\host renderer};
+\node[box,right=6mm of view] (history) {Per-surface\\presentation history};
+\node[box,below=8mm of input] (eye) {2D PoG or\\3D ray adapter};
+\node[box,right=6mm of eye] (clock) {Clock mapping\\and reorder buffer};
+\node[box,right=6mm of clock] (join) {Capture-time join\\and reconstruction};
+\node[box,below=8mm of join] (output) {Quality-tagged gaze\\and raw replay log};
+\draw[arr] (input)--(view); \draw[arr] (view)--(history);
+\draw[arr] (eye)--(clock); \draw[arr] (clock)--(join);
+\draw[arr] (history)--(join); \draw[arr] (join)--(output);
+\end{tikzpicture}
+\caption{Implemented data flow. Rendering and tracking have independent rates.
+The join uses recorded exposure and presentation times. A renderer callback is
+an estimate of presentation time, not a measurement of photon onset.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Identities and units}
+Every sample contains a source ID, sample ID, clock ID and clock epoch, surface
+ID and layout epoch, timestamp, validity and confidence. Calibration identifiers
+may accompany it. A presentation contains the view dimensions, intrinsic content
+dimensions, content ID, affine matrix, surface metadata and causal input IDs.
+Content IDs distinguish stimuli with identical geometry. Separate surface indexes
+prevent one display's frame from being selected for another display's sample.
+Controllers sharing a session use distinct input-ID prefixes.
+
+Viewport coordinates have a top-left origin, with $+x$ right and $+y$ down.
+Units are logical pixels, or native points after an explicit adapter conversion.
+Canvas backing resolution and device pixel ratio are rendering concerns.
+Intrinsic content coordinates use the image or document's own units.
+World-frame ray origins and display dimensions use meters. Coordinate frames,
+mirroring and extrinsics must be provided by the adapter; they are never inferred
+from the existence of a 2D PoG.
+
+\subsection{Host integration and interaction}
+Desktop wheel input zooms at the pointer and normalizes pixel, line and page wheel
+units. Drag pans; Shift-drag or box mode fits a selection while preserving aspect
+ratio. Home, Ctrl/Cmd+0 and the reset button restore the original fit. Escape
+cancels an active gesture and otherwise resets. Keyboard and button commands
+interrupt an active drag so its old baseline cannot overwrite the new view.
+
+For mobile input, the change in contact separation controls scale and the moving
+midpoint controls pan. Lifting one contact rebases the remaining pan at the current
+view. Double tap toggles between fit and a magnified view. Cancellation, lost
+capture, blur and layout change clear active gestures. Zoom limits and content
+bounds are explicit; edge constraints may prevent exact pivot preservation.
+The browser adapter follows Pointer Events semantics~\cite{pointerevents} and
+preserves embedded input controls and the lifecycle of its owning document.
+
+The built-in controller implements pan and zoom. A host may submit the complete
+affine of its own rotation, animation or inertia engine; every visible intermediate
+state then needs a presentation record. The canvas example records an inactive
+boundary on backgrounding even when animation callbacks stop. Native execution
+can reuse the serialized contract, but this release does not supply a Swift,
+Kotlin or Flutter binary package.
+
+\section{Temporal reconstruction}
+\subsection{Four distinct times}
+We retain sensor exposure $t_s$, input-command time $t_i$, presentation time
+$t_p$ and receipt time $t_r$. Alignment itself has a further output timestamp.
+For clock epoch $e$, the adapter supplies a frozen affine conversion:
+\begin{equation}
+t_c=b_e+r_e(t_s-a_e),
+\label{eq:clock}
+\end{equation}
+where $a_e$ is a source-clock anchor, $b_e$ its session-clock counterpart, and
+$r_e$ the clock-rate ratio. All canonical timestamps are monotonic milliseconds.
+A reconnection or revised clock fit uses a new epoch. Browser monotonic timing
+follows the High Resolution Time model~\cite{hrtime}; an epoch wall clock is not
+silently interchangeable with that clock.
+
+The implementation carries a configurable clock uncertainty, a drift term that
+grows with distance from the clock anchor, and a conservative floating-point
+conversion term. These are engineering bounds supplied or measured by the host,
+not a clock calibration algorithm. Network arrival time cannot replace exposure
+time, and network round trips alone do not identify one-way delay.
+
+\subsection{Surface-specific history and watermark}
+Let $\mathcal{H}_s$ be the ordered presentation history for surface $s$. A sample
+at canonical exposure time $t_c$ uses
+\begin{equation}
+j^*=\operatorname*{arg\,max}_{j:\,s_j=s,\ t^p_j\leq t_c}
+          (t^p_j,\operatorname{sequence}_j).
+\label{eq:join}
+\end{equation}
+The last submitted presentation wins a timestamp tie. A snapshot applies from
+its presentation time until its successor. Input commands do not directly replace
+that history: several commands may be coalesced into one rendered frame.
+
+A call \code{flush(h)} declares that all presentations through $h$ have been
+submitted. Later insertion at or before that watermark is rejected. Normal
+samples are held back by the greater of the reorder window and the accepted clock
+uncertainty limit. Ready samples are ordered by capture time within a flush;
+later deliveries remain marked as late arrivals. A sample whose clock interval
+$[t_c-u_c,t_c+u_c]$ crosses a relevant visual change is marked ambiguous.
+Impossible future timestamps and samples with excessive clock uncertainty are
+quarantined promptly instead of filling the pending buffer indefinitely.
+
+Histories, pending samples and recordings have explicit retention bounds. A late
+sample can still be reconstructed if its history remains available; otherwise
+it receives a missing-history flag. No interpolation is performed across a reset,
+epoch transition, blink or missing interval. The 60\,ms reorder window, 8\,ms
+clock-uncertainty gate and 50\,ms pose-age gate are configurable software defaults,
+not empirically established acceptance criteria for a particular tracker.
+
+\subsection{Why arrival-time pairing fails}
+With a fixed viewport observation $p_v$, the content reconstruction at time $t$ is
+$M(t)^{-1}p_v$. Away from discontinuities, using a time displaced by $\Delta t$
+introduces a first-order term proportional to
+\begin{equation}
+\left\|\frac{d M(t)^{-1}}{dt}p_v\right\|\,|\Delta t|.
+\end{equation}
+This expression explains why a fixed delay produces larger errors during rapid
+view change. At a reset or other discontinuity the derivative model does not
+apply; the presentation interval must be selected explicitly. This motivates
+history-based reconstruction rather than unrestricted nearest-event matching.
+
+\section{Spatial reconstruction and quality}
+\subsection{2D PoG and the content transform}
+The adapter declares viewport coordinates, normalized viewport coordinates, or
+normalized full-display coordinates. Full-display input requires recorded display
+dimensions and the viewport offset in consistent units. The content-to-viewport
+affine is stored directly as six coefficients:
+\begin{equation}
+M=\begin{bmatrix}a&c&e\\b&d&f\\0&0&1\end{bmatrix},\qquad
+\widetilde p_c=M^{-1}\widetilde p_v.
+\end{equation}
+This representation includes intrinsic sizing, letterboxing, pivots, scale,
+rotation and translation in one transform. It avoids applying a widget offset or
+scale twice. Values outside the viewport are retained and flagged instead of
+clipped into apparently valid attention.
+
+The audit replaced an absolute determinant threshold with a scale-normalized
+conditioning check. For the linear block $A$, let $m$ be its largest absolute
+coefficient. The implementation rejects non-finite or sufficiently small
+$\det(A/m)$, using $32\epsilon$ as its numerical threshold. A uniformly small,
+well-conditioned transform can therefore be inverted. Each accepted frame caches
+its inverse; per-sample reconstruction does not repeat the inversion.
+
+\subsection{3D rays and a registered display}
+A 3D sample supplies an eye origin $O$ and direction $D$ in an explicit frame.
+The display plane supplies top-left point $P$, orthonormal right/down axes
+$u,v$, and metric width and height $w_m,h_m$. After robustly normalizing $D$,
+the forward intersection is
+\begin{equation}
+n=u\times v,\qquad
+\lambda=\frac{(P-O)\cdot n}{D\cdot n},\qquad Q=O+\lambda D.
+\end{equation}
+Zero, nearly parallel, backwards and non-finite cases do not fabricate a hit.
+For a viewport of width $W$ and height $H$,
+\begin{equation}
+x_v=W\frac{(Q-P)\cdot u}{w_m},\qquad
+y_v=H\frac{(Q-P)\cdot v}{h_m}.
+\end{equation}
+The same inverse content transform then applies. The result is a display-plane
+crossing, not a scene fixation or an inferred world depth. Independent eyes can
+use separate source IDs; the framework does not silently fuse them.
+
+Moving displays require a measured pose and its session timestamp. The current
+implementation uses the recorded pose associated with the selected presentation,
+checks its age, and does not interpolate unobserved motion between poses.
+The synthetic phone fixture includes translation, yaw and roll, but holds geometry
+between frame samples. Physical sub-frame motion remains an independent error
+source.
+
+\subsection{Validity and replay}
+Tracking validity, blinks, confidence, clocks, surface epochs, geometry, pose age,
+visibility and content bounds produce explicit quality flags. Late delivery is
+informational for offline reconstruction; a live overlay must also apply a
+capture-age limit and stop showing a pre-blink sample after a newer invalid one.
+The plotter orders samples by capture time and breaks traces across invalid data,
+large gaps and epoch changes.
+
+Inputs are validated as finite JSON data before mutating session state. Flushes
+commit only after alignment succeeds. Schema 1.1 records implementation version
+0.2.0, source clocks, configuration, raw records, total record count, retention
+loss and derived alignments. Exact replay requires the same implementation and
+checks consecutive record sequences and completeness. This detects inconsistent
+logs; it is not an authenticity signature. Version 0.1.0 logs require their
+original implementation until an explicit, provenance-preserving migration exists.
+
+\section{Software verification}
+\subsection{Audit and regressions}
+The audit examined the 0.1.0 core, input adapter, canvas example, simulator,
+recording path and distribution files. Seven new tests failed before repair:
+keyboard zoom during a drag, simultaneous surfaces, very small affine scale,
+malformed presentation metadata, validity/JSON input, far-future capture time and
+missing replay records. All pass after repair. Additional fixes address browser
+document ownership, untracked-contact cancellation, hidden-tab recording, typed
+simulation exports and misleading pass labels for empty results.
+
+The current suite contains 47 passing tests, including six full scenarios
+(desktop/mobile at seeds 1, 41 and 90210), analytic geometry cases, randomized
+affine round trips, quality gates, raw replay, HTTP serving and package contents.
+Strict TypeScript consumer checks cover all three public import paths and reject
+valid samples that omit their required measurement payload. These checks test
+the software contract; they do not establish general absence of bugs.
+
+\subsection{Synthetic protocol}
+Each default scenario lasts nine seconds, with 120\,Hz gaze and 60\,Hz display
+updates. Sensor and display sampling phases differ. The known tracker-clock rate
+is 1.00012 with an explicit offset. The injected per-axis Gaussian noise standard
+deviation is 0.45 logical pixels. Ordinary delivery delay is 28--63\,ms, with an
+additional 170\,ms delay on selected samples. Blinks and low-confidence intervals
+remain in the recording; background suspension creates a gap.
+
+The desktop script exercises wheel zoom in/out, pan, marquee zoom, cancellation,
+reset and resize. The mobile script includes pinch out/in with a moving midpoint,
+pinch-to-pan transition, double tap, cancellation, orientation change and
+background/resume. The gaze generator alternates content-landmark attention,
+screen-fixed pan attention, contextual scanning and reading-like fixation/saccade
+steps. The 35\,ms transition and other timing parameters are illustrative test
+assumptions, not a fitted human model.
+
+PoG and ray fixtures are generated from the same noisy display target. Their
+agreement tests projection consistency and must not be interpreted as agreement
+between independent trackers. Reconstruction residual is measured against the
+known noisy target transformed by the renderer's coefficients, then expressed
+in logical viewport pixels. Thus sensor noise is not incorrectly counted as a
+software reconstruction failure. A deliberately incorrect baseline uses the
+view at receipt time.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Default seed 41 results. Counts include both source representations.
+Pixel units are logical viewport pixels, not physical or original-image pixels.}
+\label{tab:results}
+\begin{tabularx}{\linewidth}{@{}Yrr@{}}
+\toprule
+Measure & Desktop & Mobile \\
+\midrule
+Presentation frames & 541 & 541 \\
+Expected/received gaze records & 2,158 & 2,038 \\
+Mapped records & 2,086 & 1,990 \\
+Quality-usable records & 2,062 & 1,966 \\
+Capture-frame mismatches & 0 & 0 \\
+Maximum reconstruction residual (px) & $7.17\times10^{-13}$ & $2.35\times10^{-13}$ \\
+Mean injected gaze error (px) & 0.576 & 0.577 \\
+P95 injected gaze error (px) & 1.135 & 1.143 \\
+Arrival-time baseline mean error (px) & 4.024 & 3.051 \\
+Arrival-time baseline P95 error (px) & 8.421 & 11.409 \\
+Replay of derived alignments & Exact & Exact \\
+Pending records at completion & 0 & 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The residuals in Table~\ref{tab:results} are numerical arithmetic error in a
+controlled fixture. They do not support a subpixel claim about a camera-based
+eye tracker. The arrival-time comparison tests an incorrect association policy
+under the same fixture; it is not a replication of the original human study.
+The pass predicate also rejects empty, unmapped, unpaired, incomplete or
+non-finite outcomes so zero error alone cannot certify a failed pipeline.
+
+\subsection{Performance observation}
+A separate in-process microbenchmark ingested and aligned 20,000 synthetic
+samples with retention rollover on Node.js 26.7.0, macOS ARM64. In one measured
+run it took 388.5\,ms (approximately 51,476 samples/s), with a 0.047\,ms P95
+two-sample batch time. The log retained 4,096 raw records and reported 35,905
+dropped records. The benchmark excludes camera inference, rendering, networking
+and persistence, and is not a real-time device guarantee. It demonstrates a
+reproducible measurement command rather than a comparison across implementations.
+Circular buffers and streaming persistence remain useful future work for long
+sessions; the current retention arrays still incur front-removal costs.
+
+\section{Independent distribution and reproducibility}
+The code is prepared for a new repository through an explicit file manifest.
+The npm archive uses a narrow shipping list. A source exporter copies the reviewed
+implementation, tests, demo, documentation, pinned development dependency and
+standalone CI workflow, and emits SHA-256 file hashes. It does not copy parent
+directories, Git history, remote configuration, recordings or unlisted reference
+archives. An optional report export copies only this self-contained manuscript
+and its build guide. The local demo server likewise serves only reviewed assets
+and rejects symlink escapes.
+
+The package is currently marked private and unlicensed by the maintainer's
+choice. No new public repository URL, software DOI or public release is claimed.
+The first release requires a code-license decision, separate review of report
+rights, contributor attribution and package/repository metadata. The npm
+configuration follows explicit file and export controls~\cite{npm}; consumer
+declarations are checked against the declared package entry points~\cite{typescript}.
+
+From the standalone source root, the verification entry points are:
+\begin{lstlisting}
+npm ci --ignore-scripts
+npm test
+npm run test:types
+npm run simulate -- --out artifacts/verification
+npm run replay -- artifacts/verification/mobile-session.json
+npm run release:check
+npm run bench
+\end{lstlisting}
+The independent CI definition targets Node 22, 24 and 26. The measurements in this
+draft were executed on Node 26.7.0; the other matrix entries are configured checks,
+not claimed local measurements. Generated raw sessions stay outside source control.
+
+\section{Limitations and next evaluation}
+The extension has no new participant study, no independent tracker-accuracy
+measurement and no measured photon-onset ground truth. The original three-person
+study remains prior evidence only. Replaying the same equations cannot validate
+camera calibration, an assumed extrinsic, or an unobserved phone pose. The browser
+adapter and phone-sized preview also do not prove behavior on every browser,
+touchscreen or operating system.
+
+A next evaluation should first measure exposure-to-session clock mapping and
+display onset with an external timing reference, reporting uncertainty and the
+latency distribution. It should then measure registered display geometry and
+held-out gaze targets under static views, zoom, pan and compound host transforms.
+Screen/content pixel error, angular ray error, temporal ambiguity, usable coverage
+and dropout should be reported separately. Calibration targets must remain
+separate from those used for assessment. Participant/session-separated tests
+should vary hold, distance, posture and repeated use, including the calibration
+drift highlighted by the original work.
+
+Engineering evaluation should cover desktop Chrome, Safari and Firefox, mobile
+Safari and Chrome, multi-surface operation, device-pixel-ratio changes,
+background/resume, cancellation and coarse timestamp resolution. Long-session
+tests should measure memory and recorder backpressure with real persistence.
+Native adapters, continuous pose reconstruction, automatic calibration and
+gaze-assisted control each need their own evidence before being described as
+supported accuracy improvements.
+
+\section{Conclusion}
+This report extends GazeSync with an inspectable capture-time contract for
+desktop/mobile view manipulation and 2D/3D gaze. The implementation records the
+source measurement, the relevant presentation history, geometric conventions
+and quality decisions needed to reconstruct content-relative attention. The
+audit found concrete defects and added executable regressions, while the
+simulation demonstrates how arrival-time association can fail under view change.
+Independent packaging and replay verification prepare the code for a separate
+repository. Physical timing, geometry and participant evaluation remain the next
+steps for turning software consistency into a measured device-level claim.
+
+\begin{thebibliography}{9}
+\raggedright
+\bibitem{gazesync} Y. Lei, R. Talwar, S. He, X. Gong, Y. Wang, X. Cai, Z. Guo,
+and J. Ye. 2026. GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual
+Attention on Dynamically Manipulated Content. \textit{CHI EA '26}.
+\href{https://doi.org/10.1145/3772363.3798725}{doi:10.1145/3772363.3798725}.
+\bibitem{wenclik} L. Wenclik and G. Touya. 2026. Staring at the pointer -- gaze
+behavior when people zoom and pan in maps. \textit{Cartography and Geographic
+Information Science}. \href{https://doi.org/10.1080/15230406.2026.2650276}{doi:10.1080/15230406.2026.2650276}.
+\bibitem{stellmach} S. Stellmach and R. Dachselt. 2012. Investigating
+Gaze-supported Multimodal Pan and Zoom. \textit{ETRA '12}.
+\href{https://imld.de/cnt/uploads/2013/07/2012-ETRA-GazeSuppPanAndZoom.pdf}{Author-hosted paper}.
+\bibitem{pointerevents} W3C. 2026. \textit{Pointer Events, Level 3}.
+\url{https://www.w3.org/TR/pointerevents3/}. Accessed 15 October 2026.
+\bibitem{hrtime} W3C. \textit{High Resolution Time, Level 3}.
+\url{https://www.w3.org/TR/hr-time-3/}. Accessed 15 October 2026.
+\bibitem{npm} npm. \textit{package.json: files, exports and private}.
+\url{https://docs.npmjs.com/cli/v11/configuring-npm/package-json/}.
+Accessed 15 October 2026.
+\bibitem{typescript} Microsoft. \textit{TypeScript Modules Reference:
+package.json exports}. \url{https://www.typescriptlang.org/docs/handbook/modules/reference.html}.
+Accessed 15 October 2026.
+\end{thebibliography}
+\end{document}

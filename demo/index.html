@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GazeSync · Interaction Lab</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./"
+        ><span class="eye-mark" aria-hidden="true"><i></i></span> GazeSync
+        <span>/ Interaction Lab</span></a
+      >
+      <div class="top-actions">
+        <span class="local-badge"><i></i> Local simulation</span
+        ><a href="../README.md" target="_blank">Developer guide ↗</a>
+      </div>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">INTERACTION LAB <span>01 / GAZE & ZOOM</span></p>
+          <h1>Gaze, in context.</h1>
+          <p class="lede">
+            Follow attention through every zoom. Explore desktop and mobile
+            interactions<br class="wide-only" />
+            with 2D points of gaze, 3D rays, and one synchronized timeline.
+          </p>
+        </div>
+        <div class="intro-note">
+          <span class="mini-line"></span> Same content.<br />Every scale. Every
+          sample.
+        </div>
+      </section>
+      <div class="workspace">
+        <section class="viewer-card" aria-label="Interactive simulation">
+          <div class="viewer-toolbar">
+            <div class="segmented" aria-label="Device">
+              <button id="desktop" aria-pressed="true">▰ Desktop</button
+              ><button id="mobile" aria-pressed="false">▯ Mobile</button>
+            </div>
+            <div class="viewer-actions">
+              <span id="run-label" class="run-label">DETERMINISTIC REPLAY</span
+              ><button id="export" class="quiet-button">
+                Export session ↓
+              </button>
+            </div>
+          </div>
+          <div class="stage" id="stage">
+            <div class="device" id="device">
+              <div class="device-top">
+                <span class="window-dots">● ● ●</span
+                ><span id="surface-label">MERIDIAN / VIRTUAL DESKTOP</span
+                ><span class="device-clock">09:41</span>
+              </div>
+              <canvas
+                id="scene"
+                tabindex="0"
+                aria-label="Zoomable map. In Try it mode: wheel to zoom, drag to pan, Shift-drag for box zoom, Home to reset. On touchscreens pinch to zoom and double tap to reset."
+              ></canvas>
+              <div class="device-bottom">
+                <span id="interaction-label">Find a stable landmark</span
+                ><span id="zoom-badge">1.00×</span>
+              </div>
+            </div>
+            <span class="stage-caption" id="stage-caption"
+              >1080 × 680 virtual viewport · intrinsic content 1600 × 1100</span
+            >
+          </div>
+          <div class="playbar">
+            <button id="play" class="primary-button">▶ Play scenario</button
+            ><button id="manual" class="secondary-button">
+              Try it yourself
+            </button>
+            <div class="progress-group">
+              <label class="sr-only" for="scrub">Replay time</label
+              ><input
+                id="scrub"
+                type="range"
+                min="0"
+                max="9000"
+                value="0"
+                step="10"
+              /><span id="play-time">0.00 / 9.00 s</span>
+            </div>
+          </div>
+          <div class="interaction-tools">
+            <div class="tool-group">
+              <button id="pan" aria-pressed="true">↔ Pan</button
+              ><button id="box" aria-pressed="false">▧ Box zoom</button
+              ><span></span><button id="minus" aria-label="Zoom out">−</button
+              ><button id="plus" aria-label="Zoom in">+</button
+              ><button id="reset">↺ Original</button>
+            </div>
+            <p id="help">Wheel to zoom · Shift-drag a box · Home to reset</p>
+          </div>
+        </section>
+        <aside class="inspector">
+          <section class="signal-card">
+            <div class="card-heading">
+              <h2>Eye signal</h2>
+              <span class="sim-tag">SIMULATED</span>
+            </div>
+            <label for="signal">Signal representation</label
+            ><select id="signal">
+              <option value="both">2D PoG + 3D ray</option>
+              <option value="pog2d">2D point of gaze</option>
+              <option value="ray3d">3D gaze ray</option>
+            </select>
+            <div class="legend">
+              <span><i class="dot green"></i> 2D PoG</span
+              ><span><i class="dot amber"></i> 3D display crossing</span>
+            </div>
+            <div class="quality">
+              <span id="quality-dot" class="status-dot"></span>
+              <div>
+                <strong id="quality">Ready to replay</strong
+                ><small id="quality-detail"
+                  >120 Hz eye signal / 60 Hz display</small
+                >
+              </div>
+              <span class="wave">▂▅▃▇▅</span>
+            </div>
+            <dl class="metrics">
+              <div>
+                <dt>View scale</dt>
+                <dd id="metric-zoom">1.00×</dd>
+              </div>
+              <div>
+                <dt>Delivery delay</dt>
+                <dd id="metric-delay">— <small>ms</small></dd>
+              </div>
+              <div>
+                <dt>Captured at</dt>
+                <dd id="metric-time">— <small>ms</small></dd>
+              </div>
+              <div>
+                <dt>Content location</dt>
+                <dd id="metric-point">—, —</dd>
+              </div>
+            </dl>
+            <div class="ray-readout">
+              <p>3D RAY <span>WORLD FRAME / METERS</span></p>
+              <code id="ray-origin">origin [ 0.000, 0.008, 0.600 ]</code
+              ><code id="ray-direction">direction [ —, —, — ]</code
+              ><small
+                >Intersection with the display plane. Scene depth is a separate
+                measurement.</small
+              >
+            </div>
+          </section>
+          <section class="checks-card">
+            <div class="card-heading">
+              <h2>Scenario checks</h2>
+              <span class="check-badge">PASS</span>
+            </div>
+            <div class="check-row">
+              <span>Capture-time frame matches</span
+              ><strong id="check-frames">100%</strong>
+            </div>
+            <div class="check-row">
+              <span>2D / 3D agreement</span
+              ><strong id="check-pair">&lt; 0.0001 px</strong>
+            </div>
+            <div class="check-row">
+              <span>Replay from raw records</span
+              ><strong id="check-replay">Exact</strong>
+            </div>
+            <p id="check-note">
+              Software checks use known synthetic ground truth.
+            </p>
+          </section>
+        </aside>
+      </div>
+      <section class="timeline-card">
+        <div class="timeline-header">
+          <div>
+            <p class="eyebrow">ONE CLOCK, TWO STREAMS</p>
+            <h2>Attention meets interaction.</h2>
+          </div>
+          <div class="timeline-legend">
+            <span><i class="line green"></i> Gaze x / viewport</span
+            ><span><i class="line navy"></i> View scale</span
+            ><span><i class="event-key"></i> Input event</span>
+          </div>
+        </div>
+        <canvas
+          id="timeline"
+          aria-label="Time series of gaze position, view scale, and screen input events"
+        ></canvas>
+        <div class="timeline-foot">
+          <span id="event-detail"
+            >Select Play scenario to inspect the synchronized sequence.</span
+          ><span>CAPTURE → PRESENTATION HISTORY → CONTENT</span>
+        </div>
+      </section>
+      <footer>
+        <p>
+          <span class="dot green"></span> Synthetic high-accuracy gaze, with
+          noise, blinks, latency, and out-of-order delivery.<br />These checks
+          verify software behavior; they do not establish physical tracking
+          accuracy.
+        </p>
+        <a href="../README.md#research-and-design-decisions" target="_blank"
+          >Research & design decisions ↗</a
+        >
+      </footer>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

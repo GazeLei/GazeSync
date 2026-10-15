@@ -1,0 +1,14 @@
+node_modules/
+artifacts/
+coverage/
+build/
+*.tgz
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+.DS_Store
+.env
+.env.*
