@@ -27,3 +27,6 @@ python/dist/
 paper/main.pdf
 
 .ruff_cache/
+
+*.blend1
+*.blend2

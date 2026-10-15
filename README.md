@@ -130,11 +130,38 @@ sources are included in [the implementation paper](paper/README.md).
 
 ## Citation, licensing and release
 
-Please cite the original [GazeSync CHI EA paper](https://doi.org/10.1145/3772363.3798725)
-and the implementation report when using this framework. [CITATION.bib](CITATION.bib)
-contains both entries. The implementation arXiv identifier is pending and is
-explicitly unset in [paper metadata](paper/metadata.json); the draft is cited by
-repository URL until that identifier exists.
+Please cite both papers when using this framework. The original paper describes
+the mobile GazeSync system; the implementation report describes this package,
+its geometry and its verification.
+
+**Original GazeSync paper**
+
+```bibtex
+@inproceedings{lei2026gazesync,
+  title = {{GazeSync}: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content},
+  author = {Lei, Yaxiong and Talwar, Rishab and He, Shijing and Gong, Xinya and Wang, Yuheng and Cai, Xudong and Guo, Zhongliang and Ye, Juan},
+  booktitle = {Proceedings of the Extended Abstracts of the 2026 CHI Conference on Human Factors in Computing Systems},
+  pages = {1--7},
+  year = {2026},
+  doi = {10.1145/3772363.3798725}
+}
+```
+
+**Implementation report**
+
+```bibtex
+@misc{gazesync2026implementation,
+  title = {{GazeSync}: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking},
+  author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
+  year = {2026},
+  howpublished = {Implementation report draft, version 0.4.0},
+  url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
+  note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
+}
+```
+
+The implementation preprint's arXiv identifier is pending; the draft entry uses
+the repository URL. Both entries are also maintained in [CITATION.bib](CITATION.bib).
 
 The code is **GPL-3.0-only**. [LICENSE](LICENSE) contains the terms;
 [NOTICE](NOTICE) distinguishes manuscript rights and separately licensed SDKs.

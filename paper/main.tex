@@ -14,6 +14,9 @@
 \acmDOI{}\acmISBN{}\acmConference{}{}{}\acmYear{2026}
 \hypersetup{colorlinks=true,linkcolor=GSBlue,citecolor=GSBlue,urlcolor=GSBlue}
 \setlength{\emergencystretch}{1.5em}
+\captionsetup{font=small,labelfont=bf,textfont=normalfont}
+\renewcommand{\arraystretch}{1.12}
+\setlength{\tabcolsep}{4pt}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcommand{\code}[1]{\texttt{#1}}
 \lstset{basicstyle=\ttfamily\scriptsize,breaklines=true,columns=fullflexible,showstringspaces=false,frame=single,rulecolor=\color{black!15},backgroundcolor=\color{black!2},xleftmargin=1mm,xrightmargin=1mm}
@@ -21,19 +24,10 @@
 \title[GazeSync: Screen Interaction and Multi-Source Eye Tracking]{GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking}
 \settopmatter{authorsperrow=4}
 \author{Yaxiong Lei}
-\authornote{Working author list for review. Implementation report draft, 15 October 2026; not an accepted conference paper. Implementation arXiv submission pending.}
 \affiliation{\institution{University of St Andrews and University of Essex}\city{St Andrews / Colchester}\country{United Kingdom}}
-\author{Rishab Talwar}
-\affiliation{\institution{University of St Andrews}\city{St Andrews}\country{United Kingdom}}
 \author{Shijing He}
 \affiliation{\institution{King's College London}\city{London}\country{United Kingdom}}
 \author{Xinya Gong}
-\affiliation{\institution{University of St Andrews}\city{St Andrews}\country{United Kingdom}}
-\author{Yuheng Wang}
-\affiliation{\institution{University of St Andrews}\city{St Andrews}\country{United Kingdom}}
-\author{Xudong Cai}
-\affiliation{\institution{King's College London}\city{London}\country{United Kingdom}}
-\author{Zhongliang Guo}
 \affiliation{\institution{University of St Andrews}\city{St Andrews}\country{United Kingdom}}
 \author{Juan Ye}
 \affiliation{\institution{University of St Andrews}\city{St Andrews}\country{United Kingdom}}
@@ -63,8 +57,8 @@ before making end-to-end accuracy claims.
 \keywords{eye tracking, temporal synchronization, pan and zoom, binocular gaze, reproducibility, research software}
 \begin{teaserfigure}
 \includegraphics[width=\textwidth]{architecture.pdf}
-\caption{GazeSync separates screen presentation and eye-tracking acquisition until capture-time reconstruction. Input commands describe intent; the host records the view actually rendered. Each eye retains its timestamp, coordinate convention and validity. The same recording contract drives Python and TypeScript.}
-\Description{Two independent streams, screen interaction and eye observations, feed presentation history and source-clock mapping. Both enter capture-time reconstruction, yielding content-relative attention, raw records, diagnostics and replay.}
+\caption{GazeSync links natural interaction to content-relative attention. (A) Desktop and mobile views change through mouse, keyboard and touch input. (B) Each eye retains independent timestamps; the screen state at capture, $M_1$, is selected despite later delivery. (C) Gaze is reconstructed on the original content, with raw records and quality decisions retained. The map views and sample paths are schematic.}
+\Description{Three panels show a desktop monitor and pinch gesture on a phone; a timeline of rendered views with separate left/right samples and delayed receipt; and two independent sample paths reconstructed on the same original map.}
 \label{fig:architecture}
 \end{teaserfigure}
 \maketitle
@@ -114,17 +108,21 @@ frequencies without establishing that a particular device exposes accurate
 capture timestamps at those frequencies.
 
 \begin{table}[t]
-\caption{Implemented scope and evidence. ``Supported'' denotes a software contract, not certification of a device or browser.}
+\caption{Implemented contracts and their verification. Device calibration and physical validation remain host responsibilities.}
 \label{tab:scope}\small
-\begin{tabularx}{\columnwidth}{@{}p{.24\columnwidth}Y@{}}
+\begin{tabularx}{\columnwidth}{@{}p{.20\columnwidth}Y@{}}
 \toprule
-Layer & Capability and evidence \\
+\textbf{Layer} & \textbf{Contract and evidence} \\
 \midrule
-Interaction & Desktop and mobile controller; deterministic gesture regressions and browser adapter tests. \\
-Measurements & 2D PoG, 3D rays, direction-only records; independent and combined eyes with synthetic fixtures. \\
-Acquisition & Model and tracker record normalizers; SDKs, transports and physical calibration supplied by the host. \\
-Synchronization & Clock mapping, presentation history and uncertainty flags; known-clock synthetic experiments. \\
-Distribution & Python wheel/sdist and typed npm package; local installation checks, publication disabled. \\
+\textbf{Interaction} & Wheel, drag, box and keyboard; pinch and pan.\newline \emph{Evidence:} gesture and browser regressions. \\
+\addlinespace[3pt]
+\textbf{Signals} & 2D PoG, 3D rays and direction-only records; independent or combined eyes.\newline \emph{Evidence:} analytic and source fixtures. \\
+\addlinespace[3pt]
+\textbf{Alignment} & Capture-time presentation history, uncertainty and quality flags.\newline \emph{Evidence:} conformance and exact replay. \\
+\addlinespace[3pt]
+\textbf{Integration} & SDK-independent model and tracker records.\newline \emph{Evidence:} synthetic protocol fixtures. \\
+\addlinespace[3pt]
+\textbf{Distribution} & Python and TypeScript, zero runtime dependencies.\newline \emph{Evidence:} clean package installations. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -232,8 +230,8 @@ may still expire, producing an explicit history flag.
 
 \begin{figure*}[t]
 \includegraphics[width=\textwidth]{timing.pdf}
-\caption{A representative synthetic trace at 60\,Hz display, 240\,Hz input and 120\,Hz gaze per eye. (A) The same sample selects different display intervals at exposure and receipt. The shaded interval contains the true capture time. (B) Using receipt time produces content-reconstruction error during view change; capture-time residuals remain at numerical scale. The blink interval is missing data. Both panels are generated from saved simulation outputs, not a physical timing measurement.}
-\Description{Left: presentation ticks, one exposure and its later receipt, with different selected intervals. Right: an orange receipt-time residual varies over 800 milliseconds, whereas the green capture-time residual lies near zero. A blink interval is shaded.}
+\caption{Observed timing in the representative synthetic trace. (A) Capture and receipt fall in different presentation intervals. (B) Receipt-time association introduces reconstruction residuals during manipulation; capture-time residuals remain at numerical scale. The blank interval denotes a blink. This is a software fixture, not a physical timing measurement.}
+\Description{A three-lane timing diagram distinguishes display, exposure and receipt, separated by 45.4 milliseconds. The adjacent measured residual trace shows the receipt-time baseline and capture-time reconstruction, with a gap at the simulated blink.}
 \label{fig:timing}
 \end{figure*}
 
@@ -260,23 +258,31 @@ The host must document the origin, axis directions, handedness, units and time
 reference of each frame. Table~\ref{tab:origins} distinguishes origins that are
 easy to conflate during integration.
 
-\begin{table}[t]
-\caption{Coordinate origins used by the contract. The camera convention is an explicit example; vendor frames require their documented conversion. Eye labels are anatomical, not positions in a mirrored image.}
+\begin{table*}[t]
+\caption{Coordinate origins and conventions. Eye labels are anatomical. The optical-camera axes shown here are an explicit example; each vendor frame requires its documented conversion.}
 \label{tab:origins}\small
-\begin{tabularx}{\columnwidth}{@{}p{.18\columnwidth}Y@{}}
+\begin{tabularx}{\textwidth}{@{}p{.15\textwidth}p{.34\textwidth}Y@{}}
 \toprule
-Frame & Origin, axes and units \\
+\textbf{Frame} & \textbf{Origin} & \textbf{Convention and units} \\
 \midrule
-Camera $C$ & Optical centre; example $+x$ image-right, $+y$ down, $+z$ forward; metres. \\
-Eye $E_L,E_R$ & Each measured eye centre; eye-local zero requires a measured transform into $C$ or $W$. \\
-Reference $W$ & Host-defined reference; the analytic fixture uses active-display centre at the reference pose; metres. \\
-Screen $S$ & Active rectangle's top-left, excluding bezel; right/down/normal axes; metres. \\
-Display $D$ & Complete active display's top-left in its current orientation; logical pixels. \\
-Viewport $V$ & Stimulus region's top-left, at $(l,t)$ in $D$; logical pixels. \\
-Content $I$ & Intrinsic content origin before rendering; content units. \\
+\textbf{Camera} $C$ & Optical centre of the calibrated camera & Example: $+x$ image-right, $+y$ down, $+z$ forward; metres. \\
+\addlinespace[2pt]
+\textbf{Eye} $E_L,E_R$ & Each measured eye centre & Eye-local zero requires a measured transform into $C$ or $W$; metres. \\
+\addlinespace[2pt]
+\textbf{Reference} $W$ & A fixed, documented host reference & Here: active-display centre at the reference pose; metres. \\
+\addlinespace[2pt]
+\textbf{Screen} $S$ & Active rectangle's top-left, excluding bezel & Right $u$, down $v$, normal $u\times v$; metres. \\
+\midrule
+\textbf{Image} & Pixel origin specified by image calibration & The principal point $(c_x,c_y)$ is distinct from the optical centre; image pixels. \\
+\addlinespace[2pt]
+\textbf{Display} $D$ & Full active display's top-left & Axes follow the current display orientation; logical pixels. \\
+\addlinespace[2pt]
+\textbf{Viewport} $V$ & Stimulus region's top-left, at $(l,t)$ in $D$ & Parallel display/viewport axes for the offset mapping; logical pixels. \\
+\addlinespace[2pt]
+\textbf{Content} $I$ & Intrinsic origin of the untransformed content & The recorded matrix $M$ maps $I$ to $V$; content units. \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}
 
 The camera's optical centre differs from its image principal point, which is an
 intrinsic calibration parameter. A gaze ray's origin is the measured eye centre
@@ -377,8 +383,8 @@ vergence or an unmeasured camera-to-display transform.
 
 \begin{figure*}[t]
 \includegraphics[width=\textwidth]{geometry.pdf}
-\caption{Distinct origins and the audited projection chain. (A) The metric fixture separates the camera centre $C_W$, both eye origins $O_L,O_R$, active-panel top-left $P$ and display-centred reference origin $O_W$. Rays start at the eyes; camera extrinsics change their coordinates. The view is a schematic oblique projection. (B) A centre hit on the full display is $(960,540)$ in display coordinates and $(860,460)$ in the offset viewport. A full-display plane cannot be scaled directly to the cropped viewport. All values are synthetic calibration fixtures.}
-\Description{Left: a registered panel with different markers for top-left, panel centre, an off-axis camera above the panel and two eye origins in front of it. Both rays meet the panel centre. Right: a full display rectangle contains an offset smaller viewport and the same hit. Equations subtract the viewport offset from full-display coordinates.}
+\caption{Independent eyes retain separate origins. (A) A procedurally rendered metric scene separates the camera centre $C$, active-panel origin $P$, world origin $O_W$ and two eye origins $O_L,O_R$. Both rays meet the known centre target in this fixture without being fused. (B) A magnified cutaway makes the distinct eye centres visible; their separation is 64\,mm. (C) The same screen hit maps from $(960,540)$ in the full display to $(860,460)$ in the offset viewport. Eye anatomy and viewing perspective are illustrative; labelled origins and ray endpoints follow the shared numeric fixture.}
+\Description{A high-resolution three-dimensional scene shows a wire head reference, separate eye models, blue and orange rays, a physical screen and a calibrated camera above it. A cutaway detail exposes each eye centre. A separate diagram subtracts the viewport offset from full-display coordinates.}
 \label{fig:geometry}
 \end{figure*}
 
@@ -614,8 +620,8 @@ reconstruction residual. No human data are used in either simulation family.
 
 \begin{figure*}[t]
 \centering\includegraphics[width=\textwidth]{validation.pdf}
-\caption{Controlled rate experiment and overall software checks. (A) P95 residual when deliberately using the receipt-time frame, at fixed $1280\times720$, 240\,Hz input and independent binocular gaze; each cell is one seeded 800\,ms trace. Values are descriptive, without participant-level inference. (B) The 42 rate cells and 36 additional context cases yield 107,070 observations. Correct capture-time reconstruction has zero frame mismatches and numerical-scale residuals. The extra context cases are reported separately because viewport, rate and orientation vary together.}
-\Description{A six-by-seven heatmap reports receipt-time baseline error by display and gaze frequency. A separate panel lists 78 configurations, 107070 observations and zero frame mismatches, with a maximum numerical reconstruction residual of 7.85 times ten to the minus thirteen logical pixels.}
+\caption{Controlled residuals and implementation agreement. (A) Receipt-time baseline P95 residual for the 42 rate cells at fixed $1280\times720$ viewport and 240\,Hz input. (B) Empirical cumulative distribution of the maximum Python--TypeScript viewport discrepancy in each of the 78 cases, including exact-zero cases. The largest gap is $4.55\times10^{-13}$ logical pixels. Each case is deterministic; these results establish numerical consistency, not tracker accuracy.}
+\Description{A six-by-seven heatmap shows receipt-time residuals by display and gaze frequency. A cumulative plot shows per-case maximum Python versus TypeScript viewport discrepancies, all below 4.55 times ten to the minus thirteen logical pixels.}
 \label{fig:validation}
 \end{figure*}
 
@@ -644,28 +650,17 @@ repair an incorrect temporal association. Context-case baseline values are not
 pooled to infer frequency effects because dimensions and motions also differ.
 
 \begin{table}[t]
-\caption{Numerical consistency on the 78-case matrix. Units distinguish content coordinates from logical viewport pixels.}
+\caption{Numerical consistency across 78 deterministic cases. Spatial errors are logical viewport pixels or content units, as indicated; they are not physical tracking accuracy.}
 \label{tab:results}\small
-\begin{tabularx}{\columnwidth}{@{}Yr@{}}
-\toprule
-Measure & Observed result \\
-\midrule
-Expected / received observations & 107,070 / 107,070 \\
-Capture-frame mismatches & 0 \\
-Maximum reconstruction residual (px) & $7.85\times10^{-13}$ \\
-Maximum cross-language viewport difference (px) & $4.55\times10^{-13}$ \\
-Maximum cross-language content difference (units) & $4.55\times10^{-13}$ \\
-Maximum capture-time difference (ms) & 0 \\
-Exact within-implementation replay & 78 / 78 cases \\
-Pending observations after final drain & 0 \\
-\bottomrule
-\end{tabularx}
+\input{tables/validation.tex}
 \end{table}
 
 \section{Reproducibility and distribution}
 The repository contains strict TypeScript source, Python source, JSON schemas,
 synthetic fixtures, regression tests, a local interaction lab and figure scripts.
-The two libraries have no runtime dependencies. npm ships executable modules,
+The two libraries have no runtime dependencies. The visual assets use a separate
+procedural figure pipeline; an editable Blender scene and projected annotation
+anchors reproduce the 3D geometry figure without external meshes or photographs. npm ships executable modules,
 generated declarations and corresponding TypeScript source. Python ships a wheel
 and source distribution; SDKs, inference weights and private-project data are
 excluded. Clean installation tests run outside the checkout, including a wheel
@@ -739,7 +734,7 @@ next evidence for end-to-end claims.
 \begin{thebibliography}{10}
 \interlinepenalty=10000
 \raggedright
-\bibitem{gazesync} Yaxiong Lei, Rishab Talwar, Shijing He, Xinya Gong, Yuheng Wang, Xudong Cai, Zhongliang Guo, and Juan Ye. 2026. GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content. In \textit{Extended Abstracts of the CHI Conference on Human Factors in Computing Systems}. \url{https://doi.org/10.1145/3772363.3798725}
+\bibitem{gazesync} Yaxiong Lei, Rishab Talwar, Shijing He, Xinya Gong, Yuheng Wang, Xudong Cai, Zhongliang Guo, and Juan Ye. 2026. GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content. In \textit{Proceedings of the Extended Abstracts of the 2026 CHI Conference on Human Factors in Computing Systems}, 1--7. \url{https://doi.org/10.1145/3772363.3798725}
 \bibitem{stellmach} Sophie Stellmach and Raimund Dachselt. 2012. Investigating Gaze-supported Multimodal Pan and Zoom. In \textit{Proceedings of the Symposium on Eye Tracking Research and Applications (ETRA)}. \url{https://imld.de/cnt/uploads/2013/07/2012-ETRA-GazeSuppPanAndZoom.pdf}
 \bibitem{lsl} Christian Kothe, Seyed Yahya Shirazi, Tristan Stenner, David Medine, Chadwick Boulay, Matthew I. Grivich, Fiorenzo Artoni, Tim Mullen, Arnaud Delorme, and Scott Makeig. 2025. The lab streaming layer for synchronized multimodal recording. \textit{Imaging Neuroscience} 3. \url{https://doi.org/10.1162/IMAG.a.136}
 \bibitem{tobii} Tobii Pro. Coordinate systems and Python SDK documentation. \url{https://developer.tobiipro.com/commonconcepts/coordinatesystems.html}. Accessed 15 October 2026.

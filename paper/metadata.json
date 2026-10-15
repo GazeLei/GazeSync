@@ -2,8 +2,26 @@
   "title": "GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking",
   "status": "Implementation report draft; arXiv submission pending",
   "arxivId": null,
-  "authorsFinalized": false,
+  "authorsFinalized": true,
   "originalPaperDoi": "10.1145/3772363.3798725",
   "implementationVersion": "0.4.0",
-  "schemaVersion": "2.1"
+  "schemaVersion": "2.1",
+  "authors": [
+    {
+      "given": "Yaxiong",
+      "family": "Lei"
+    },
+    {
+      "given": "Shijing",
+      "family": "He"
+    },
+    {
+      "given": "Xinya",
+      "family": "Gong"
+    },
+    {
+      "given": "Juan",
+      "family": "Ye"
+    }
+  ]
 }
