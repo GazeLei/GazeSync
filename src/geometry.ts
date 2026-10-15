@@ -1,5 +1,7 @@
 import type {
   Affine,
+  RigidTransform,
+  Matrix3,
   Plane,
   Point,
   Ray,
@@ -246,7 +248,12 @@ export function validatePlane(p: Plane): Plane {
   return p;
 }
 
-/** A ray/plane crossing is a display crossing, never an inferred world fixation/depth. */
+/**
+ * Coordinates in the registered rectangle, whose logical dimensions are width/height.
+ * This two-sided geometric operation does not infer occlusion or physical visibility.
+ * It does not subtract a viewport's full-display offset.
+ * Directions point away from the measured eye origin; no camera-centre origin is inferred.
+ */
 export function projectRay(
   ray: Ray,
   plane: Plane | undefined,
@@ -286,4 +293,108 @@ export function projectRay(
   if (![...hit, result.point.x, result.point.y].every(Number.isFinite))
     return { reason: "non-finite-projection" };
   return result;
+}
+
+/** A named rigid change of coordinates: p_target = R * p_source + translation. */
+export function validateRigidTransform(
+  transform: RigidTransform,
+): RigidTransform {
+  for (const key of ["fromFrameId", "toFrameId"] as const)
+    if (typeof transform?.[key] !== "string" || !transform[key])
+      throw new TypeError(`${key} must identify a coordinate frame`);
+  const r = transform.rotation;
+  if (!Array.isArray(r) || r.length !== 9)
+    throw new TypeError("rotation must be a row-major 3x3 matrix");
+  r.forEach((n) => finite(n, "rotation coefficient"));
+  vector(transform.translation, "translation in metres");
+  if (transform.static !== undefined && typeof transform.static !== "boolean")
+    throw new TypeError("transform.static must be boolean");
+  const rows = [r.slice(0, 3), r.slice(3, 6), r.slice(6, 9)] as Vector3[];
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      if (Math.abs(dot(rows[i], rows[j]) - (i === j ? 1 : 0)) > 1e-6)
+        throw new RangeError(
+          "rotation must be orthonormal; scale and shear are not rigid transforms",
+        );
+  const determinant = dot(rows[0], cross(rows[1], rows[2]));
+  if (Math.abs(determinant - 1) > 1e-6)
+    throw new RangeError(
+      "rotation must have determinant +1; reflections require an explicit convention conversion",
+    );
+  return transform;
+}
+const rotate3D = (v: Vector3, r: Matrix3): Vector3 => [
+  dot(r.slice(0, 3) as Vector3, v),
+  dot(r.slice(3, 6) as Vector3, v),
+  dot(r.slice(6, 9) as Vector3, v),
+];
+
+export function transformPoint3D(
+  p: Vector3,
+  transform: RigidTransform,
+): Vector3 {
+  validateRigidTransform(transform);
+  vector(p, "source point");
+  return vector(
+    add(rotate3D(p, transform.rotation), transform.translation),
+    "transformed point",
+  );
+}
+
+/** A direction has homogeneous coordinate zero: translation must never be applied. */
+export function transformDirection3D(
+  direction: Vector3,
+  transform: RigidTransform,
+): Vector3 {
+  validateRigidTransform(transform);
+  vector(direction, "source direction");
+  return vector(
+    rotate3D(direction, transform.rotation),
+    "transformed direction",
+  );
+}
+
+export function transformRay(ray: Ray, transform: RigidTransform): Ray {
+  validateRigidTransform(transform);
+  if (ray.frameId !== transform.fromFrameId)
+    throw new Error("Ray frameId does not match transform.fromFrameId");
+  return {
+    frameId: transform.toFrameId,
+    origin: transformPoint3D(ray.origin, transform),
+    direction: transformDirection3D(ray.direction, transform),
+  };
+}
+
+export function transformPlane(plane: Plane, transform: RigidTransform): Plane {
+  validatePlane(plane);
+  validateRigidTransform(transform);
+  if (plane.frameId !== transform.fromFrameId)
+    throw new Error("Plane frameId does not match transform.fromFrameId");
+  return {
+    ...plane,
+    frameId: transform.toFrameId,
+    topLeft: transformPoint3D(plane.topLeft, transform),
+    right: transformDirection3D(plane.right, transform),
+    down: transformDirection3D(plane.down, transform),
+    static: plane.static === true && transform.static === true,
+  };
+}
+
+/** Invert an extrinsic mapping; in particular camera position is -R^T t, not t. */
+export function invertRigidTransform(
+  transform: RigidTransform,
+): RigidTransform {
+  validateRigidTransform(transform);
+  const r = transform.rotation,
+    rotation: Matrix3 = [r[0], r[3], r[6], r[1], r[4], r[7], r[2], r[5], r[8]];
+  return {
+    fromFrameId: transform.toFrameId,
+    toFrameId: transform.fromFrameId,
+    rotation,
+    translation: vector(
+      multiply(rotate3D(transform.translation, rotation), -1),
+      "inverse translation",
+    ),
+    ...(transform.static === undefined ? {} : { static: transform.static }),
+  };
 }

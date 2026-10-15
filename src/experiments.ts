@@ -30,6 +30,8 @@ export interface ExperimentConfig {
     | "binocular-fused";
   durationMs?: number;
   devicePixelRatio?: number;
+  physicalWidthMeters?: number;
+  physicalHeightMeters?: number;
   latencyMs?: number;
   jitterMs?: number;
   noisePx?: number;
@@ -61,6 +63,8 @@ export interface ExperimentSummary {
   width: number;
   height: number;
   devicePixelRatio: number;
+  physicalWidthMeters: number;
+  physicalHeightMeters: number;
   displayHz: number;
   inputHz: number;
   gazeHz: number;
@@ -111,6 +115,22 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
     name: "experiment",
     ...options,
     rightGazeHz: options.rightGazeHz ?? options.gazeHz,
+    physicalWidthMeters:
+      options.physicalWidthMeters === undefined
+        ? options.width < 700
+          ? 0.072
+          : 0.53
+        : options.physicalWidthMeters,
+    physicalHeightMeters:
+      options.physicalHeightMeters === undefined
+        ? ((options.physicalWidthMeters === undefined
+            ? options.width < 700
+              ? 0.072
+              : 0.53
+            : options.physicalWidthMeters) *
+            options.height) /
+          options.width
+        : options.physicalHeightMeters,
   };
   for (const key of [
     "width",
@@ -121,6 +141,8 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
     "rightGazeHz",
     "durationMs",
     "devicePixelRatio",
+    "physicalWidthMeters",
+    "physicalHeightMeters",
   ] as const)
     if (!Number.isFinite(c[key]) || c[key] <= 0)
       throw new TypeError(`${key} must be positive and finite`);
@@ -227,8 +249,11 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
     const causeIds: string[] = [];
     while (usedInputs < inputs.length && inputs[usedInputs].t <= t)
       causeIds.push(inputs[usedInputs++].id);
-    const widthMeters = width < 700 ? 0.072 : 0.53,
-      heightMeters = (widthMeters * height) / width;
+    // Rotate one physical panel; do not infer a different device from the new pixel width.
+    const widthMeters = landscape
+        ? c.physicalHeightMeters
+        : c.physicalWidthMeters,
+      heightMeters = landscape ? c.physicalWidthMeters : c.physicalHeightMeters;
     const plane: Plane = {
       frameId: "world",
       topLeft: [-widthMeters / 2, heightMeters / 2, 0],
@@ -253,6 +278,7 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
         presentationMode: "per-frame",
         display: { width, height, left: 0, top: 0 },
         plane,
+        planeSpace: "display",
       },
     };
     frames.push(frame);
@@ -409,6 +435,8 @@ export function summarizeExperiment(
     width: c.width,
     height: c.height,
     devicePixelRatio: c.devicePixelRatio,
+    physicalWidthMeters: c.physicalWidthMeters,
+    physicalHeightMeters: c.physicalHeightMeters,
     displayHz: c.displayHz,
     inputHz: c.inputHz,
     gazeHz: c.gazeHz,

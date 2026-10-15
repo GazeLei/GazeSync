@@ -1,6 +1,27 @@
 /** GazeSync wire protocol: logical pixels, metres, and monotonic milliseconds. */
 export type Point = { x: number; y: number };
 export type Vector3 = [number, number, number];
+/** Row-major 3x3 proper rotation; points are column vectors. */
+export type Matrix3 = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+export interface RigidTransform {
+  fromFrameId: string;
+  toFrameId: string;
+  rotation: Matrix3;
+  /** Target-frame coordinates of the source origin, in metres. */
+  translation: Vector3;
+  /** True only if this change of frame is time-invariant. */
+  static?: boolean;
+}
 export type Affine = [number, number, number, number, number, number];
 export type Eye = "left" | "right" | "combined" | "unknown";
 export type GazeType = "pog2d" | "ray3d" | "direction3d";
@@ -47,6 +68,8 @@ export interface Surface {
   epoch: string;
   active?: boolean;
   plane?: Plane;
+  /** Rectangle described by plane: cropped viewport or full active display. */
+  planeSpace?: "viewport" | "display";
   poseTimeMs?: number;
   display?: { width: number; height: number; left: number; top: number };
   devicePixelRatio?: number;
@@ -160,7 +183,11 @@ export interface AlignedGaze {
   flags: string[];
   viewportPoint: Point | null;
   contentPoint: Point | null;
-  rayHit: { pointMeters: Vector3; distanceMeters: number } | null;
+  rayHit: {
+    frameId: string;
+    pointMeters: Vector3;
+    distanceMeters: number;
+  } | null;
 }
 export interface SessionConfig {
   reorderWindowMs?: number;
@@ -218,8 +245,8 @@ export interface SessionObservers {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 export interface Recording {
-  schemaVersion: "2.0";
-  implementationVersion: "0.3.0";
+  schemaVersion: "2.1";
+  implementationVersion: "0.4.0";
   recordCount: number;
   config: Required<SessionConfig>;
   clocks: Required<ClockMapping>[];

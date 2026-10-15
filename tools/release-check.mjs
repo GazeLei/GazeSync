@@ -23,6 +23,7 @@ export async function checkRelease(root, { publication = false } = {}) {
   if (
     pkg.version !== IMPLEMENTATION_VERSION ||
     release.version !== pkg.version ||
+    paper.implementationVersion !== pkg.version ||
     !py.includes(`version = "${pkg.version}"`)
   )
     throw new Error(
@@ -70,6 +71,10 @@ export async function checkRelease(root, { publication = false } = {}) {
       "python/tests/fixtures/adapter-fixtures.json",
     ],
     ["contracts/gaze.schema.json", "python/tests/fixtures/gaze.schema.json"],
+    [
+      "contracts/geometry-fixtures.json",
+      "python/tests/fixtures/geometry-fixtures.json",
+    ],
     [
       "contracts/diagnostics.json",
       "python/src/gazesync/diagnostics_catalog.json",

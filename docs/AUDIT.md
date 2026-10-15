@@ -91,3 +91,35 @@ Python package contains its own standard-library core and attribution files.
 No hardware SDK or private parent-project history is imported. The release check
 also verifies GPL text, versions, shared fixtures and an explicit export list.
 Public release remains deliberately disabled.
+
+
+## Camera and coordinate audit: 0.4.0
+
+Scope: both geometry cores, source adapters, display/viewport mapping, the
+synthetic physical settings and manuscript equations. The ray-plane formula was
+correct for a common metric frame. Its surrounding coordinate contract had
+several gaps that the earlier coextensive-view simulations could not expose.
+
+| Finding | Repair and evidence |
+| --- | --- |
+| A full active-display plane was projected using viewport dimensions, ignoring a window's offset. | `planeSpace` distinguishes full display from physical viewport. Independent fixtures reproduce (500,300) versus the correct (860,460). Both languages now agree with normalized-display PoG. |
+| The rectangle represented by a plane was ambiguous when display and viewport differed. | Explicit extent required for differing recorded layout; invalid setup is rejected before mutation. The two regressions failed before repair. |
+| Camera/eye origins and extrinsic direction were implicit integration responsibilities. | Named rigid helpers validate proper rotations; points get R and t, directions R only, inverse translation is -R^T t. Four camera/eye fixtures, a quarter-turn fixture and 100 arbitrary-frame checks per language verify them independently of the gaze simulator. |
+| A derived metric hit had no frame ID in its own result. | `rayHit.frameId` is retained. Schema 2.1 / implementation 0.4.0 prevent silent replay under changed projection semantics. |
+| Phone orientation inferred a new physical width from rotated logical pixels. | The same measured panel dimensions are swapped; explicit physical dimensions are configurable. |
+| The interaction lab's viewport registration did not retain a fixed square-pixel metric scale during desktop resize. | A fixed synthetic active panel and top-left-anchored crop now retain metric pixel pitch; phone width/height swap without resizing the panel. |
+| Full-display visibility could be lost when a larger viewport contained an off-panel hit. | Bounds are checked in both display and viewport spaces for all input representations; raw points stay unclipped. Arithmetic edge residuals receive a small numerical tolerance. |
+
+The audit also checks mm-to-m conversion in a non-camera Tobii UCS fixture,
+independent left/right origins, mirrored/scaled/sheared rotation rejection,
+positive forward distance, dynamic-pose provenance, direction magnitude extremes,
+and equal projection in camera and world frames. The camera fixture is explicitly
+synthetic: its centre is (0.04,0.19,0.015) m in a display-centred reference frame.
+No actual camera calibration is inferred from the demo or from a frame label.
+
+Validation: 78 Node tests, 43 Python tests, strict consumer types, five native
+geometry fixture comparisons, ten adapter fixtures and the existing 78-case,
+107,070-observation matrix. The full matrix retains zero frame mismatches and
+numerical-scale reconstruction residuals. The manuscript's Section 5 now gives
+the origins, equations, numerical example and independent physical checks needed
+for real deployment. [The setup guide](COORDINATES.md) includes the host contract.

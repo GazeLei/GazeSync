@@ -84,9 +84,26 @@ export function simulatedPlane(
   landscape = false,
   timeMs = 0,
   moving = false,
+  viewport?: Pick<View, "width" | "height">,
 ): Plane {
-  const widthMeters = device === "mobile" ? (landscape ? 0.145 : 0.072) : 0.53;
-  const heightMeters = device === "mobile" ? (landscape ? 0.072 : 0.145) : 0.33;
+  // Synthetic full panels have square logical pixels. Desktop resize crops a
+  // top-left-anchored viewport; phone rotation swaps the same physical panel.
+  const fullWidth = device === "mobile" ? (landscape ? 700 : 390) : 1080;
+  const fullHeight = device === "mobile" ? (landscape ? 390 : 700) : 680;
+  const metresPerPixel = device === "mobile" ? 0.072 / 390 : 0.53 / 1080;
+  const fullWidthMeters = fullWidth * metresPerPixel,
+    fullHeightMeters = fullHeight * metresPerPixel;
+  const widthMeters = (viewport?.width ?? fullWidth) * metresPerPixel;
+  const heightMeters = (viewport?.height ?? fullHeight) * metresPerPixel;
+  if (
+    !Number.isFinite(widthMeters) ||
+    widthMeters <= 0 ||
+    !Number.isFinite(heightMeters) ||
+    heightMeters <= 0
+  )
+    throw new TypeError(
+      "Synthetic viewport dimensions must be positive and finite",
+    );
   const yaw = moving ? 0.06 * Math.sin(timeMs / 1400) : 0;
   const roll = moving ? 0.025 * Math.cos(timeMs / 1700) : 0;
   const cy = Math.cos(yaw),
@@ -103,7 +120,8 @@ export function simulatedPlane(
       ]
     : [0, 0, 0];
   const topLeft = center.map(
-    (n, i) => n - (right[i] * widthMeters) / 2 - (down[i] * heightMeters) / 2,
+    (n, i) =>
+      n - (right[i] * fullWidthMeters) / 2 - (down[i] * fullHeightMeters) / 2,
   );
   // Pose is held between display samples in this fixture. Real pose error needs a physical check.
   return {
@@ -328,7 +346,20 @@ export function buildScenario(
         id: device,
         epoch,
         active: !(device === "mobile" && t >= 7300 && t < 7800),
-        plane: simulatedPlane(device, epoch === "2", t, device === "mobile"),
+        plane: simulatedPlane(
+          device,
+          epoch === "2",
+          t,
+          device === "mobile",
+          controller.view,
+        ),
+        planeSpace: "viewport",
+        display: {
+          width: device === "mobile" ? (epoch === "2" ? 700 : 390) : 1080,
+          height: device === "mobile" ? (epoch === "2" ? 390 : 700) : 680,
+          left: 0,
+          top: 0,
+        },
         ...(device === "mobile" ? { poseTimeMs: t } : {}),
       },
       timing: "synthetic",

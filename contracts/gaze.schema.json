@@ -1,7 +1,7 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"https://github.com/GazeLei/GazeSync/contracts/gaze.schema.json",
-  "title":"GazeSync schema 2.0 gaze observation",
+  "title":"GazeSync schema 2.1 gaze observation",
   "type":"object",
   "required":["id","sourceId","eye","clockId","clockEpoch","timeMs","surfaceId","surfaceEpoch","type","confidence","valid"],
   "properties":{

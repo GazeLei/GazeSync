@@ -1,0 +1,24 @@
+{
+  "description": "Analytically specified metric geometry, independent of the pan/zoom simulator. World origin is active-display center; camera optical origin is off-axis on the bezel.",
+  "worldToCamera": {
+    "fromFrameId": "display-world", "toFrameId": "camera-optical",
+    "rotation": [-1,0,0,0,-1,0,0,0,1], "translation": [0.04,0.19,-0.015], "static": true
+  },
+  "cameraCenterWorld": [0.04,0.19,0.015],
+  "plane": {"frameId":"display-world","topLeft":[-0.265,0.165,0],"right":[1,0,0],"down":[0,-1,0],"widthMeters":0.53,"heightMeters":0.33,"static":true},
+  "display": {"width":1920,"height":1080,"left":100,"top":80},
+  "viewport": {"width":1000,"height":600},
+  "cases": [
+    {"name":"left-eye-center","eye":"left","rayCamera":{"frameId":"camera-optical","origin":[0.072,0.19,0.585],"direction":[-0.032,0,-0.6]},"originWorld":[-0.032,0,0.6],"directionWorld":[0.032,0,-0.6],"hitWorld":[0,0,0],"normalizedDisplay":{"x":0.5,"y":0.5},"viewportPoint":{"x":860,"y":460}},
+    {"name":"right-eye-center","eye":"right","rayCamera":{"frameId":"camera-optical","origin":[0.008,0.19,0.585],"direction":[0.032,0,-0.6]},"originWorld":[0.032,0,0.6],"directionWorld":[-0.032,0,-0.6],"hitWorld":[0,0,0],"normalizedDisplay":{"x":0.5,"y":0.5},"viewportPoint":{"x":860,"y":460}},
+    {"name":"left-eye-three-quarter","eye":"left","rayCamera":{"frameId":"camera-optical","origin":[0.072,0.19,0.585],"direction":[-0.1645,0.0825,-0.6]},"originWorld":[-0.032,0,0.6],"directionWorld":[0.1645,-0.0825,-0.6],"hitWorld":[0.1325,-0.0825,0],"normalizedDisplay":{"x":0.75,"y":0.75},"viewportPoint":{"x":1340,"y":730}},
+    {"name":"left-eye-top-left","eye":"left","rayCamera":{"frameId":"camera-optical","origin":[0.072,0.19,0.585],"direction":[0.233,-0.165,-0.6]},"originWorld":[-0.032,0,0.6],"directionWorld":[-0.233,0.165,-0.6],"hitWorld":[-0.265,0.165,0],"normalizedDisplay":{"x":0,"y":0},"viewportPoint":{"x":-100,"y":-80}}
+  ],
+  "quarterTurn": {
+    "transform":{"fromFrameId":"camera-optical","toFrameId":"rotated-world","rotation":[0,0,1,0,1,0,-1,0,0],"translation":[1,2,3],"static":true},
+    "ray":{"frameId":"camera-optical","origin":[0.1,0.2,0.3],"direction":[0,0,2]},
+    "expectedOrigin":[1.3,2.2,2.9],"expectedDirection":[2,0,0],
+    "plane":{"frameId":"rotated-world","topLeft":[2,2.5,3.5],"right":[0,0,-1],"down":[0,-1,0],"widthMeters":1,"heightMeters":1,"static":true},
+    "expectedHit":[2,2.2,2.9],"expectedPoint":{"x":600,"y":300},"expectedDistance":0.7
+  }
+}

@@ -13,6 +13,14 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
+  invertRigidTransform,
+  transformPlane,
+  transformRay,
+  projectRay,
+  SCHEMA_VERSION,
+  IMPLEMENTATION_VERSION,
+} from "../dist/index.js";
+import {
   generateExperiment,
   executeExperiment,
   summarizeExperiment,
@@ -109,6 +117,44 @@ const normalized = fixture.cases.map((c) => {
 compare(
   normalized,
   runPython(["normalize-fixtures", "contracts/adapter-fixtures.json"]),
+);
+
+// Independent camera/eye origins, a nonzero camera translation, and a non-symmetric rotation.
+const geometry = JSON.parse(
+  await readFile(resolve(root, "contracts/geometry-fixtures.json"), "utf8"),
+);
+const inverse = invertRigidTransform(geometry.worldToCamera),
+  cameraPlane = transformPlane(geometry.plane, geometry.worldToCamera);
+const geometryRows = geometry.cases.map((c) => {
+  const ray = transformRay(c.rayCamera, inverse);
+  return {
+    name: c.name,
+    ray,
+    worldHit: projectRay(ray, geometry.plane, 1920, 1080),
+    cameraHit: projectRay(c.rayCamera, cameraPlane, 1920, 1080),
+  };
+});
+const q = geometry.quarterTurn,
+  quarterRay = transformRay(q.ray, q.transform);
+const nativeGeometry = spawnSync(
+  python,
+  ["tools/geometry_conformance.py", "contracts/geometry-fixtures.json"],
+  { cwd: root, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+);
+if (nativeGeometry.status !== 0)
+  throw new Error(nativeGeometry.stderr || "Native geometry audit failed");
+const geometryComparison = compare(
+  {
+    inverse,
+    cameraPlane,
+    rows: geometryRows,
+    quarterTurn: {
+      ray: quarterRay,
+      hit: projectRay(quarterRay, q.plane, 1000, 1000),
+      restored: transformRay(quarterRay, invertRigidTransform(q.transform)),
+    },
+  },
+  JSON.parse(nativeGeometry.stdout),
 );
 
 const full = process.argv.includes("--full"),
@@ -248,8 +294,10 @@ const output = {
     platform: process.platform,
     architecture: process.arch,
   },
-  schemaVersion: "2.0",
-  implementationVersion: "0.3.0",
+  schemaVersion: SCHEMA_VERSION,
+  implementationVersion: IMPLEMENTATION_VERSION,
+  geometryFixtureCases: geometry.cases.length + 1,
+  maxGeometryDifference: geometryComparison.maxDifference,
   adapterCases: fixture.cases.length,
   experimentCases: rows.length,
   totalSamples: total,

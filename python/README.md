@@ -2,7 +2,7 @@
 
 Capture-time synchronization of desktop/mobile view events and independent or
 combined eye-tracking measurements. The core uses only the Python standard
-library and has the same schema 2.0 contract as the TypeScript implementation.
+library and has the same schema 2.1 contract as the TypeScript implementation.
 
 ```sh
 pip install -e ./python

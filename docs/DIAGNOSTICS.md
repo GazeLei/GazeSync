@@ -31,3 +31,10 @@ a sample unusable. Conversely, a structural flag such as `ambiguous-presentation
 can make a sample unusable even without a distinct aggregate diagnostic code.
 Expected Hz, uncertainty limits and confidence thresholds must be justified for
 the study. A quiet log does not establish device accuracy.
+
+
+Geometry setup rejects ambiguous `planeSpace` and invalid rigid transforms before
+changing session state. `off-display` identifies a hit outside the complete active
+display, even if it is within a larger viewport. `rayHit.frameId` identifies the
+metric origin/basis of its 3D coordinates. These flags cannot diagnose an unknown
+physical calibration merely from a well-formed frame name.

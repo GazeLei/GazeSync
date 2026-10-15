@@ -31,14 +31,15 @@ jobs:
       - run: npm run test:conformance
       - run: node tools/release-check.mjs --public
       - name: Match the tag to package metadata
+        id: metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("package.json")); if(process.env.RELEASE_TAG!==`v${p.version}`) throw Error("Tag/version mismatch")'
+        run: node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("package.json")); if(process.env.RELEASE_TAG!==`v${p.version}`) throw Error("Tag/version mismatch"); fs.appendFileSync(process.env.GITHUB_OUTPUT,`version=${p.version}\n`)'
       - run: python tools/package_smoke.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: approved-distributions
-          path: artifacts/release/
+          path: artifacts/release/${{ steps.metadata.outputs.version }}/
   publish-python:
     needs: verify-and-build
     if: inputs.destination == 'pypi' || inputs.destination == 'testpypi'

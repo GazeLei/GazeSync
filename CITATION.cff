@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Please cite both the original GazeSync paper and the implementation report in CITATION.bib. The implementation arXiv submission and author list are pending."
 type: software
 title: "GazeSync: synchronized 2D and 3D gaze during desktop and mobile view manipulation"
-version: 0.3.0
+version: 0.4.0
 license: GPL-3.0-only
 repository-code: "https://github.com/GazeLei/GazeSync"
 authors:
@@ -30,4 +30,4 @@ references:
     authors:
       - name: "GazeSync contributors"
     url: "https://github.com/GazeLei/GazeSync/tree/main/paper"
-    notes: "Implementation draft 0.3.0; author list to be finalized; arXiv submission pending."
+    notes: "Implementation draft 0.4.0; author list to be finalized; arXiv submission pending."

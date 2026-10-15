@@ -55,6 +55,20 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
             or c[key] <= 0
         ):
             raise ValueError(f"{key} must be positive and finite")
+    for key in ("physicalWidthMeters", "physicalHeightMeters"):
+        if key not in c:
+            c[key] = (
+                (0.072 if c["width"] < 700 else 0.53)
+                if key == "physicalWidthMeters"
+                else c["physicalWidthMeters"] * c["height"] / c["width"]
+            )
+        if (
+            isinstance(c[key], bool)
+            or not isinstance(c[key], (int, float))
+            or not math.isfinite(c[key])
+            or c[key] <= 0
+        ):
+            raise ValueError(f"{key} must be positive and finite")
     for key in ("latencyMs", "jitterMs", "noisePx"):
         if not math.isfinite(c[key]) or c[key] < 0:
             raise ValueError(f"{key} must be nonnegative and finite")
@@ -160,8 +174,8 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
         while used < len(inputs) and inputs[used]["t"] <= t:
             cause_ids.append(inputs[used]["id"])
             used += 1
-        width_m = 0.072 if width < 700 else 0.53
-        height_m = width_m * height / width
+        width_m = c["physicalHeightMeters"] if landscape else c["physicalWidthMeters"]
+        height_m = c["physicalWidthMeters"] if landscape else c["physicalHeightMeters"]
         plane = {
             "frameId": "world",
             "topLeft": [-width_m / 2, height_m / 2, 0],
@@ -186,6 +200,7 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
                 "presentationMode": "per-frame",
                 "display": {"width": width, "height": height, "left": 0, "top": 0},
                 "plane": plane,
+                "planeSpace": "display",
             },
         }
         frames.append(frame)
@@ -380,6 +395,8 @@ def summarize_experiment(
                 "width",
                 "height",
                 "devicePixelRatio",
+                "physicalWidthMeters",
+                "physicalHeightMeters",
                 "displayHz",
                 "inputHz",
                 "gazeHz",

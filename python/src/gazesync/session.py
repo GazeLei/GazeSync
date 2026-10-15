@@ -26,6 +26,16 @@ from .version import IMPLEMENTATION_VERSION, SCHEMA_VERSION
 EYES = ("left", "right", "combined", "unknown")
 
 
+def _inside(p, width, height):
+    if not all(math.isfinite(n) for n in (p["x"], p["y"], width, height)):
+        return False
+    tolerance = 64 * math.ulp(1.0) * max(1, width, height, abs(p["x"]), abs(p["y"]))
+    return (
+        -tolerance <= p["x"] <= width + tolerance
+        and -tolerance <= p["y"] <= height + tolerance
+    )
+
+
 def _geometry_key(frame: dict[str, Any], kind: str) -> list[Any]:
     v, s = frame["view"], frame["surface"]
     d, p = s.get("display"), s.get("plane")
@@ -48,6 +58,7 @@ def _geometry_key(frame: dict[str, Any], kind: str) -> list[Any]:
             p["widthMeters"],
             p["heightMeters"],
             p.get("static", False),
+            s.get("planeSpace", "viewport"),
         ]
         if kind == "ray3d" and p
         else None,
@@ -73,7 +84,25 @@ def _validate_surface(surface: Mapping[str, Any], view: Mapping[str, Any]) -> No
             positive(surface["display"].get(key), "display." + key)
         for key in ("left", "top"):
             finite(surface["display"].get(key), "display." + key)
+    if "planeSpace" in surface and surface["planeSpace"] not in ("viewport", "display"):
+        raise ValueError("planeSpace must be viewport or display")
+    if surface.get("planeSpace") == "display" and not surface.get("display"):
+        raise ValueError("planeSpace display requires the full display layout")
     if surface.get("plane"):
+        d = surface.get("display")
+        if (
+            "planeSpace" not in surface
+            and d
+            and (
+                d["left"] != 0
+                or d["top"] != 0
+                or d["width"] != view["width"]
+                or d["height"] != view["height"]
+            )
+        ):
+            raise ValueError(
+                "Declare planeSpace explicitly when the viewport differs from the full display"
+            )
         validate_plane(surface["plane"])
         if surface["plane"].get("static") is not True:
             finite(surface.get("poseTimeMs"), "dynamic plane poseTimeMs")
@@ -525,17 +554,28 @@ class GazeSession:
                     flags.append("pose-after-capture")
                 if age > self.config["maxPoseAgeMs"]:
                     flags.append("stale-plane-pose")
+            layout = (
+                f["surface"].get("display")
+                if f["surface"].get("planeSpace") == "display"
+                else None
+            )
             hit = project_ray(
                 s["ray"],
                 f["surface"].get("plane"),
-                f["view"]["width"],
-                f["view"]["height"],
+                layout["width"] if layout else f["view"]["width"],
+                layout["height"] if layout else f["view"]["height"],
             )
             if "reason" in hit:
                 flags.append(hit["reason"])
             else:
-                p = hit["point"]
+                hp = hit["point"]
+                p = (
+                    {"x": hp["x"] - layout["left"], "y": hp["y"] - layout["top"]}
+                    if layout
+                    else hp
+                )
                 result["rayHit"] = {
+                    "frameId": f["surface"]["plane"]["frameId"],
                     "pointMeters": hit["hit"],
                     "distanceMeters": hit["distanceMeters"],
                 }
@@ -547,14 +587,18 @@ class GazeSession:
         except (ValueError, OverflowError):
             flags.append("non-finite-projection")
             return result
-        result["viewportPoint"], result["contentPoint"] = p, content_point
-        if not (
-            0 <= p["x"] <= f["view"]["width"] and 0 <= p["y"] <= f["view"]["height"]
+        display = f["surface"].get("display")
+        if display and not _inside(
+            {"x": p["x"] + display["left"], "y": p["y"] + display["top"]},
+            display["width"],
+            display["height"],
         ):
+            flags.append("off-display")
+        result["viewportPoint"], result["contentPoint"] = p, content_point
+        if not _inside(p, f["view"]["width"], f["view"]["height"]):
             flags.append("off-viewport")
-        if not (
-            0 <= content_point["x"] <= f["view"]["contentWidth"]
-            and 0 <= content_point["y"] <= f["view"]["contentHeight"]
+        if not _inside(
+            content_point, f["view"]["contentWidth"], f["view"]["contentHeight"]
         ):
             flags.append("off-content")
         result["usable"] = all(

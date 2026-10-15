@@ -93,6 +93,7 @@ make heterogeneous measurements explicit. Third, deterministic simulations,
 cross-language conformance and isolated distribution artifacts make the
 implementation inspectable and repeatable. The evidence is a software audit and
 synthetic validation; no new participant or physical-device study is claimed.
+This draft documents implementation 0.4.0 and recording schema 2.1.
 The development repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
@@ -251,56 +252,227 @@ The receipt-time baseline is an intentionally incorrect association policy,
 not a benchmark against every strategy used by existing systems.
 
 \section{Spatial reconstruction and eye identity}
-\subsection{Two-dimensional points and content transforms}
-A PoG declares viewport, normalized-viewport or normalized-display coordinates.
-The full-display case requires recorded display dimensions and viewport offsets
-in compatible units. Device pixel ratio is retained as metadata and is not an
-instruction to multiply logical coordinates again. The renderer supplies
+\subsection{Named frames and distinct origins}
+We use column vectors and write $T_{BA}$ for a change of coordinates from frame
+$A$ to frame $B$. Each 3D observation and plane carries a \code{frameId}; equality
+of identifiers is necessary, but does not establish calibration by itself.
+The host must document the origin, axis directions, handedness, units and time
+reference of each frame. Table~\ref{tab:origins} distinguishes origins that are
+easy to conflate during integration.
+
+\begin{table}[t]
+\caption{Coordinate origins used by the contract. The camera convention is an explicit example; vendor frames require their documented conversion. Eye labels are anatomical, not positions in a mirrored image.}
+\label{tab:origins}\small
+\begin{tabularx}{\columnwidth}{@{}p{.18\columnwidth}Y@{}}
+\toprule
+Frame & Origin, axes and units \\
+\midrule
+Camera $C$ & Optical centre; example $+x$ image-right, $+y$ down, $+z$ forward; metres. \\
+Eye $E_L,E_R$ & Each measured eye centre; eye-local zero requires a measured transform into $C$ or $W$. \\
+Reference $W$ & Host-defined reference; the analytic fixture uses active-display centre at the reference pose; metres. \\
+Screen $S$ & Active rectangle's top-left, excluding bezel; right/down/normal axes; metres. \\
+Display $D$ & Complete active display's top-left in its current orientation; logical pixels. \\
+Viewport $V$ & Stimulus region's top-left, at $(l,t)$ in $D$; logical pixels. \\
+Content $I$ & Intrinsic content origin before rendering; content units. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The camera's optical centre differs from its image principal point, which is an
+intrinsic calibration parameter. A gaze ray's origin is the measured eye centre
+expressed in the chosen frame, generally not that frame's origin. Zero is valid
+for an eye-local origin only when its relation to the display is known. Vendor
+conventions also differ: Tobii UCS is centred on the tracker front surface,
+with user-right/up/toward-user axes and millimetre units~\cite{tobii}. Pupil's
+scene-camera frame and individual eye-camera frames are distinct~\cite{pupilcoords}.
+The adapters retain these identities and convert metric units explicitly.
+
+\subsection{Rigid transformations: points versus directions}
+The implementation accepts a row-major $3\times3$ proper rotation $R_{BA}$ and
+translation $t_{BA}$ in metres:
 \begin{equation}
- M=\begin{bmatrix}a&c&e\\b&d&f\\0&0&1\end{bmatrix},
- \qquad \widetilde p_c=M^{-1}\widetilde p_v.
+ T_{BA}=\begin{bmatrix}R_{BA}&t_{BA}\\0^T&1\end{bmatrix},\qquad
+ p_B=R_{BA}p_A+t_{BA}.
+ \label{eq:rigid}
 \end{equation}
-This representation includes letterboxing, intrinsic image scaling, pivot
-translation and rotation without applying an offset twice. Coordinates outside
-the viewport or content remain visible and flagged rather than being clipped
-to an apparently valid target.
-
-Each accepted frame caches its inverse. The inversion checks conditioning after
-normalizing the linear block by its largest absolute coefficient. It rejects
-singular or non-finite results while permitting uniformly small, well-conditioned
-transforms. This matters for large content coordinate systems whose displayed
-scale can be much less than one.
-
-\subsection{Metric rays and a registered display}
-A ray supplies origin $O$ in metres, direction $D$ and a frame identifier. The
-registered display supplies top-left point $P$, orthonormal right/down axes
-$u,v$ and metric dimensions $w_m,h_m$. After normalizing $D$, the forward crossing is
+Here $t_{BA}$ is the source origin expressed in the target frame. The rotation
+must satisfy $R^TR=I$ and $\det R=+1$; reflections, scaling and shear are rejected.
+The helpers distinguish ray origins and directions:
 \begin{equation}
- n=u\times v,\quad
- \lambda=\frac{(P-O)\cdot n}{D\cdot n},\quad
- Q=O+\lambda D.
+ O_B=R_{BA}O_A+t_{BA},\qquad D_B=R_{BA}D_A.
+ \label{eq:raytransform}
 \end{equation}
-Zero, nearly parallel, backwards or incompatible rays do not fabricate a hit.
-For viewport size $W\times H$,
+Translation must not be applied to a direction, whose homogeneous coordinate is
+zero. Inversion gives $R_{AB}=R_{BA}^T$ and $t_{AB}=-R_{BA}^Tt_{BA}$.
+
+OpenCV extrinsics map world coordinates into camera coordinates,
+$p_C=R_{CW}p_W+t_{CW}$~\cite{opencv}. Consequently the camera's world position is
 \begin{equation}
- p_v=\left(W\frac{(Q-P)\cdot u}{w_m},\;
-           H\frac{(Q-P)\cdot v}{h_m}\right).
+ C_W=-R_{CW}^Tt_{CW},
+ \label{eq:cameracentre}
 \end{equation}
-The same content inverse then applies. This is a crossing of a registered display
-plane, not an inferred scene fixation or vergence depth.
+not $t_{CW}$. Eye origins must be transformed independently. A display-mounted
+camera may observe eyes at positive camera $z$ while their gaze directions point
+back toward the display with negative $z$; this is geometrically valid. The
+\code{transformRay} and \code{transformPlane} helpers check named source frames,
+return new values, and never infer a missing eye origin. Python provides the same
+operations with snake-case names.
 
-Moving displays require pose timestamps and measured extrinsics. The current
-implementation uses the selected frame's recorded pose and checks its age; it
-does not interpolate unobserved sub-frame motion. A direction-only model output
-is retained as \code{direction3d} but cannot be projected by inventing an eye
-origin. Figure~\ref{fig:geometry} makes these dependencies explicit.
+An eye-local ray with origin zero has $O_C^e=t_{CE_e}$ and
+$D_C^e=R_{CE_e}D_{E_e}$, independently for $e\in\{L,R\}$. Its measured
+registration supplies the nonzero camera-frame eye origin.
 
-\begin{figure}[t]
-\centering\includegraphics[width=.98\columnwidth]{geometry.pdf}
-\caption{Independent eyes retain separate origins, rays, timestamps and validity. The display plane and both rays must share a measured coordinate frame. A schematic 600/120\,Hz timeline illustrates unequal acquisition; optional bounded pairing neither resamples nor averages the eyes. Geometry is illustrative and not to scale.}
-\Description{Blue and orange rays start at separate left and right eye origins and intersect a green registered display plane at separate points. Below, two rows show unequal sampling cadence.}
+A plane's top-left point transforms with $R$ and $t$, while its right/down axes
+transform with $R$ only. A transformed plane remains marked static only if both
+the original plane and transformation explicitly declare time independence.
+Applications retain the original ray, calibration identifier, transform and pose
+time in sample metadata, so a frame conversion does not erase its provenance.
+
+\subsection{Screen plane and forward intersection}
+A registered active rectangle has top-left $P$, orthonormal right/down axes $u,v$
+and physical width/height $w_m,h_m$. Its local-to-reference frame is
+\begin{equation}
+ T_{WS}=\begin{bmatrix}u&v&u\times v&P\\0&0&0&1\end{bmatrix}.
+\end{equation}
+A marker-board pose may locate the marker centre rather than the active panel
+corner. A separately measured registration is then required:
+$T_{CS}=T_{CM}T_{MS}$. The host fits a rigid pose to the known rectangle and
+supplies its physical dimensions; noisy corner differences do not automatically
+form an orthonormal screen basis.
+
+For a user-right/up/toward-user reference, $u=(1,0,0)$ and $v=(0,-1,0)$, so the
+screen-local positive normal points behind the front face. Its sign does not
+impose a sign restriction on a valid gaze direction.
+
+Normalize the nonzero direction to $d=D/\|D\|$. For $n=u\times v$, the crossing is
+\begin{equation}
+ \lambda=\frac{(P-O)\cdot n}{d\cdot n},\qquad Q=O+\lambda d.
+ \label{eq:intersection}
+\end{equation}
+A valid forward crossing requires $\lambda>0$. Reversing $n$ changes numerator
+and denominator together, preserving $\lambda$; a negative denominator alone is
+not a reason to reject the ray. Zero directions, $|d\cdot n|<10^{-9}$,
+non-positive distance and non-finite results are rejected. Robust direction
+normalization avoids overflow for very large or small vector magnitudes.
+The reported distance is measured from the eye, rather than camera depth.
+
+The normalized crossing within the plane rectangle is
+\begin{equation}
+ \alpha=\frac{(Q-P)\cdot u}{w_m},\qquad
+ \beta=\frac{(Q-P)\cdot v}{h_m}.
+ \label{eq:screenfraction}
+\end{equation}
+The operation is a two-sided geometric crossing. For an opaque panel with a
+known front-facing right/down basis, $(O-P)\cdot(u\times v)<0$ places the eye in
+front. The host must establish front-facing and occlusion visibility; an inactive
+surface is recorded explicitly. A geometric hit alone does not establish an
+unobstructed view of the content.
+
+The infinite-plane crossing and the active rectangle are separate tests:
+$\alpha,\beta\in[0,1]$ identifies the finite rectangle. Off-display intersections
+are retained and flagged, including when an oversized application window would
+contain them. A successful aligned 3D hit records its metric frame ID as well as
+its position and distance. This operation does not infer scene fixation depth,
+vergence or an unmeasured camera-to-display transform.
+
+\begin{figure*}[t]
+\includegraphics[width=\textwidth]{geometry.pdf}
+\caption{Distinct origins and the audited projection chain. (A) The metric fixture separates the camera centre $C_W$, both eye origins $O_L,O_R$, active-panel top-left $P$ and display-centred reference origin $O_W$. Rays start at the eyes; camera extrinsics change their coordinates. The view is a schematic oblique projection. (B) A centre hit on the full display is $(960,540)$ in display coordinates and $(860,460)$ in the offset viewport. A full-display plane cannot be scaled directly to the cropped viewport. All values are synthetic calibration fixtures.}
+\Description{Left: a registered panel with different markers for top-left, panel centre, an off-axis camera above the panel and two eye origins in front of it. Both rays meet the panel centre. Right: a full display rectangle contains an offset smaller viewport and the same hit. Equations subtract the viewport offset from full-display coordinates.}
 \label{fig:geometry}
-\end{figure}
+\end{figure*}
+
+\subsection{Display, viewport and content coordinates}
+The geometric audit exposed a missing distinction between the physical rectangle
+represented by a plane and the logical viewport. If the plane describes the
+\emph{full active display}, with logical dimensions $W_D,H_D$, then
+\begin{equation}
+ p_D=(W_D\alpha,H_D\beta),\qquad p_V=p_D-(l,t),
+ \label{eq:displayviewport}
+\end{equation}
+where $(l,t)$ is the viewport's top-left in display coordinates. This conversion
+is selected by \code{planeSpace: display} and requires explicit display layout.
+It matches the normalized-display PoG path.
+
+If the plane instead describes the physical \emph{viewport subrectangle}, then
+\code{planeSpace: viewport} gives $p_V=(W_V\alpha,H_V\beta)$ without subtracting
+the offset a second time. For an axis-aligned crop, the equivalent viewport plane
+can be constructed as
+\begin{align}
+ P_V&=P_D+u\,w_m\frac{l}{W_D}+v\,h_m\frac{t}{H_D},\\
+ w_m^V&=w_m\frac{W_V}{W_D},\qquad h_m^V=h_m\frac{H_V}{H_D}.
+ \label{eq:viewportplane}
+\end{align}
+The two paths are equivalent when configured consistently. An ambiguous plane
+extent is rejected when the recorded viewport differs from the full display.
+These offset formulas assume parallel viewport/display axes. Outer application
+transforms must be resolved by the host; rotating the rendered content is handled
+separately by its affine matrix.
+
+The content-to-viewport transform is
+\begin{equation}
+ M=\begin{bmatrix}a&c&e\\b&d&f\\0&0&1\end{bmatrix},\qquad
+ \widetilde p_I=M^{-1}\widetilde p_V.
+\end{equation}
+It includes intrinsic scaling, letterboxing, pivot translation and content
+rotation. Each accepted frame caches the inverse; scale-normalized conditioning
+checks reject singular transforms while permitting small, well-conditioned
+scales. Device pixel ratio is metadata, not an extra factor in
+Equation~\ref{eq:displayviewport}. Device-pixel measurements are normalized using
+their source resolution before conversion into logical units.
+
+Canonical UI coordinates describe continuous rectangle edges from $(0,0)$ to
+$(W,H)$, not integer array indices. Pixel-centre conventions must be converted
+once when required by a source. Bounds classification allows arithmetic residuals
+of 64 machine epsilons scaled by the coordinate extent, without changing the
+stored coordinates. This numerical allowance is not a tracking-accuracy margin.
+
+\subsection{A numerical origin and viewport check}
+The shared analytic fixture uses a $0.53\times0.33$\,m panel centred at $O_W$,
+with $P_W=(-0.265,0.165,0)$ and camera centre
+$C_W=(0.04,0.19,0.015)$\,m. It deliberately places the camera away from both panel
+and eye origins. With $R_{CW}=\mathrm{diag}(-1,-1,1)$,
+$t_{CW}=(0.04,0.19,-0.015)$\,m. The left eye at
+$O_W^L=(-0.032,0,0.6)$ becomes $O_C^L=(0.072,0.19,0.585)$.
+A centre-directed $D_C^L=(-0.032,0,-0.6)$ transforms to
+$D_W^L=(0.032,0,-0.6)$ and intersects at $Q_W=(0,0,0)$.
+The right eye is checked independently at $O_W^R=(0.032,0,0.6)$.
+
+For a $1920\times1080$ logical display and $1000\times600$ viewport at
+$(100,80)$, both eyes yield $p_V=(860,460)$. The previous full-plane-to-viewport
+scaling incorrectly produced $(500,300)$, a regression now reproduced and fixed
+in both languages. With $M=\mathrm{diag}(0.5,0.5,1)$, the correct content point is
+$(1720,920)$. These independently specified numbers check origin translation,
+axis signs, units and viewport offsets rather than comparing a projection only
+against its own inverse.
+
+\subsection{Intrinsics and time-dependent geometry}
+For undistorted pinhole image coordinates $\tilde q=(u_{img},v_{img},1)^T$,
+\begin{equation}
+ Z_C\tilde q=Kp_C,\qquad
+ K=\begin{bmatrix}f_x&0&c_x\\0&f_y&c_y\\0&0&1\end{bmatrix}.
+\end{equation}
+The principal point $(c_x,c_y)$ is in image pixels and differs from the optical
+centre $(0,0,0)_C$. Camera intrinsics do not replace a measured gaze origin or
+screen registration. A pupil image point
+back-projects to a camera viewing ray, not automatically the visual axis of the
+eye. A calibrated eye model supplies that relationship. Image resizing, cropping
+and distortion handling must follow the calibration convention; for an affine
+image-coordinate change $H$, the corresponding intrinsic mapping is $K'=HK$.
+A mirrored preview must be resolved explicitly, because a single-axis reflection
+is not a proper 3D rotation. Content zoom modifies $M$, not camera intrinsics.
+
+For a moving phone, both ray conversion and screen pose must refer to the relevant
+capture time. A matching frame name alone is insufficient. The current session
+uses the selected presentation's recorded pose and checks its age; the pose-age
+threshold does not bound spatial error from unobserved motion. The host must
+measure or otherwise justify its temporal geometry approximation. Orientation
+changes update layout epochs and physical axes/dimensions. The corrected
+simulation swaps one panel's physical dimensions, rather than inferring a new
+device size from the rotated pixel width. The desktop interaction fixture crops
+its viewport while keeping the active panel, top-left origin and metric pixel
+pitch fixed. Physical dimensions can be supplied
+explicitly; defaults remain synthetic assumptions.
 
 \subsection{Observation identity and optional pairing}
 Observation identity includes source, clock ID and epoch, eye, representation
@@ -385,6 +557,15 @@ small-scale inversion, malformed-record mutation, delayed future-time quarantine
 and undetected replay gaps. Focused regression tests reproduce those triggers.
 The extension adds explicit eye identity, shared adapter fixtures, receipt-time
 exclusion, nullable confidence and clock-boundary checks in both languages.
+
+The geometry audit adds independent numeric fixtures for camera/eye origins,
+full-display versus cropped-viewport mapping, per-eye Tobii UCS offsets and
+non-symmetric rotations. Both languages additionally test 100 arbitrary rigid
+frame changes, inverse transformations, reflected/scaled matrices, direction
+magnitudes spanning $10^{-200}$--$10^{200}$, dynamic-pose provenance and physical
+panel dimensions across orientation changes. Five native geometry fixture
+outputs are compared directly between implementations. These fixtures are
+separate from the 78-case acquisition-rate matrix.
 
 Strict TypeScript compilation generates public declarations from the executable
 source. Consumer tests check exports and validity-dependent measurement types.
@@ -490,9 +671,12 @@ and source distribution; SDKs, inference weights and private-project data are
 excluded. Clean installation tests run outside the checkout, including a wheel
 rebuilt from the source distribution.
 
-Schema 2.0 records the implementation version, source descriptors, clock
+Schema 2.1 records the implementation version, plane extent, metric hit frame,
+source descriptors, clock
 mappings, configuration, raw event sequence, retention losses and derived output.
-Exact replay rejects incomplete or incompatible logs. Default in-memory limits
+Exact replay rejects incomplete or incompatible logs, including earlier
+implementation versions; recordings are never silently reinterpreted under
+changed projection semantics. Default in-memory limits
 are explicit: 7,200 frames, 100,000 raw/derived records and 4,096 pending
 observations. Long sessions require persistence before rollover. Current bounded
 arrays still incur front-removal costs; streaming storage and backpressure
@@ -552,13 +736,17 @@ fixtures and synthetic experiments establish a reproducible software foundation.
 Measured device timing, calibration and participant behavior remain the necessary
 next evidence for end-to-end claims.
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{10}
+\interlinepenalty=10000
+\raggedright
 \bibitem{gazesync} Yaxiong Lei, Rishab Talwar, Shijing He, Xinya Gong, Yuheng Wang, Xudong Cai, Zhongliang Guo, and Juan Ye. 2026. GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content. In \textit{Extended Abstracts of the CHI Conference on Human Factors in Computing Systems}. \url{https://doi.org/10.1145/3772363.3798725}
 \bibitem{stellmach} Sophie Stellmach and Raimund Dachselt. 2012. Investigating Gaze-supported Multimodal Pan and Zoom. In \textit{Proceedings of the Symposium on Eye Tracking Research and Applications (ETRA)}. \url{https://imld.de/cnt/uploads/2013/07/2012-ETRA-GazeSuppPanAndZoom.pdf}
 \bibitem{lsl} Christian Kothe, Seyed Yahya Shirazi, Tristan Stenner, David Medine, Chadwick Boulay, Matthew I. Grivich, Fiorenzo Artoni, Tim Mullen, Arnaud Delorme, and Scott Makeig. 2025. The lab streaming layer for synchronized multimodal recording. \textit{Imaging Neuroscience} 3. \url{https://doi.org/10.1162/IMAG.a.136}
 \bibitem{tobii} Tobii Pro. Coordinate systems and Python SDK documentation. \url{https://developer.tobiipro.com/commonconcepts/coordinatesystems.html}. Accessed 15 October 2026.
 \bibitem{pupil} Pupil Labs. Pupil Core developer documentation. \url{https://docs.pupil-labs.com/core/developer/}. Accessed 15 October 2026.
 \bibitem{eyelink} SR Research. Python programming with EyeLink. \url{https://www.sr-research.com/support/thread-48-post-47.html}. Accessed 15 October 2026.
+\bibitem{opencv} OpenCV. Camera Calibration and 3D Reconstruction. \url{https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html}. Accessed 15 October 2026.
+\bibitem{pupilcoords} Pupil Labs. Pupil Core Terminology: Coordinate System. \url{https://docs.pupil-labs.com/core/terminology/}. Accessed 15 October 2026.
 \bibitem{hrtime} W3C. High Resolution Time, Level 3. \url{https://www.w3.org/TR/hr-time-3/}. Accessed 15 October 2026.
 \bibitem{pointerevents} W3C. Pointer Events, Level 3. \url{https://www.w3.org/TR/pointerevents3/}. Accessed 15 October 2026.
 \end{thebibliography}

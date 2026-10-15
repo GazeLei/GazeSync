@@ -10,7 +10,8 @@ import tempfile
 import venv
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "artifacts/release"
+VERSION = json.loads((ROOT / "package.json").read_text())["version"]
+OUT = ROOT / "artifacts/release" / VERSION
 
 
 def run(args, cwd=ROOT, **kwargs):
@@ -31,8 +32,8 @@ def main():
     )
     info = json.loads(packed.stdout)[0]
     archive = OUT / "npm" / info["filename"]
-    wheel = next((OUT / "python").glob("*.whl"))
-    sdist = next((OUT / "python").glob("*.tar.gz"))
+    wheel = OUT / "python" / f"gazesync-{VERSION}-py3-none-any.whl"
+    sdist = OUT / "python" / f"gazesync-{VERSION}.tar.gz"
     with tempfile.TemporaryDirectory(prefix="gazesync-install-") as tmp:
         tmp = Path(tmp)
         venv.EnvBuilder(with_pip=True).create(tmp / "venv")

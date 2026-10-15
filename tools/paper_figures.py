@@ -9,7 +9,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import (
     FancyBboxPatch,
-    Ellipse,
     Polygon,
     FancyArrowPatch,
 )
@@ -143,7 +142,7 @@ box(
     2.85,
     1.13,
     "Clock mapping",
-    "Capture time and uncertainty\nEye identity and validity",
+    "Capture time + bound\nEye identity and validity",
     ORANGE,
 )
 box(
@@ -250,47 +249,120 @@ b.set_title(
 fig.subplots_adjust(bottom=0.2, top=0.85, left=0.09, right=0.99)
 save(fig, "timing")
 
-# Geometry: orthographic schematic, explicit asynchronous eye channels.
-fig, ax = plt.subplots(figsize=(3.4, 3.05))
-ax.set(xlim=(0, 5), ylim=(0, 4.55))
-ax.axis("off")
-plane = np.array([[2.05, 4.15], [4.35, 3.65], [4.72, 2.55], [2.42, 3.05]])
-ax.add_patch(Polygon(plane, closed=True, fc="#EAF4F2", ec=GREEN, lw=1.1))
-ax.text(3.3, 4.3, "Registered display plane", ha="center", weight="bold", fontsize=8)
-arrow(ax, (2.05, 4.15), (3.06, 3.93), GREEN)
-arrow(ax, (2.05, 4.15), (2.24, 3.60), GREEN)
-ax.text(2.7, 4.08, "u", fontsize=8, color=GREEN)
-ax.text(2.03, 3.58, "v", fontsize=8, color=GREEN)
-ax.text(1.83, 4.18, "P", fontsize=8, color=GREEN)
-origins = [(0.55, 2.8), (0.82, 2.1)]
-hits = [(3.27, 3.43), (3.48, 3.22)]
-for origin, hit, color, label in zip(
-    origins, hits, [BLUE, ORANGE], ["Left eye", "Right eye"]
-):
-    ax.add_patch(Ellipse(origin, 0.36, 0.18, fc="white", ec=color, lw=1.2))
-    ax.scatter(*origin, s=9, color=color)
-    arrow(ax, (origin[0] + 0.2, origin[1]), hit, color)
-    ax.scatter(*hit, s=17, color=color, zorder=4)
-    ax.text(origin[0] - 0.3, origin[1] - 0.26, label, color=color, fontsize=7.5)
-ax.text(3.62, 2.72, "Separate hits", color=GREEN, fontsize=7.3)
-ax.text(
-    1.9,
-    1.95,
-    "Measured origins + shared frame\nNo inferred origin or binocular average",
-    fontsize=7.3,
-    color=MUTED,
-    ha="left",
+# Geometry: distinct metric origins and the independently calculated window example.
+GEOMETRY = json.loads((ROOT / "contracts/geometry-fixtures.json").read_text())
+fig = plt.figure(figsize=(7.1, 3.4))
+gs = fig.add_gridspec(1, 2, width_ratios=[1.12, 1], wspace=0.25)
+a = fig.add_subplot(gs[0, 0])
+b = fig.add_subplot(gs[0, 1])
+for ax in (a, b):
+    ax.axis("off")
+a.set(xlim=(-0.33, 0.64), ylim=(-0.56, 0.34), aspect="equal")
+a.set_title(
+    "A   Camera, eye and screen origins", loc="left", fontsize=8.8, weight="bold", pad=8
 )
-ax.plot([0.05, 4.95], [1.55, 1.55], color=LINE, lw=0.7)
-ax.text(0.05, 1.29, "Independent capture times", weight="bold", fontsize=8)
-for y, color, rate, ticks in [
-    (0.92, BLUE, "600 Hz", np.linspace(1.45, 4.7, 20)),
-    (0.48, ORANGE, "120 Hz", np.linspace(1.55, 4.6, 4)),
-]:
-    ax.hlines(y, 1.35, 4.85, color=LINE, lw=0.7)
-    ax.scatter(ticks, np.full(len(ticks), y), s=7, color=color)
-    ax.text(0.05, y, rate, color=color, va="center", fontsize=7.8)
-ax.text(1.35, 0.12, "Optional bounded pairing; no resampling", fontsize=7, color=MUTED)
+proj = lambda xyz: np.array([xyz[0] + 0.85 * xyz[2], xyz[1] - 0.5 * xyz[2]])
+p = GEOMETRY["plane"]
+corners = [p["topLeft"], [0.265, 0.165, 0], [0.265, -0.165, 0], [-0.265, -0.165, 0]]
+a.add_patch(
+    Polygon([proj(c) for c in corners], closed=True, fc="#EAF4F2", ec=GREEN, lw=1)
+)
+p0 = proj(p["topLeft"])
+world = proj([0, 0, 0])
+camera = proj(GEOMETRY["cameraCenterWorld"])
+a.scatter(*p0, s=17, color=GREEN, zorder=5)
+a.text(-0.29, 0.20, r"$P$: screen top-left", fontsize=7.2, color=GREEN)
+a.scatter(*world, s=26, marker="+", color=INK, zorder=6)
+a.text(-0.22, -0.045, r"$O_W$: panel centre", fontsize=7.2, color=INK)
+arrow(a, p0, p0 + np.array([0.10, 0]), GREEN)
+arrow(a, p0, p0 + np.array([0, -0.10]), GREEN)
+a.text(-0.18, 0.178, r"$u$", fontsize=7.5, color=GREEN)
+a.text(-0.29, 0.07, r"$v$", fontsize=7.5, color=GREEN)
+a.scatter(*camera, s=20, marker="s", color=INK, zorder=6)
+a.annotate(
+    r"$C_W$: camera centre",
+    xy=camera,
+    xytext=(0.10, 0.28),
+    fontsize=7.3,
+    ha="left",
+    arrowprops={"arrowstyle": "-", "color": MUTED, "lw": 0.7},
+)
+for c, color, label, delta in zip(
+    GEOMETRY["cases"][:2],
+    [BLUE, ORANGE],
+    [r"$O_L$", r"$O_R$"],
+    [(-0.055, -0.06), (0.018, 0.015)],
+):
+    origin = proj(c["originWorld"])
+    a.scatter(*origin, s=24, color=color, zorder=5)
+    arrow(a, origin, world, color)
+    a.text(*(origin + np.array(delta)), label, fontsize=8, color=color)
+a.text(0.29, -0.15, "Separate eye origins", fontsize=7.2, color=MUTED)
+a.text(-0.27, -0.205, "Active panel: 0.53 × 0.33 m", fontsize=7.2, color=GREEN)
+a.text(-0.30, -0.43, r"$p_W=R_{WC}p_C+t_{WC}$", fontsize=9, color=INK)
+a.text(-0.30, -0.51, r"$d_W=R_{WC}d_C$", fontsize=9, color=INK)
+a.text(
+    0.23,
+    -0.45,
+    "Translate points.\nRotate directions.",
+    fontsize=7.2,
+    linespacing=1.5,
+    color=MUTED,
+)
+
+b.set(xlim=(-0.08, 2.05), ylim=(-0.48, 1.75), aspect="equal")
+b.set_title(
+    "B   Full display to cropped viewport",
+    loc="left",
+    fontsize=8.8,
+    weight="bold",
+    pad=8,
+)
+b.add_patch(
+    Polygon(
+        [[0, 1.48], [1.92, 1.48], [1.92, 0.40], [0, 0.40]],
+        closed=True,
+        fc=PALE,
+        ec=LINE,
+        lw=1,
+    )
+)
+b.add_patch(
+    Polygon(
+        [[0.1, 1.4], [1.1, 1.4], [1.1, 0.8], [0.1, 0.8]],
+        closed=True,
+        fc="#EAF2F8",
+        ec=BLUE,
+        lw=1.2,
+    )
+)
+b.scatter([0, 0.1], [1.48, 1.4], s=15, color=[INK, BLUE], zorder=5)
+b.text(0, 1.61, "Display origin (0, 0)", fontsize=7.3, color=INK)
+b.annotate(
+    "Viewport origin\nD = (100, 80)",
+    xy=(0.1, 1.4),
+    xytext=(1.25, 1.25),
+    fontsize=7.2,
+    color=BLUE,
+    arrowprops={"arrowstyle": "-", "color": BLUE, "lw": 0.7},
+    linespacing=1.4,
+)
+b.scatter([0.96], [0.94], s=25, color=GREEN, zorder=6)
+b.annotate(
+    "Same physical hit",
+    xy=(0.96, 0.94),
+    xytext=(1.18, 0.58),
+    fontsize=7.2,
+    color=GREEN,
+    arrowprops={"arrowstyle": "-", "color": GREEN, "lw": 0.7},
+)
+b.text(0.22, 1.05, "Viewport", fontsize=8, color=BLUE)
+b.text(0.05, 0.27, "Display: 1920 × 1080 logical px", fontsize=7.4, color=MUTED)
+b.text(0.05, 0.14, "Viewport: 1000 × 600 logical px", fontsize=7.4, color=MUTED)
+b.text(0.05, -0.05, r"$p_D=(960,540)$", fontsize=9, color=GREEN)
+b.text(0.05, -0.23, r"$p_V=(960-100,540-80)$", fontsize=9, color=BLUE)
+b.text(0.05, -0.41, r"$\phantom{p_V}=(860,460)$", fontsize=9, color=BLUE)
+fig.subplots_adjust(left=0.02, right=0.99, top=0.87, bottom=0.05)
 save(fig, "geometry")
 
 # Controlled matrix and a separate context-coverage panel.
@@ -357,9 +429,13 @@ b.text(
     transform=b.transAxes,
 )
 for y, value, label in [
-    (0.85, "78", "configurations"),
-    (0.59, "107,070", "observations"),
-    (0.33, "0", "capture-frame mismatches"),
+    (0.85, str(DATA["experimentCases"]), "configurations"),
+    (0.59, f"{DATA['totalSamples']:,}", "observations"),
+    (
+        0.33,
+        str(sum(r["frameMismatches"] for r in DATA["rows"])),
+        "capture-frame mismatches",
+    ),
 ]:
     b.text(0, y, value, weight="bold", fontsize=19, color=BLUE, transform=b.transAxes)
     b.text(0, y - 0.07, label, color=MUTED, fontsize=8, transform=b.transAxes)
@@ -374,7 +450,8 @@ b.text(
 b.text(
     0,
     -0.20,
-    "Maximum reconstruction residual\n7.85 × 10⁻¹³ logical px",
+    "Maximum reconstruction residual\n"
+    + f"{max(r['maxReconstructionErrorPx'] for r in DATA['rows']):.2e} logical px",
     fontsize=8.1,
     color=GREEN,
     linespacing=1.45,

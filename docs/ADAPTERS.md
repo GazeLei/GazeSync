@@ -41,6 +41,10 @@ convert angular convention to an explicit vector in your adapter. A zero origin
 must not be invented. Convert NumPy arrays to lists using `.tolist()` and GPU
 tensors explicitly to CPU numeric records before calling the Python normalizer.
 
+For camera-to-screen extrinsics, retain the original ray and measured transform
+in sample metadata. Use [the coordinate-frame guide](COORDINATES.md); changing a
+frame ID alone is not a coordinate conversion.
+
 ## Hardware bridges
 
 Tobii options accept `timestamp: 'device'` (default) or `'system'`. Either clock

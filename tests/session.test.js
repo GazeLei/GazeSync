@@ -190,6 +190,7 @@ test("orientation/window epochs protect stale coordinates; full-display PoG uses
     surface: {
       ...surface(),
       display: { width: 1920, height: 1080, left: 100, top: 80 },
+      planeSpace: "viewport",
     },
   });
   s.present({ t: 100, view: initial(), surface: surface("2") });

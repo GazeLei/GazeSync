@@ -20,4 +20,10 @@ export {
   applyAffine,
   invertAffine,
   projectRay,
+  validateRigidTransform,
+  transformPoint3D,
+  transformDirection3D,
+  transformRay,
+  transformPlane,
+  invertRigidTransform,
 } from "./geometry.js";

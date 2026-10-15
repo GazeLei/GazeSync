@@ -1,4 +1,4 @@
 """Wire and implementation versions are intentionally independent."""
 
-SCHEMA_VERSION = "2.0"
-IMPLEMENTATION_VERSION = "0.3.0"
+SCHEMA_VERSION = "2.1"
+IMPLEMENTATION_VERSION = "0.4.0"

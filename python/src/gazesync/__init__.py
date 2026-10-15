@@ -27,6 +27,12 @@ from .geometry import (
     apply_affine,
     invert_affine,
     project_ray,
+    validate_rigid_transform,
+    transform_point_3d,
+    transform_direction_3d,
+    transform_ray,
+    transform_plane,
+    invert_rigid_transform,
 )
 
 __version__ = IMPLEMENTATION_VERSION
@@ -53,6 +59,12 @@ __all__ = [
     "apply_affine",
     "invert_affine",
     "project_ray",
+    "validate_rigid_transform",
+    "transform_point_3d",
+    "transform_direction_3d",
+    "transform_ray",
+    "transform_plane",
+    "invert_rigid_transform",
     "pair_eyes",
     "ModelAdapter",
     "TobiiProAdapter",

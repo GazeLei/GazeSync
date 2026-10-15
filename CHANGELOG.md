@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 - 2026-10-15 (development, not published)
+
+- Audit camera/eye/display/viewport origins; add named proper rigid-transform helpers in both languages.
+- Fix full-display 3D mapping into offset viewports; require an explicit plane extent for ambiguous layouts.
+- Preserve the metric frame ID with 3D hits; schema 2.1 rejects earlier replay implementations.
+- Keep physical panel dimensions stable through simulated orientation changes; expose explicit metric sizes.
+- Classify active-display bounds for all coordinate inputs and retain arithmetic edge residuals without clipping.
+- Add analytic camera/tracker fixtures, 100 rigid-frame checks per language and an expanded geometry manuscript/figure.
+- Keep package builds in version-specific output directories so earlier artifacts remain available.
+
+
 ## 0.2.0 - 15 October 2026 (unpublished)
 
 - Fix view-history lookup for simultaneous surfaces and gesture interruption by

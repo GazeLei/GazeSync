@@ -313,3 +313,104 @@ def project_ray(
     if not all(math.isfinite(n) for n in [*hit, p["x"], p["y"]]):
         return {"reason": "non-finite-projection"}
     return {"point": p, "hit": hit, "distanceMeters": distance}
+
+
+def validate_rigid_transform(transform: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Validate p_target = R p_source + t; row-major R, translation in metres."""
+    if not isinstance(transform, Mapping):
+        raise ValueError("Rigid transform must be a mapping")
+    for key in ("fromFrameId", "toFrameId"):
+        if not isinstance(transform.get(key), str) or not transform[key]:
+            raise ValueError(f"{key} must identify a coordinate frame")
+    r = transform.get("rotation")
+    if not isinstance(r, (list, tuple)) or len(r) != 9:
+        raise ValueError("rotation must be a row-major 3x3 matrix")
+    for n in r:
+        finite(n, "rotation coefficient")
+    vector(transform.get("translation"), "translation in metres")
+    if "static" in transform and not isinstance(transform["static"], bool):
+        raise ValueError("transform.static must be boolean")
+    rows = [r[0:3], r[3:6], r[6:9]]
+    for i in range(3):
+        for j in range(3):
+            if abs(dot(rows[i], rows[j]) - (1 if i == j else 0)) > 1e-6:
+                raise ValueError(
+                    "rotation must be orthonormal; scale and shear are not rigid transforms"
+                )
+    if abs(dot(rows[0], cross(rows[1], rows[2])) - 1) > 1e-6:
+        raise ValueError(
+            "rotation must have determinant +1; reflections require an explicit convention conversion"
+        )
+    return transform
+
+
+def _rotate_3d(v: Vector3, r: Sequence[float]) -> list[float]:
+    return [dot(r[0:3], v), dot(r[3:6], v), dot(r[6:9], v)]
+
+
+def transform_point_3d(p: Vector3, transform: Mapping[str, Any]) -> list[float]:
+    validate_rigid_transform(transform)
+    vector(p, "source point")
+    result = [
+        a + b
+        for a, b in zip(_rotate_3d(p, transform["rotation"]), transform["translation"])
+    ]
+    vector(result, "transformed point")
+    return result
+
+
+def transform_direction_3d(
+    direction: Vector3, transform: Mapping[str, Any]
+) -> list[float]:
+    """A direction has homogeneous coordinate zero; translation never applies."""
+    validate_rigid_transform(transform)
+    vector(direction, "source direction")
+    result = _rotate_3d(direction, transform["rotation"])
+    vector(result, "transformed direction")
+    return result
+
+
+def transform_ray(
+    ray: Mapping[str, Any], transform: Mapping[str, Any]
+) -> dict[str, Any]:
+    validate_rigid_transform(transform)
+    if ray.get("frameId") != transform["fromFrameId"]:
+        raise ValueError("Ray frameId does not match transform.fromFrameId")
+    return dict(
+        frameId=transform["toFrameId"],
+        origin=transform_point_3d(ray["origin"], transform),
+        direction=transform_direction_3d(ray["direction"], transform),
+    )
+
+
+def transform_plane(
+    plane: Mapping[str, Any], transform: Mapping[str, Any]
+) -> dict[str, Any]:
+    validate_plane(plane)
+    validate_rigid_transform(transform)
+    if plane["frameId"] != transform["fromFrameId"]:
+        raise ValueError("Plane frameId does not match transform.fromFrameId")
+    return {
+        **plane,
+        "frameId": transform["toFrameId"],
+        "topLeft": transform_point_3d(plane["topLeft"], transform),
+        "right": transform_direction_3d(plane["right"], transform),
+        "down": transform_direction_3d(plane["down"], transform),
+        "static": plane.get("static") is True and transform.get("static") is True,
+    }
+
+
+def invert_rigid_transform(transform: Mapping[str, Any]) -> dict[str, Any]:
+    """Invert extrinsics: camera position in the source frame is -R^T t, not t."""
+    validate_rigid_transform(transform)
+    r = transform["rotation"]
+    rotation = [r[0], r[3], r[6], r[1], r[4], r[7], r[2], r[5], r[8]]
+    translation = [-n for n in _rotate_3d(transform["translation"], rotation)]
+    vector(translation, "inverse translation")
+    return dict(
+        fromFrameId=transform["toFrameId"],
+        toFrameId=transform["fromFrameId"],
+        rotation=rotation,
+        translation=translation,
+        **({"static": transform["static"]} if "static" in transform else {}),
+    )

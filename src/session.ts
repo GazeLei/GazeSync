@@ -35,8 +35,17 @@ import {
 } from "./geometry.js";
 
 const clone = <T>(v: T): T => structuredClone(v);
-const inside = (p: Point, w: number, h: number) =>
-  p.x >= 0 && p.y >= 0 && p.x <= w && p.y <= h;
+const inside = (p: Point, w: number, h: number) => {
+  if (![p.x, p.y, w, h].every(Number.isFinite)) return false;
+  const tolerance =
+    64 * Number.EPSILON * Math.max(1, w, h, Math.abs(p.x), Math.abs(p.y));
+  return (
+    p.x >= -tolerance &&
+    p.y >= -tolerance &&
+    p.x <= w + tolerance &&
+    p.y <= h + tolerance
+  );
+};
 const geometryKey = (f: PresentationRecord, type: GazeType) =>
   JSON.stringify([
     f.matrix,
@@ -65,6 +74,7 @@ const geometryKey = (f: PresentationRecord, type: GazeType) =>
           f.surface.plane.widthMeters,
           f.surface.plane.heightMeters,
           f.surface.plane.static ?? false,
+          f.surface.planeSpace ?? "viewport",
         ]
       : null,
   ]);
@@ -101,7 +111,25 @@ function validateSurface(s: Surface, view: View) {
     finite(s.display.left, "display.left");
     finite(s.display.top, "display.top");
   }
+  if (
+    s.planeSpace !== undefined &&
+    !["viewport", "display"].includes(s.planeSpace)
+  )
+    throw new TypeError("planeSpace must be viewport or display");
+  if (s.planeSpace === "display" && !s.display)
+    throw new TypeError("planeSpace display requires the full display layout");
   if (s.plane) {
+    if (
+      s.planeSpace === undefined &&
+      s.display &&
+      (s.display.left !== 0 ||
+        s.display.top !== 0 ||
+        s.display.width !== view.width ||
+        s.display.height !== view.height)
+    )
+      throw new TypeError(
+        "Declare planeSpace explicitly when the viewport differs from the full display",
+      );
     validatePlane(s.plane);
     if (s.plane.static !== true)
       finite(s.poseTimeMs!, "dynamic plane poseTimeMs");
@@ -563,16 +591,21 @@ export class GazeSession {
         if (age < -uncertaintyMs) flags.push("pose-after-capture");
         if (age > this.config.maxPoseAgeMs) flags.push("stale-plane-pose");
       }
+      const layout =
+        f.surface.planeSpace === "display" ? f.surface.display : undefined;
       const hit = projectRay(
         s.ray,
         f.surface.plane,
-        f.view.width,
-        f.view.height,
+        layout?.width ?? f.view.width,
+        layout?.height ?? f.view.height,
       );
       if (hit.reason) flags.push(hit.reason);
       else {
-        p = hit.point;
+        p = layout
+          ? { x: hit.point!.x - layout.left, y: hit.point!.y - layout.top }
+          : hit.point;
         result.rayHit = {
+          frameId: f.surface.plane!.frameId,
           pointMeters: hit.hit!,
           distanceMeters: hit.distanceMeters!,
         };
@@ -590,6 +623,16 @@ export class GazeSession {
       flags.push("non-finite-projection");
       return result;
     }
+    const display = f.surface.display;
+    if (
+      display &&
+      !inside(
+        { x: p.x + display.left, y: p.y + display.top },
+        display.width,
+        display.height,
+      )
+    )
+      flags.push("off-display");
     result.viewportPoint = p;
     result.contentPoint = contentPoint;
     if (!inside(p, f.view.width, f.view.height)) flags.push("off-viewport");

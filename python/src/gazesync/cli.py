@@ -32,6 +32,8 @@ def main():
     p.add_argument("--input-hz", type=float, default=240)
     p.add_argument("--gaze-hz", type=float, default=120)
     p.add_argument("--right-gaze-hz", type=float)
+    p.add_argument("--physical-width-m", type=float)
+    p.add_argument("--physical-height-m", type=float)
     p.add_argument(
         "--mode",
         choices=[
@@ -109,6 +111,10 @@ def main():
             }
             if args.right_gaze_hz is not None:
                 config["rightGazeHz"] = args.right_gaze_hz
+            if args.physical_width_m is not None:
+                config["physicalWidthMeters"] = args.physical_width_m
+            if args.physical_height_m is not None:
+                config["physicalHeightMeters"] = args.physical_height_m
             experiment = generate_experiment(config)
             session = execute_experiment(experiment)
             result = summarize_experiment(experiment, session)

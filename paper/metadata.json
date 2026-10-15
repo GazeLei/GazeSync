@@ -3,5 +3,7 @@
   "status": "Implementation report draft; arXiv submission pending",
   "arxivId": null,
   "authorsFinalized": false,
-  "originalPaperDoi": "10.1145/3772363.3798725"
+  "originalPaperDoi": "10.1145/3772363.3798725",
+  "implementationVersion": "0.4.0",
+  "schemaVersion": "2.1"
 }

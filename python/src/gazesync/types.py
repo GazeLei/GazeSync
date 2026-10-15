@@ -76,3 +76,14 @@ class SourceDescriptor(_OptionalSource):
     adapter: str
     eyes: list[Eye]
     trackingMode: TrackingMode
+
+
+class _TransformOptions(TypedDict, total=False):
+    static: bool
+
+
+class RigidTransform(_TransformOptions):
+    fromFrameId: str
+    toFrameId: str
+    rotation: list[float]  # Row-major proper rotation, nine entries.
+    translation: list[float]  # Target-frame source origin in metres.

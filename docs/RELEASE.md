@@ -24,7 +24,7 @@ npm run test:conformance
 
 The packaging utility requires Python 3.12+; the library supports Python 3.10+.
 It creates an npm tarball, a wheel and a source distribution under
-`artifacts/release/`, checks metadata with Twine, installs both packages outside
+`artifacts/release/<version>/`, checks metadata with Twine, installs both packages outside
 the checkout and rebuilds the wheel from the sdist. These are local artifacts.
 `npm pack` works while `private:true` blocks `npm publish`.
 

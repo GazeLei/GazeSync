@@ -16,7 +16,9 @@
     "inputHz": 240,
     "gazeHz": 120,
     "mode": "binocular-independent",
-    "rightGazeHz": 120
+    "rightGazeHz": 120,
+    "physicalWidthMeters": 0.53,
+    "physicalHeightMeters": 0.29812500000000003
   },
   "frames": [
     {

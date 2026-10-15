@@ -1,6 +1,6 @@
 # Synchronization and coordinate contract
 
-Version 0.3.0 emits schema 2.0. Both implementations accept the same JSON records;
+Version 0.4.0 emits schema 2.1. Both implementations accept the same JSON records;
 Python uses snake_case method names but preserves camelCase wire fields.
 
 ## Time and presentation
@@ -41,7 +41,11 @@ valid sample after newer invalid data.
 
 ## Coordinates and identity
 
+See [coordinate frames and camera geometry](COORDINATES.md) for the full origin
+table, transform direction, projection equations and a numerical example.
+
 `point` uses `viewport`, `normalized-viewport` or `normalized-display` space.
+Full-display 3D planes also require `planeSpace: 'display'` and this layout.
 The last requires `surface.display` dimensions and viewport offsets in one
 consistent unit system. Device pixel ratio is metadata: do not multiply CSS
 coordinates by it twice. Input coordinates must already be local to the viewport.
@@ -84,6 +88,18 @@ or choose a measured memory budget for the host.
 `export()` returns finite JSON with configuration, clocks, source descriptors,
 raw records, quality-tagged alignments and diagnostic aggregates. Exact replay
 requires complete consecutive records and the matching schema and implementation.
-Schema 1.x logs require their original implementation; there is no silent upgrade.
+Schema 1.x and 2.0 logs require their original implementation; there is no silent upgrade.
+Schema 2.1 records plane extent and a frame ID with every 3D hit.
 Replay checks consistency, not signatures or authenticity. Applications remain
 responsible for participant consent, storage access and retention policies.
+
+
+## Moving from 0.3.0 to 0.4.0
+
+Record `planeSpace: 'display'` for a plane covering the entire active display, or
+`'viewport'` for the physical stimulus subrectangle. A recorded differing display
+layout now requires that explicit choice. The hit's metric frame is available as
+`rayHit.frameId`. Schema 2.0 logs can be read using implementation 0.3.0; do not
+change their version fields to force replay. An old ambiguous plane extent needs
+a documented interpretation from the original setup before any migration, with
+the original recording retained. The original 0.3.0 code is commit `3afc151`.
