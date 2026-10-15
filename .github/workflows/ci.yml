@@ -17,7 +17,9 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run test:types
-      - run: npm run simulate
+      - run: npm run simulate -- --out artifacts/scenarios
+      - run: npm run replay -- artifacts/scenarios/mobile-session.json
+      - run: npm run bench
       - run: npm run release:check
   python:
     runs-on: ubuntu-latest

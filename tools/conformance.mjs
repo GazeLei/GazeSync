@@ -234,7 +234,20 @@ for (const config of cases) {
   if (rows.length % 10 === 0)
     console.error(`Validated ${rows.length}/${cases.length} cases`);
 }
+const pythonVersion = spawnSync(
+  python,
+  ["-c", "import platform; print(platform.python_version())"],
+  { encoding: "utf8", timeout: 10000 },
+);
+if (pythonVersion.status !== 0)
+  throw new Error(pythonVersion.stderr || "Could not record Python runtime");
 const output = {
+  runtime: {
+    node: process.version,
+    python: pythonVersion.stdout.trim(),
+    platform: process.platform,
+    architecture: process.arch,
+  },
   schemaVersion: "2.0",
   implementationVersion: "0.3.0",
   adapterCases: fixture.cases.length,

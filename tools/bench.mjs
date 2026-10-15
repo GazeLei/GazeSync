@@ -3,6 +3,15 @@ import { createView, GazeSession } from "../dist/index.js";
 
 const samples = 20000,
   session = new GazeSession({ maxFrames: 256, maxRecords: 4096 });
+session.registerSource({
+  id: "sensor",
+  kind: "simulated",
+  adapter: "benchmark-v1",
+  eyes: ["left"],
+  trackingMode: "monocular",
+  expectedHz: 120,
+  timestampKind: "exposure",
+});
 const view = createView({
   width: 1000,
   height: 600,
@@ -21,6 +30,7 @@ for (let i = 0; i < samples; i += 2) {
       {
         id: String(i + j),
         sourceId: "sensor",
+        eye: "left",
         clockId: "session",
         clockEpoch: "0",
         timeMs: t + (j * 1000) / 120,

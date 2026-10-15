@@ -74,6 +74,7 @@ reviewed together against schema 2.0. Concrete repairs made during integration:
 | Receipt-only sources could look suitable for exposure-time attention. | A blocking quality flag and actionable diagnostic preserve the distinction. |
 | Python sdist tests referenced a parent repository fixture. | Fixtures are packaged with the tests and checked against the shared contract. |
 | The full conformance harness could block on large subprocess pipes. | File-backed temporary transport, bounded subprocess timeout and cleanup. |
+| The inherited benchmark sample omitted the schema 2.0 eye field. | Explicit monocular source/eye metadata; simulation, replay and benchmark CLI smoke checks now run in CI. |
 | Twine 6.2 rejected the builder's metadata 2.5. | Packaging checks require Twine 7; wheel and sdist metadata pass. |
 
 Validation after these repairs: 65 Node tests, strict TypeScript consumer checks,
