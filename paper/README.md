@@ -108,3 +108,11 @@ The [17 October review](reviewer-notes.txt) identifies specific issues in the
 comparison baseline, experiment duration, usable coverage, Figure 4B, moving
 geometry, related systems and default thresholds. These are discussion items;
 the patch updates implementation facts without fabricating the missing studies.
+
+The 18 October citation revision adds the mobile-gaze survey, DynamicRead,
+the motion-impact preprint and FIUD at the claims they support. The survey uses
+its 2023 online-publication year (the issue is dated 2024); the motion study is
+explicitly cited as an arXiv preprint. The discussion separates estimator and
+calibration quality, temporal association and coordinate reconstruction, and
+clarifies the denominator of reconstruction residuals. No new experiment or
+hardware-validation result is claimed by these citations.

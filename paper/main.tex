@@ -73,8 +73,10 @@ further spatial dependencies. Researchers need to distinguish these effects
 before interpreting a trace as attention to a particular feature.
 
 The original GazeSync introduced mobile gaze and image-transform logging with
-content-relative reconstruction~\cite{gazesync}. This report extends that
-system's implementation boundary. It defines how a renderer and heterogeneous
+content-relative reconstruction~\cite{gazesync}. Within the broader mobile-gaze
+pipeline of sensing, estimation and interaction reviewed by
+Lei et al.~\cite{leisurvey}, this extension addresses the association of gaze
+observations with rendered content. It defines how a renderer and heterogeneous
 gaze sources exchange timing, geometry and validity, then provides matching
 Python and TypeScript implementations. The target is instrumentation of an
 application owned by the researcher: the library does not observe arbitrary
@@ -129,13 +131,16 @@ capture timestamps at those frequencies.
 
 \subsection{Interaction and synchronization systems}
 Gaze-supported pan and zoom has been investigated as an interaction technique,
-including combining gaze with other input modalities~\cite{stellmach}. Our
+including combining gaze with other input modalities~\cite{stellmach}.
+DynamicRead evaluated gaze-based scrolling for handheld reading in sitting and
+walking conditions, finding differences in the techniques' robustness under
+mobility~\cite{dynamicread}. Our
 instrumentation observes manual interaction while retaining gaze for analysis;
 it does not assume that the gaze target is the pointer or pinch midpoint. A
 person may inspect a landmark while it moves, look at a stable screen location
-while dragging, or shift attention ahead of the next action. The simulation
-therefore exercises several attention policies instead of coupling the gaze
-position directly to the input device.
+while dragging, or shift attention ahead of the next action. These scenarios
+motivate varied attention policies in the simulation; the scripted trajectories
+and their frequencies remain illustrative.
 
 Lab Streaming Layer provides timestamped multimodal streams and network clock
 synchronization~\cite{lsl}. Such infrastructure can supply a transport or clock
@@ -469,7 +474,11 @@ A mirrored preview must be resolved explicitly, because a single-axis reflection
 is not a proper 3D rotation. Content zoom modifies $M$, not camera intrinsics.
 
 For a moving phone, both ray conversion and screen pose must refer to the relevant
-capture time. A matching frame name alone is insufficient. The current session
+capture time. Empirical work on mobile interactions identifies head distance,
+head pose and device orientation as factors associated with 2D gaze-estimation
+error~\cite{motiongaze}. This motivates explicit geometry provenance, while the
+acceptable age of a pose still requires separate assessment. A matching frame
+name alone is insufficient. The current session
 uses the selected presentation's recorded pose and checks its age; the pose-age
 threshold does not bound spatial error from unobserved motion. The host must
 measure or otherwise justify its temporal geometry approximation. Orientation
@@ -533,6 +542,14 @@ missing history, uncertain clocks and unavailable geometry. Observers receive
 the first occurrence for each diagnostic context while the report retains counts
 and most recent occurrence times. An observer exception is recorded without
 interrupting acquisition.
+
+Prediction reliability is distinct from clock and presentation uncertainty.
+Factor-Informed Uncertainty Distillation (FIUD) learns an image-quality-related
+error-ranking signal for selective gaze prediction~\cite{fiud}. Such a score is
+neither automatically a calibrated probability in $[0,1]$ nor a temporal bound
+in milliseconds. Hosts should preserve source-specific error scores and their
+semantics in metadata, and retain \code{confidence=null} when no suitable scalar
+confidence is supplied.
 
 A per-observation \code{usable} flag and reason list remain the primary quality
 contract. Informational conditions, such as unavailable scalar confidence, can
@@ -642,7 +659,9 @@ buffers drain, and every capture-frame selection matches the independent
 synthetic reference. Maximum reconstruction residual is
 $7.85\times10^{-13}$ logical pixels. Maximum Python--TypeScript viewport
 disagreement is $4.55\times10^{-13}$ pixels; mapped capture times agree at the
-reported precision. These near-zero values measure arithmetic and contract
+reported precision. Received counts include unusable observations and are not
+a usable-coverage statistic; reconstruction residuals are evaluated on mapped
+observations with a known synthetic target. These near-zero values measure arithmetic and contract
 consistency for known inputs. They cannot establish subpixel physical accuracy.
 
 The receipt-time baseline's P95 residual ranges from 54.4 to 79.6 logical pixels
@@ -702,9 +721,12 @@ metadata requests both the original GazeSync paper and this implementation repor
 it will be updated with the real preprint identifier after submission.
 
 \section{Limitations and evaluation agenda}
-The largest uncertainty lies outside the synthetic equations: physical exposure
-time, display scanout, clock offset and drift, extrinsic calibration, source
-accuracy and moving-device pose. Render callbacks alone do not measure photon
+End-to-end assessment must distinguish estimation and calibration quality,
+capture-to-presentation association, and coordinate reconstruction under the
+registered geometry. This validation tests software consistency under supplied
+clock mappings and synthetic geometry. Physical exposure time, display scanout,
+clock offset and drift, extrinsic calibration, source accuracy and moving-device
+pose remain integration measurements. Render callbacks alone do not measure photon
 onset. Replaying known geometry cannot validate an assumed camera-to-display
 transform. Protocol fixtures cannot establish behavior across firmware or SDK
 versions, and a phone-sized browser simulation cannot certify touch behavior on
@@ -715,7 +737,9 @@ latency distributions and uncertainty, and test display geometry on held-out
 targets. Static views, pan, zoom, rotation and device motion should be assessed
 separately before compound manipulations. Relevant outcomes include temporal
 ambiguity, usable coverage, per-eye dropout, viewport/content error and angular
-ray error. Calibration and assessment targets must remain separate. Repeated
+ray error. Error on retained observations should be reported together with the
+proportion retained and the reasons for exclusion, so rejection cannot conceal
+poor coverage. Calibration and assessment targets must remain separate. Repeated
 sessions and participant-separated analysis are needed to characterize drift
 and generalization.
 
@@ -736,10 +760,14 @@ fixtures and synthetic experiments establish a reproducible software foundation.
 Measured device timing, calibration and participant behavior remain the necessary
 next evidence for end-to-end claims.
 
-\begin{thebibliography}{10}
+\begin{thebibliography}{14}
 \interlinepenalty=10000
 \raggedright
 \bibitem{gazesync} Yaxiong Lei, Rishab Talwar, Shijing He, Xinya Gong, Yuheng Wang, Xudong Cai, Zhongliang Guo, and Juan Ye. 2026. GazeSync: A Mobile Eye-Tracking Tool for Analyzing Visual Attention on Dynamically Manipulated Content. In \textit{Proceedings of the Extended Abstracts of the 2026 CHI Conference on Human Factors in Computing Systems}, 1--7. \url{https://doi.org/10.1145/3772363.3798725}
+\bibitem{leisurvey} Yaxiong Lei, Shijing He, Mohamed Khamis, and Juan Ye. 2023. An End-to-End Review of Gaze Estimation and its Interactive Applications on Handheld Mobile Devices. \textit{ACM Computing Surveys} 56, 2, Article 34, 1--38. \url{https://doi.org/10.1145/3606947}
+\bibitem{dynamicread} Yaxiong Lei, Yuheng Wang, Tyler Caslin, Alexander Wisowaty, Xu Zhu, Mohamed Khamis, and Juan Ye. 2023. DynamicRead: Exploring Robust Gaze Interaction Methods for Reading on Handheld Mobile Devices under Dynamic Conditions. \textit{Proceedings of the ACM on Human-Computer Interaction} 7, ETRA, Article 158, 1--17. \url{https://doi.org/10.1145/3591127}
+\bibitem{motiongaze} Yaxiong Lei, Yuheng Wang, Fergus Buchanan, Mingyue Zhao, Yusuke Sugano, Shijing He, Mohamed Khamis, and Juan Ye. 2025. Quantifying the Impact of Motion on 2D Gaze Estimation in Real-World Mobile Interactions. \textit{arXiv preprint} arXiv:2502.10570. \url{https://arxiv.org/abs/2502.10570}
+\bibitem{fiud} Mohammadreza Jamalifard, Yaxiong Lei, Javier Fumanal Idocin, Parastoo Azizinezhad, Tom Foulsham, and Javier Andreu-Perez. 2026. Factor-Informed Uncertainty Distillation for Gaze Estimation. In \textit{Proceedings of the 2026 Symposium on Eye Tracking Research and Applications}, Article 11, 1--7. \url{https://doi.org/10.1145/3797246.3803050}
 \bibitem{stellmach} Sophie Stellmach and Raimund Dachselt. 2012. Investigating Gaze-supported Multimodal Pan and Zoom. In \textit{Proceedings of the Symposium on Eye Tracking Research and Applications (ETRA)}. \url{https://imld.de/cnt/uploads/2013/07/2012-ETRA-GazeSuppPanAndZoom.pdf}
 \bibitem{lsl} Christian Kothe, Seyed Yahya Shirazi, Tristan Stenner, David Medine, Chadwick Boulay, Matthew I. Grivich, Fiorenzo Artoni, Tim Mullen, Arnaud Delorme, and Scott Makeig. 2025. The lab streaming layer for synchronized multimodal recording. \textit{Imaging Neuroscience} 3. \url{https://doi.org/10.1162/IMAG.a.136}
 \bibitem{tobii} Tobii Pro. Coordinate systems and Python SDK documentation. \url{https://developer.tobiipro.com/commonconcepts/coordinatesystems.html}. Accessed 15 October 2026.
