@@ -245,8 +245,8 @@ export interface SessionObservers {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 export interface Recording {
-  schemaVersion: "2.1";
-  implementationVersion: "0.4.0";
+  schemaVersion: typeof import("./version.js").SCHEMA_VERSION;
+  implementationVersion: typeof import("./version.js").IMPLEMENTATION_VERSION;
   recordCount: number;
   config: Required<SessionConfig>;
   clocks: Required<ClockMapping>[];

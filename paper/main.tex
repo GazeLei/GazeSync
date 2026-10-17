@@ -87,7 +87,7 @@ make heterogeneous measurements explicit. Third, deterministic simulations,
 cross-language conformance and isolated distribution artifacts make the
 implementation inspectable and repeatable. The evidence is a software audit and
 synthetic validation; no new participant or physical-device study is claimed.
-This draft documents implementation 0.4.0 and recording schema 2.1.
+This draft documents implementation 0.4.1 and recording schema 2.1.
 The development repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
@@ -486,6 +486,9 @@ and sample ID. The same physical capture can thus carry left/right and PoG/ray
 records without collision. Optional capture and calibration identifiers retain
 further provenance. A combined estimate stays combined; no post hoc label turns
 it into an independent monocular observation.
+Duplicate protection covers every pending observation as well as a bounded
+history of recent identifiers. An identifier older than both windows can be
+accepted again; callers must therefore issue stable, unique sample identifiers.
 
 For analyses that need matched eyes, an offline helper performs chronological,
 one-to-one pairing under a caller-specified maximum skew, defaulting to 5\,ms.
@@ -673,8 +676,10 @@ Exact replay rejects incomplete or incompatible logs, including earlier
 implementation versions; recordings are never silently reinterpreted under
 changed projection semantics. Default in-memory limits
 are explicit: 7,200 frames, 100,000 raw/derived records and 4,096 pending
-observations. Long sessions require persistence before rollover. Current bounded
-arrays still incur front-removal costs; streaming storage and backpressure
+observations. Long sessions require persistence before rollover.
+Python raw-log storage uses a deque to avoid shifting the retained history on
+each insertion. Its public snapshots and JSON exports remain ordered lists.
+Other bounded arrays still incur front-removal costs; streaming storage and backpressure
 remain measured integration work rather than claimed features.
 
 The full matrix can be reproduced with the following source-checkout commands:

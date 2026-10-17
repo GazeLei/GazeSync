@@ -3,7 +3,7 @@
 from __future__ import annotations
 import copy
 import math
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 from .clocks import ClockRegistry
@@ -24,6 +24,12 @@ from .records import json_record
 from .version import IMPLEMENTATION_VERSION, SCHEMA_VERSION
 
 EYES = ("left", "right", "combined", "unknown")
+
+
+def _observation_key(sample):
+    return tuple(
+        sample[k] for k in ("sourceId", "clockId", "clockEpoch", "eye", "type", "id")
+    )
 
 
 def _inside(p, width, height):
@@ -198,11 +204,12 @@ class GazeSession:
         self._frames: list[dict[str, Any]] = []
         self._surface_frames: dict[str, list[dict[str, Any]]] = {}
         self._pending: list[dict[str, Any]] = []
-        self._records: list[dict[str, Any]] = []
+        self._records: deque[dict[str, Any]] = deque()
         self._aligned: list[dict[str, Any]] = []
         self._sources: dict[str, dict[str, Any]] = {}
         self._seen_sources: set[str] = set()
         self._seen_samples: OrderedDict[Any, bool] = OrderedDict()
+        self._pending_keys: set[tuple] = set()
         self.records_dropped = self.aligned_dropped = self._frame_sequence = (
             self._record_sequence
         ) = 0
@@ -222,7 +229,7 @@ class GazeSession:
 
     @property
     def records(self) -> list[dict[str, Any]]:
-        return copy.deepcopy(self._records)
+        return copy.deepcopy(list(self._records))
 
     def register_source(self, source: Mapping[str, Any]) -> dict[str, Any]:
         if any(
@@ -282,7 +289,7 @@ class GazeSession:
             }
         )
         if len(self._records) > self.config["maxRecords"]:
-            self._records.pop(0)
+            self._records.popleft()
             self.records_dropped += 1
             self.diagnostics.emit(
                 "RECORDING_TRUNCATED",
@@ -377,11 +384,8 @@ class GazeSession:
         mapped = self.clocks.map(
             sample["clockId"], sample["clockEpoch"], sample["timeMs"]
         )
-        key = tuple(
-            sample[k]
-            for k in ("sourceId", "clockId", "clockEpoch", "eye", "type", "id")
-        )
-        if key in self._seen_samples:
+        key = _observation_key(sample)
+        if key in self._seen_samples or key in self._pending_keys:
             raise ValueError(f"Duplicate gaze sample: {sample['id']}")
         raw = json_record(dict(sample))
         self._seen_samples[key] = True
@@ -398,6 +402,7 @@ class GazeSession:
             or mapped["uncertaintyMs"] > self.config["maxClockUncertaintyMs"],
         }
         self._pending.append(item)
+        self._pending_keys.add(key)
         self._record("gaze", {"sample": raw, "receivedTimeMs": received_time_ms})
         self._seen_sources.add(sample["sourceId"])
         if not item["quarantined"]:
@@ -632,6 +637,9 @@ class GazeSession:
         results = [{**self._align(p, now), "alignedTimeMs": now} for p in ready]
         selected = {id(p) for p in ready}
         self._pending = [p for p in self._pending if id(p) not in selected]
+        self._pending_keys.difference_update(
+            _observation_key(p["sample"]) for p in ready
+        )
         self._last_flush = now
         self._aligned.extend(results)
         for a in results:
@@ -659,7 +667,7 @@ class GazeSession:
                 "recordsDropped": self.records_dropped,
                 "alignedDropped": self.aligned_dropped,
                 "pendingCount": len(self._pending),
-                "records": self._records,
+                "records": list(self._records),
                 "aligned": self._aligned,
             }
         )

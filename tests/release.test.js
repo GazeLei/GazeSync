@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   mkdtemp,
+  copyFile,
   mkdir,
   readFile,
   rm,
@@ -47,6 +48,33 @@ test("release: every declared import stays within the standalone package", async
     JSON.parse(await readFile(resolve(root, "release.json"), "utf8"))
       .publicationEnabled,
   );
+});
+
+test("release: stale Python wire constants cannot pass the metadata gate", async () => {
+  const temp = await mkdtemp(resolve(tmpdir(), "gazesync-versions-"));
+  try {
+    const manifest = JSON.parse(
+      await readFile(resolve(root, "public-files.json"), "utf8"),
+    );
+    for (const name of [
+      ...manifest.repositoryFiles,
+      ...manifest.generatedFiles,
+    ]) {
+      await mkdir(dirname(resolve(temp, name)), { recursive: true });
+      await copyFile(resolve(root, name), resolve(temp, name));
+    }
+    const name = resolve(temp, "python/src/gazesync/version.py");
+    await writeFile(
+      name,
+      (await readFile(name, "utf8")).replace(
+        /IMPLEMENTATION_VERSION = "[^"]+"/,
+        'IMPLEMENTATION_VERSION = "0.0.0"',
+      ),
+    );
+    await assert.rejects(checkRelease(temp), /versions must agree/);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
 });
 
 test("release: demo server refuses non-allowlisted documents and symlink escapes", async () => {

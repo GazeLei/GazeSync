@@ -4,7 +4,7 @@
   "arxivId": null,
   "authorsFinalized": true,
   "originalPaperDoi": "10.1145/3772363.3798725",
-  "implementationVersion": "0.4.0",
+  "implementationVersion": "0.4.1",
   "schemaVersion": "2.1",
   "authors": [
     {

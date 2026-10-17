@@ -40,6 +40,18 @@ const sample = (t, extra = {}) => ({
 const near = (a, b, eps = 1e-8) =>
   assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
 
+test("pending observations remain duplicate-protected after recent-ID retention rolls over", () => {
+  const s = new GazeSession({ maxRecords: 2, maxPending: 8 });
+  for (const id of ["a", "b", "c"]) s.gaze(sample(10, { id }), 20);
+  const before = s.export();
+  assert.throws(() => s.gaze(sample(10, { id: "a" }), 21), /Duplicate/);
+  assert.deepEqual(s.export(), before);
+  assert.deepEqual(
+    s.flush(100).map((a) => a.sampleId),
+    ["a", "b", "c"],
+  );
+});
+
 test("delayed gaze is joined to capture-time view, never arrival/current zoom; exact boundary is inclusive", () => {
   const s = new GazeSession(),
     v = initial();

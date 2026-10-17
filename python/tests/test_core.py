@@ -74,6 +74,32 @@ def test_per_eye_identity_and_pairing():
         s.gaze(sample("left", 20), 120)
 
 
+def test_pending_duplicates_survive_recent_id_rollover():
+    s = GazeSession({"maxRecords": 2, "maxPending": 8})
+    for identity in ("a", "b", "c"):
+        s.gaze({**sample("left", 10), "id": identity}, 20)
+    before = s.export()
+    with pytest.raises(ValueError, match="Duplicate"):
+        s.gaze({**sample("left", 10), "id": "a"}, 21)
+    assert s.export() == before
+    assert [a["sampleId"] for a in s.flush(100)] == ["a", "b", "c"]
+
+
+def test_retained_records_remain_ordered_json_lists_and_detached_snapshots():
+    s = GazeSession({"maxRecords": 3})
+    for i in range(12):
+        s.input({"id": str(i), "kind": "test", "t": i})
+    rows = s.records
+    assert isinstance(rows, list)
+    assert [r["sequence"] for r in rows] == [10, 11, 12]
+    rows[0]["payload"]["id"] = "changed-outside-session"
+    recording = json.loads(json.dumps(s.export()))
+    assert recording["records"][0]["payload"]["id"] == "9"
+    assert recording["recordsDropped"] == 9
+    with pytest.raises(ValueError, match="truncated"):
+        replay(recording)
+
+
 def test_gesture_interruption():
     c = ZoomController(create_view(400, 600, 800, 1200))
     c.zoom(2, 0)

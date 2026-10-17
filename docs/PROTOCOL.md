@@ -1,6 +1,6 @@
 # Synchronization and coordinate contract
 
-Version 0.4.0 emits schema 2.1. Both implementations accept the same JSON records;
+Version 0.4.1 emits schema 2.1. Both implementations accept the same JSON records;
 Python uses snake_case method names but preserves camelCase wire fields.
 
 ## Time and presentation

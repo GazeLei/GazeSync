@@ -94,3 +94,41 @@ SDK/firmware/browser/OS matrix. No participant-data release is included. The
 in-memory recorder needs external persistence and measured backpressure for long
 sessions. These limitations do not prevent source distribution with accurate
 scope and documentation.
+
+## Preparation status on 17 October 2026
+
+Version 0.4.1 passes the test/type/conformance checks and isolated wheel, sdist
+and npm-tarball installation checks. Both registries returned HTTP 404 for
+`gazesync` on this date; this is an availability observation, not a reservation.
+GitHub reports the source repository as private and no release environments
+configured. No PyPI/npm account settings or publisher identities were verified.
+
+The remaining steps are concrete:
+
+| Item | State / next action |
+| --- | --- |
+| Source and package contents | Reviewed inventory; build and installation checks pass. |
+| Four manuscript authors | Finalized in the local metadata. |
+| Implementation preprint | Real arXiv ID remains unset; update citations after submission. |
+| Manuscript/figure publication rights | Maintainer/author approval still required under NOTICE. |
+| Repository visibility | Maintainer changes the private repository to public when ready. |
+| Registry ownership | Recheck the name and sign in to the intended maintainer accounts with 2FA. |
+| Python trusted publishers | Configure pending publishers separately on TestPyPI and PyPI for `GazeLei/GazeSync`, `release.yml`, and their matching environment names. |
+| npm first upload | Publish the reviewed tarball from the maintainer's authenticated session; then configure the package's trusted publisher. |
+| GitHub release environments | Create `testpypi`, `pypi`, `npm`, reviewer requirements and release-tag restrictions; currently absent. |
+| Enable and tag | Deliberately enable publication, update all versions/citations, rebuild, tag the exact verified commit, then dispatch the chosen destination. |
+
+First npm upload, only after the earlier gates and explicit publication approval:
+
+```sh
+npm login
+npm publish artifacts/release/0.4.1/npm/gazesync-0.4.1.tgz --access public
+```
+
+The local bootstrap upload does not claim CI provenance. Subsequent trusted
+publishes use `--provenance` in the supported GitHub Actions environment; adding
+that flag to an ordinary local terminal does not supply the required CI identity.
+
+An account token, OAuth grant, package-name claim, public upload and repository
+visibility change are not performed by the preparation tools. The Overleaf ZIP
+is a separate manuscript artifact and is not an npm or Python package.

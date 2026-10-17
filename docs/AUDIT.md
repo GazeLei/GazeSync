@@ -123,3 +123,47 @@ geometry fixture comparisons, ten adapter fixtures and the existing 78-case,
 numerical-scale reconstruction residuals. The manuscript's Section 5 now gives
 the origins, equations, numerical example and independent physical checks needed
 for real deployment. [The setup guide](COORDINATES.md) includes the host contract.
+
+## Follow-up audit: 0.4.1, 17 October 2026
+
+The baseline passed 78 Node and 43 Python tests. A new regression nevertheless
+reproduced duplicate pending observations in both languages: with `maxRecords=2`
+and `maxPending=8`, `a,b,c,a` was accepted before any flush. Eviction from the
+recent-ID cache must not remove protection for an observation still in the reorder
+buffer. A separate pending-ID set now covers that lifetime, and rejected duplicate
+ingestion leaves the session unchanged. Recent completed-ID history remains
+bounded; IDs older than both windows can be accepted again.
+
+Python raw-record retention used `list.pop(0)` for every insertion beyond the
+limit. It now uses `deque.popleft`, while `records` and JSON exports remain ordered,
+detached lists. An alternating same-process microbenchmark (Python 3.12.14,
+macOS arm64, five repeats, 160,000 small input records) measured median ingestion
+times of 1.084 s before and 0.366 s after at the default 100,000-record cap.
+At a 4,096-record cap the medians were 0.433 s and 0.382 s. These measurements
+exclude alignment, export, rendering, transport and storage; they are not a device
+latency claim. Local results are retained in `artifacts/review-20261017/`.
+TypeScript arrays and presentation histories still incur front-removal costs.
+Replacing those requires profiling and care with the currently public array API.
+
+The release gate now checks Python runtime constants, both schema constants,
+paper schema metadata and npm lock versions. TypeScript's recording type derives
+its literal versions from the exported constants. Publication remains disabled;
+schema remains 2.1 and implementation version is 0.4.1. Earlier recordings still
+require their original implementation for exact replay.
+
+The Overleaf helper builds a small source ZIP and supports explicit import/export
+with a local checkout. It previews by default, rejects conflicting receiving-side
+edits and symlinks, and never deletes files, pushes Git or handles credentials.
+Its regression verifies both directions and that a conflict preserves local text.
+
+Validation: 81 Node tests, 45 Python tests, consumer types, the full 78-case
+conformance matrix and clean Python/npm package installations pass. The matrix
+still receives 107,070 observations with zero frame mismatches.
+
+Concrete remaining work: define a persistence callback/storage contract before
+claiming long-session recording; bound source/clock/diagnostic context counts for
+dynamically created source IDs; profile TypeScript array rollover before changing
+the array API; strengthen Python static input types if parity with TypeScript's
+validity-dependent union is required. Runtime validation remains decisive.
+Paper-specific findings and proposed small experiments are in
+[the review](../paper/reviewer-notes.txt); those experiments are not completed results.

@@ -35,6 +35,8 @@ import {
 } from "./geometry.js";
 
 const clone = <T>(v: T): T => structuredClone(v);
+const observationKey = (s: GazeSample) =>
+  JSON.stringify([s.sourceId, s.clockId, s.clockEpoch, s.eye, s.type, s.id]);
 const inside = (p: Point, w: number, h: number) => {
   if (![p.x, p.y, w, h].every(Number.isFinite)) return false;
   const tolerance =
@@ -212,6 +214,7 @@ export class GazeSession {
   frameSequence = 0;
   recordSequence = 0;
   seenSamples = new Map<string, boolean>();
+  private pendingKeys = new Set<string>();
   sources = new Map<string, SourceDescriptor>();
   seenSources = new Set<string>();
   diagnostics: Diagnostics;
@@ -427,15 +430,8 @@ export class GazeSession {
       sample.clockEpoch,
       sample.timeMs,
     );
-    const key = JSON.stringify([
-      sample.sourceId,
-      sample.clockId,
-      sample.clockEpoch,
-      sample.eye,
-      sample.type,
-      sample.id,
-    ]);
-    if (this.seenSamples.has(key))
+    const key = observationKey(sample);
+    if (this.seenSamples.has(key) || this.pendingKeys.has(key))
       throw new Error(`Duplicate gaze sample: ${sample.id}`);
     const raw = jsonRecord(sample);
     this.seenSamples.set(key, true);
@@ -453,6 +449,7 @@ export class GazeSession {
         mapped.uncertaintyMs > this.config.maxClockUncertaintyMs,
     };
     this.pending.push(item);
+    this.pendingKeys.add(key);
     this.record("gaze", { sample: raw, receivedTimeMs });
     this.seenSources.add(sample.sourceId);
     if (!item.quarantined)
@@ -675,6 +672,7 @@ export class GazeSession {
       alignedTimeMs: now,
     }));
     this.pending = this.pending.filter((p) => !selected.has(p));
+    for (const p of ready) this.pendingKeys.delete(observationKey(p.sample));
     this.lastFlush = now;
     this.aligned.push(...results);
     for (const a of results)

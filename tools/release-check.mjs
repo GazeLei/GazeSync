@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { publicManifest, reviewedFile } from "./files.mjs";
-import { IMPLEMENTATION_VERSION } from "../dist/version.js";
+import { IMPLEMENTATION_VERSION, SCHEMA_VERSION } from "../dist/version.js";
 
 /** Verify the explicit source boundary and release metadata; never publish. */
 export async function checkRelease(root, { publication = false } = {}) {
@@ -20,14 +20,26 @@ export async function checkRelease(root, { publication = false } = {}) {
     await reviewedFile(root, "python/pyproject.toml"),
     "utf8",
   );
+  const pythonConstants = await readFile(
+    await reviewedFile(root, "python/src/gazesync/version.py"),
+    "utf8",
+  );
+  const pythonValue = (key) =>
+    pythonConstants.match(new RegExp(`^${key} = ["']([^"']+)["']$`, "m"))?.[1];
+  const lock = await json("package-lock.json");
   if (
     pkg.version !== IMPLEMENTATION_VERSION ||
     release.version !== pkg.version ||
     paper.implementationVersion !== pkg.version ||
-    !py.includes(`version = "${pkg.version}"`)
+    !py.includes(`version = "${pkg.version}"`) ||
+    pythonValue("IMPLEMENTATION_VERSION") !== pkg.version ||
+    pythonValue("SCHEMA_VERSION") !== SCHEMA_VERSION ||
+    paper.schemaVersion !== SCHEMA_VERSION ||
+    lock.version !== pkg.version ||
+    lock.packages?.[""]?.version !== pkg.version
   )
     throw new Error(
-      "Implementation, npm, Python and release versions must agree",
+      "Implementation, schema, npm lock, Python and release versions must agree",
     );
   if (
     pkg.license !== "GPL-3.0-only" ||

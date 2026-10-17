@@ -64,8 +64,47 @@ physical-device certification. Public registry publication remains disabled.
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical
 (860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.4.0 uses schema 2.1; earlier recordings need their original code.
+Implementation 0.4.1 uses schema 2.1; earlier recordings need their original code.
 
 Manuscript and generated figure publication rights are reserved pending author
 approval (root NOTICE). The supplied original LaTeX archive is not redistributed
 here; the editable implementation draft is maintained in this independent repo.
+
+## Overleaf and the current review
+
+Build a minimal manuscript archive from the repository root:
+
+```sh
+python3 tools/overleaf.py zip --out artifacts/overleaf/GazeSync-Overleaf.zip
+```
+
+The archive has `main.tex` at its root, four PDF figures, the numerical table,
+compiler configuration and usage/rights notes. It excludes runtime code, raw
+Blender assets and private parent-project files. The exported project compiles
+with pdfLaTeX / TeX Live 2025 without Python, Node, Blender or shell escape.
+The [Overleaf guide](OVERLEAF.txt) explains native GitHub sync and the local
+bidirectional helper, including conflict handling. GitHub sync is explicitly
+triggered with push/pull; it is not automatic continuous synchronization.
+
+The connected project is [GazeSync on Overleaf](https://www.overleaf.com/project/6ad3f558d2464b55e6b8f509),
+using pdfLaTeX and TeX Live 2025. Its private manuscript mirror is
+[GazeLei/GazeSync-paper](https://github.com/GazeLei/GazeSync-paper).
+The canonical repository remains GazeLei/GazeSync; the import/export helper
+maps its `paper/` files to the manuscript mirror's root. Always pull the mirror
+and import any Overleaf edits before editing the canonical files.
+Both directions were verified on 17 October 2026: a local README change reached
+Overleaf through GitHub, and a note entered in Overleaf returned through GitHub
+and the import helper. The mirror checkout is `../GazeSync-paper` in this workspace.
+
+```sh
+git -C ../GazeSync-paper pull --ff-only
+python3 tools/overleaf.py import --directory ../GazeSync-paper --apply
+# After editing and reviewing the canonical manuscript:
+python3 tools/overleaf.py export --directory ../GazeSync-paper --apply
+# Review/commit/push in the mirror, then use Overleaf's GitHub Pull button.
+```
+
+The [17 October review](reviewer-notes.txt) identifies specific issues in the
+comparison baseline, experiment duration, usable coverage, Figure 4B, moving
+geometry, related systems and default thresholds. These are discussion items;
+the patch updates implementation facts without fabricating the missing studies.
