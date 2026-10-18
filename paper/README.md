@@ -1,150 +1,80 @@
-# Implementation report
+# GazeSync implementation report
 
 **GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source
-Eye Tracking** extends the original GazeSync paper with the independent codebase,
-Python/TypeScript contract, multi-source adapters and synthetic verification.
+Eye Tracking** documents the Python/TypeScript framework, coordinate and timing
+contracts, source adapters and synthetic validation.
 
-The implementation report authors are **Yaxiong Lei, Shijing He, Xinya Gong and
-Juan Ye**, in that order. The original paper citation retains its published
-eight-author list. The implementation report is a standalone technical report. It does not claim
-CHI acceptance and has no arXiv identifier yet. Metadata is explicit in `metadata.json`.
-Both BibTeX entries appear directly in the repository README and CITATION files.
+Authors: **Yaxiong Lei, Shijing He, Xinya Gong and Juan Ye**, in that order.
+The original GazeSync paper retains its published eight-author citation. The
+implementation report is prepared for arXiv; its identifier will be added to
+`metadata.json` and the citation files after submission.
 
-[Read the compiled report](GazeSync-implementation.pdf) or edit [main.tex](main.tex).
+[Read the PDF](GazeSync-implementation.pdf) or edit [main.tex](main.tex).
+Implementation 0.5.3 uses recording schema 2.1. Initial software distribution is
+through [GitHub Releases](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3);
+PyPI and npm publication is deferred.
 
-## Rebuild data, figures and manuscript
+## Rebuild the report
 
 ```sh
 npm run test:conformance
 node tools/paper-data.mjs
 .venv/bin/python -m pip install -r paper/requirements.txt
-# The checked-in 3D assets can be reused; to rebuild them:
-blender --background --factory-startup --python tools/render_geometry_scene.py
 .venv/bin/python tools/paper_figures.py
 cd paper
 latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 ```
 
-Use Python 3.12+ for the pinned plotting environment. The library itself supports
-Python 3.10+. The 3D scene was rendered with Blender 4.3.2; see
-[the editable scene and its build guide](scenes/README.md). Blender is an optional
-figure-generation dependency, not a runtime dependency of either package.
+Figure generation uses Python 3.12+ and the pinned plotting environment. The
+library supports Python 3.10+. The checked-in geometry renders can be reused;
+[scenes/README.md](scenes/README.md) describes the optional Blender 4.3.2 rebuild.
+The manuscript compiles with pdfLaTeX and TeX Live 2025 using `acmart`, `flushend`
+and the packages declared in `main.tex`.
 
-LaTeX needs `acmart`, `flushend` and the packages in `main.tex` (tested with TeX
-Live 2025). Keep both `figures/` and `tables/` beside the source. The two-column
-layout uses `sigconf,screen,nonacm` without an acceptance claim or fabricated DOI.
+## Submission archives
 
-## Visual assets and provenance
-
-- **Figure 1:** vector device illustrations and a conceptual acquisition-to-content
-  story. Maps, touch gestures and paths are schematic artwork.
-- **Figure 2:** capture/receipt intervals and residuals from the saved synthetic
-  timing trace; the simulated blink remains a gap.
-- **Figure 3:** a reproducible 3D world scene, eye-origin cutaway and correct
-  display-to-viewport mapping. Its origins and rays use the independent analytic
-  fixture. The ocular anatomy is illustrative. Rendered imagery is 600 dpi in
-  PDF/SVG, with vector labels and projection-derived annotation anchors.
-- **Figure 4:** the controlled rate heatmap and a cumulative plot of per-case
-  Python–TypeScript viewport agreement. Values come from the validation JSON.
-- **Tables:** consistent booktabs rules, spacing and explicit units. The numerical
-  results table is generated as `tables/validation.tex` from the same JSON.
-
-PDF/SVG and 400-dpi PNG versions of every figure are included. The checked-in
-`data/validation.json` records all 78 configurations; `data/timing.json` contains
-the representative synthetic trace. No participant data or private parent-project
-assets are included. Figure scripts, the Blender scene and cached renders make
-both editing and reproduction possible.
-
-Counts refer to observations: one capture can produce PoG and ray records for
-each eye. Tiny reconstruction residuals indicate numerical consistency, not
-physical gaze accuracy. Context cases vary multiple factors and are not a causal
-frequency study. Hardware adapters have synthetic contract tests rather than
-physical-device certification. Version 0.5.2 has passed TestPyPI validation;
-production PyPI and npm uploads remain pending.
-
-Section 5 gives the audited origins, rigid-frame transformations, camera-centre
-inversion, screen/viewport equations, marker registration and the numerical
-(860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.5.3 uses schema 2.1; earlier recordings need their original code.
-
-Manuscript and generated figure publication rights are reserved by the authors
-(root NOTICE). The supplied original LaTeX archive is not redistributed
-here; the editable implementation report is maintained in this independent repo.
-
-## Overleaf and the current review
-
-Build a minimal manuscript archive from the repository root:
+From the repository root:
 
 ```sh
+python3 tools/overleaf.py zip --format arxiv --out artifacts/arxiv/GazeSync-arXiv.zip
 python3 tools/overleaf.py zip --out artifacts/overleaf/GazeSync-Overleaf.zip
 ```
 
-The archive has `main.tex` at its root, four PDF figures, the numerical table,
-compiler configuration and usage/rights notes. It excludes runtime code, raw
-Blender assets and private parent-project files. The exported project compiles
-with pdfLaTeX / TeX Live 2025 without Python, Node, Blender or shell escape.
-The [Overleaf guide](OVERLEAF.txt) explains native GitHub sync and the local
-bidirectional helper, including conflict handling. GitHub sync is explicitly
-triggered with push/pull; it is not automatic continuous synchronization.
+The arXiv ZIP contains `main.tex`, four PDF figures and the results table. The
+references are embedded in `main.tex`. It omits the compiled manuscript, logs,
+build tools and repository documentation. Select `main.tex`, pdfLaTeX and TeX
+Live 2025 during submission, then inspect the PDF compiled by arXiv. See
+[ARXIV.txt](ARXIV.txt) for submission fields and checks.
 
-The connected project is [GazeSync on Overleaf](https://www.overleaf.com/project/6ad3f558d2464b55e6b8f509),
-using pdfLaTeX and TeX Live 2025. Its private manuscript mirror is
-[GazeLei/GazeSync-paper](https://github.com/GazeLei/GazeSync-paper).
-The canonical repository remains GazeLei/GazeSync; the import/export helper
-maps its `paper/` files to the manuscript mirror's root. Always pull the mirror
-and import any Overleaf edits before editing the canonical files.
-Both directions were verified on 17 October 2026: a local README change reached
-Overleaf through GitHub, and a note entered in Overleaf returned through GitHub
-and the import helper. The mirror checkout is `../GazeSync-paper` in this workspace.
+The Overleaf ZIP also includes compiler configuration, usage notes and a source
+manifest. [OVERLEAF.txt](OVERLEAF.txt) documents the connected
+[Overleaf project](https://www.overleaf.com/project/6ad3f558d2464b55e6b8f509) and its
+private [GitHub mirror](https://github.com/GazeLei/GazeSync-paper). Synchronization
+uses explicit push/pull operations. Import any mirror edits before changing the
+canonical files:
 
 ```sh
 git -C ../GazeSync-paper pull --ff-only
 python3 tools/overleaf.py import --directory ../GazeSync-paper --apply
-# After editing and reviewing the canonical manuscript:
+# After editing and checking the canonical manuscript:
 python3 tools/overleaf.py export --directory ../GazeSync-paper --apply
-# Review/commit/push in the mirror, then use Overleaf's GitHub Pull button.
 ```
 
-The [17 October review](reviewer-notes.txt) identifies specific issues in the
-comparison baseline, experiment duration, usable coverage, Figure 4B, moving
-geometry, related systems and default thresholds. These are discussion items;
-the patch updates implementation facts without fabricating the missing studies.
+## Data and figures
 
-The 18 October citation revision adds the mobile-gaze survey, DynamicRead,
-the motion-impact preprint and FIUD at the claims they support. The survey uses
-its 2023 online-publication year (the issue is dated 2024); the motion study is
-explicitly cited as an arXiv preprint. The discussion separates estimator and
-calibration quality, temporal association and coordinate reconstruction, and
-clarifies the denominator of reconstruction residuals. No new experiment or
-hardware-validation result is claimed by these citations.
+- Figure 1 shows schematic desktop/mobile interaction and capture-time alignment.
+- Figure 2 uses the saved synthetic timing trace, including its blink interval.
+- Figure 3 combines a procedural 3D scene with labels anchored to the independent
+  geometry fixture. The editable Blender scene and cached renders are included.
+- Figure 4 and Table 3 use the 78-case validation JSON. The table reports usable
+  observations and coverage alongside reconstruction residuals.
 
+The baseline contains 107,070 observations, of which 102,768 (95.98%) have usable
+content coordinates. Eight additional content-motion cases are recorded
+separately. Reconstruction residuals use the known perturbed target; device and
+participant validation are discussed in the paper's Limitations section.
 
-## Content manipulation revision - 18 October 2026
-
-Implementation 0.5.0 adds content rotation, free/bounded movement, combined touch
-transforms and the `createGazeSurface` convenience API. The spatial section derives
-the top-left-origin similarity matrix and anchored update, distinguishes physical
-screen pose from content rotation, and documents clipping and stable-layout limits.
-Eight additional synthetic cases are stored in `data/interaction-validation.json`;
-they supplement the established 78-case data and do not constitute a usability or
-physical-device study. The runnable image/text example is in `examples/`.
-
-
-The 0.5.1 release audit fixes adapter/configuration and recorder edge cases. The
-manuscript's implementation identifier and synthetic data are synchronized; its
-numerical conclusions and layout are unchanged. The detailed defects, regressions
-and remaining PyPI gates are recorded in `docs/AUDIT.md` and `docs/RELEASE.md`.
-
-
-## Formal technical report revision - 0.5.2
-
-The report now describes the public source repository and release tooling without
-draft/private-repository boilerplate. Author order, scientific scope and the
-separate manuscript rights are unchanged. Citation metadata identifies this as a
-technical report while the implementation arXiv identifier remains unset.
-The functional review fixes content-aware pairing, homography conditioning,
-interrupted tap sequences, DOM ownership, observer failure counts and strict
-publication flags. The regenerated validation data preserve the reported
-numerical results. See `docs/AUDIT.md` for reproductions and the additional
-virtual-time retention check; it is not a physical-device or long-running
-performance study.
+Manuscript and figure publication rights are reserved by the authors under the
+root `NOTICE`. Software and synthetic validation data use GPL-3.0-only.
+[reviewer-notes.txt](reviewer-notes.txt) retains the review history; implementation
+findings and verification are in the repository's `docs/AUDIT.md`.

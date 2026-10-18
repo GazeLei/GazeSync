@@ -1,0 +1,32 @@
+GazeSync arXiv submission preparation
+
+Source archive: artifacts/arxiv/GazeSync-arXiv.zip
+Main document: main.tex
+Processor: pdfLaTeX (LaTeX in PDF mode)
+TeX Live: 2025
+References: embedded thebibliography in main.tex; no external .bib or .bbl needed.
+Figures: four PDF files in figures/; numerical table in tables/validation.tex.
+
+Title:
+GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking
+
+Authors, in order:
+Yaxiong Lei; Shijing He; Xinya Gong; Juan Ye
+
+Implementation: 0.5.3
+Recording schema: 2.1
+Code and artifacts: https://github.com/GazeLei/GazeSync
+Initial distribution: GitHub. PyPI and npm publication deferred.
+
+Paste the abstract from main.tex or the generated submission-fields.txt beside
+the arXiv ZIP. Check author names and affiliations against the compiled PDF.
+Select the paper license in the arXiv submission interface; the code license is
+GPL-3.0-only. No implementation arXiv identifier has been assigned yet.
+
+The ZIP contains only the TeX source, included table and referenced PDF figures.
+Compile and inspect the PDF produced by arXiv before submitting. Local isolated
+compilation verifies the source bundle but does not replace that portal check.
+
+Official guidance:
+https://info.arxiv.org/help/submit_tex.html
+https://info.arxiv.org/help/faq/texlive.html

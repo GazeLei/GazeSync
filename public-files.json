@@ -164,7 +164,8 @@
     "docs/assets/content-surface.png",
     "tools/retention-check.mjs",
     "tests/behavior.test.js",
-    "python/tests/test_behavior.py"
+    "python/tests/test_behavior.py",
+    "paper/ARXIV.txt"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

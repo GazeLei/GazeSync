@@ -4,9 +4,10 @@ Synchronize eye-tracking measurements with the screen state a person was viewing
 while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.5.3 · schema 2.1 · GPL-3.0-only.** The source repository is
-public. The [Python test release](https://test.pypi.org/project/gazesync/0.5.2/)
-has passed TestPyPI installation checks; production PyPI and npm releases are pending. The 0.5.3 development revision has not been uploaded.
+**Research preview 0.5.3 · schema 2.1 · GPL-3.0-only.** Initial distribution is
+through [GitHub Releases](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3).
+PyPI and npm registry publication is deferred while the technical report is
+prepared for arXiv.
 
 ![Screen changes enter a session timeline; gaze retains its capture time, selects the captured view and maps independent eyes into content coordinates.](docs/assets/overview.svg)
 
@@ -32,24 +33,23 @@ or [tracker adapter guide](docs/ADAPTERS.md).
   been validated with this release.** Hardware SDKs and inference models are not
   bundled. Measured calibration and timing remain host responsibilities.
 
-## Install a development build
+## Install from GitHub
 
-For the Python test distribution, use the separate TestPyPI index:
-
-```sh
-python -m pip install --index-url https://test.pypi.org/simple/ --no-deps gazesync==0.5.2
-```
-
-Production registry releases are pending. Verified local artifacts can also be
-installed directly:
+Python:
 
 ```sh
-python -m pip install /absolute/path/to/gazesync-0.5.3-py3-none-any.whl
-npm install /absolute/path/to/gazesync-0.5.3.tgz
+python -m pip install https://github.com/GazeLei/GazeSync/releases/download/v0.5.3/gazesync-0.5.3-py3-none-any.whl
 ```
 
-For a source checkout, follow the next section. After the first public uploads,
-the registry commands will be `pip install gazesync` and `npm install gazesync`.
+JavaScript and TypeScript:
+
+```sh
+npm install https://github.com/GazeLei/GazeSync/releases/download/v0.5.3/gazesync-0.5.3.tgz
+```
+
+You can also download the files from the release page and pass a local file path
+to pip or npm. `SHA256SUMS.txt` lists the release artifact hashes. The next section
+covers development from a source checkout.
 
 The package is ESM and includes compiled JavaScript and TypeScript declarations.
 Node consumers use `import` in an `.mjs` file or a project with `"type": "module"`.

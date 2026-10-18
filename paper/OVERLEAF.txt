@@ -71,3 +71,10 @@ https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-sy
 https://www.overleaf.com/learn/how-to/Git_integration
 Synchronization check
 This note was entered in Overleaf on 17 October 2026 for the bidirectional GitHub/local synchronization check.
+
+
+arXiv source bundle
+Use the separate GazeSync-arXiv.zip for submission. It includes only main.tex,
+the four referenced PDF figures and tables/validation.tex. Build it with:
+  python3 tools/overleaf.py zip --format arxiv --out artifacts/arxiv/GazeSync-arXiv.zip
+Initial software distribution is through GitHub; registry publishing is deferred.

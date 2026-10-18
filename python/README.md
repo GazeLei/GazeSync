@@ -4,18 +4,15 @@ Capture-time synchronization of desktop/mobile view events and independent or
 combined eye-tracking measurements. The core uses only the Python standard
 library and has the same schema 2.1 contract as the TypeScript implementation.
 
-For TestPyPI validation, install the exact candidate from the separate test index:
+Install the research preview from GitHub:
 
 ```sh
-python -m pip install --index-url https://test.pypi.org/simple/ --no-deps gazesync==0.5.2
-```
-
-Or install from this checkout during development:
-
-```sh
-pip install -e ./python
+python -m pip install https://github.com/GazeLei/GazeSync/releases/download/v0.5.3/gazesync-0.5.3-py3-none-any.whl
 gazesync simulate --width 390 --height 844 --display-hz 120 --gaze-hz 600 --right-gaze-hz 120 --mode binocular-independent
 ```
+
+For development, clone the repository and run `pip install -e ./python` from its
+root. PyPI publication is deferred; GitHub is the initial distribution channel.
 
 ```python
 from gazesync import GazeSession, create_view, logging_observer
@@ -48,10 +45,8 @@ SDK callbacks and rendering run in different threads.
 
 Code license: **GPL-3.0-only**. See https://github.com/GazeLei/GazeSync for both citations, diagnostic
 codes, package-release instructions and the academic implementation manuscript.
-The production PyPI release is pending. The tested wheel can
-be installed directly with `pip install /path/to/gazesync-0.5.3-py3-none-any.whl`.
-After the first authorized public release, the ordinary route will be
-`pip install gazesync`.
+The release page includes the tested wheel, source archive and SHA-256 hashes.
+Downloaded wheels can also be installed from a local file path.
 
 The default recorder retains 100,000 raw records. At high rates this is a short
 buffer, not a complete long-session archive. Keep `logging_observer()` enabled,

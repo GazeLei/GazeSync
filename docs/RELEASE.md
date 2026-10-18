@@ -1,4 +1,4 @@
-# Release preparation
+# Distribution and release preparation
 
 The independent public repository is `GazeLei/GazeSync`. The code license is
 **GPL-3.0-only**, selected by the maintainer. Covered distributed modifications
@@ -8,6 +8,22 @@ The manuscript has its own publication-rights notice.
 [SPDX's GPL-3.0-only entry](https://spdx.org/licenses/GPL-3.0-only.html) identifies
 the exact license. Review compatibility before combining a proprietary vendor
 SDK into a distributed application; the shipped normalizers bundle no SDK.
+
+## Current distribution: GitHub
+
+The maintainer selected GitHub for initial distribution on 18 October 2026 and
+will submit the technical report to arXiv. PyPI and npm publication is deferred.
+The [0.5.3 research preview](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3)
+provides the verified Python wheel/sdist, npm tarball, paper PDF, Overleaf and
+arXiv source archives, and `SHA256SUMS.txt`. Install the GitHub artifacts using
+the commands in the repository and Python READMEs.
+
+`publicationEnabled:false` and npm `private:true` remain set: they guard registry
+uploads and do not prevent building or distributing archives through GitHub.
+No registry workflow is dispatched for this release. Its tag is immutable;
+a later registry release needs a new reviewed version/tag with its own approval.
+The registry setup and completed TestPyPI 0.5.2 run below remain historical
+preparation evidence.
 
 ## What can be built now
 
@@ -43,11 +59,11 @@ exists; then update the paper and citation files together. A supplied identifier
 is checked for format, not independently authenticated by the release tool.
 
 The release workflow runs only by manual dispatch on a version tag in a public
-repository. The maintainer has authorized TestPyPI validation of 0.5.2, so
-the tagged 0.5.2 release used `publicationEnabled:true`; npm retained `private:true`.
-The 0.5.3 development candidate has publication disabled again. Only
-the `testpypi` destination is authorized for this run. Production PyPI and npm
-uploads remain separate maintainer decisions. Author metadata must be finalized.
+repository. The completed TestPyPI 0.5.2 validation used
+`publicationEnabled:true`; npm retained `private:true`. Version 0.5.3 keeps
+registry publication disabled and is distributed through GitHub. Any later
+registry upload requires a new maintainer decision and reviewed version/tag.
+Author metadata is finalized.
 
 1. Review the exact release commit, package contents, copyright and name
    availability. The four implementation authors are finalized. Manuscript and
@@ -60,7 +76,8 @@ uploads remain separate maintainer decisions. Author metadata must be finalized.
    Prepare registry installation wording for the release and verify it after
    upload. A Python-only release may retain npm `private:true`; enabling npm
    later needs a new release commit and version tag, not a moved published tag.
-4. Commit the verified metadata and create the matching `v0.5.2` tag. Dispatch
+4. Commit the verified metadata and create a new tag matching the approved
+   package version. Keep the existing `v0.5.2` and `v0.5.3` tags unchanged. Dispatch
    `release.yml` for `testpypi` first, approve its environment deployment, then
    install from that index in a clean environment. Approve `pypi` separately.
    Use the npm bootstrap below for its first upload.
@@ -138,7 +155,7 @@ in-memory recorder needs external persistence and measured backpressure for long
 sessions. These limitations do not prevent source distribution with accurate
 scope and documentation.
 
-## Current preparation status: 18 October 2026
+## Registry setup and earlier TestPyPI validation
 
 | Item | Verified state / next action |
 | --- | --- |
@@ -150,7 +167,7 @@ scope and documentation.
 | npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
 | arXiv | Optional for software release; retain the technical-report citation until submission. |
-| Package uploads | TestPyPI 0.5.2 uploaded and verified. The 0.5.3 development gate is disabled; npm remains private. Production PyPI and npm uploads are pending. |
+| Package uploads | TestPyPI 0.5.2 uploaded and verified. The 0.5.3 registry gate is disabled; npm remains private. Initial 0.5.3 distribution uses GitHub Releases; production PyPI and npm uploads are deferred. |
 
 The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
 86 cross-language configurations, wheel/sdist rebuilds and isolated npm installs.
@@ -181,7 +198,9 @@ Only after explicit upload approval and rebuilding the enabled release:
 ```sh
 npm login --registry=https://registry.npmjs.org/
 npm whoami --registry=https://registry.npmjs.org/
-npm publish ./artifacts/release/0.5.2/npm/gazesync-0.5.2.tgz \
+npm run release:check -- --public --registry npm
+# Replace <version> with the newly approved version.
+npm publish "./artifacts/release/<version>/npm/gazesync-<version>.tgz" \
   --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
 
@@ -197,8 +216,8 @@ The Overleaf ZIP is a separate manuscript artifact, not an npm or Python package
 
 ## Revised candidate: 0.5.2
 
-The follow-up functional review introduces six targeted repairs and updates the
-technical report. The candidate version is now 0.5.2, with schema 2.1 retained;
+The 0.5.2 functional review introduced six targeted repairs and updated the
+technical report, with schema 2.1 retained;
 0.5.1 recordings require their original implementation. Publication and author
 flags must be actual JSON booleans. The deterministic retention check now runs
 in CI and in the release verification job before upload. Account and environment
@@ -255,5 +274,5 @@ publishing through the tagged workflow.
 ## Behavioral follow-up candidate: 0.5.3
 
 The published TestPyPI 0.5.2 tag and files remain unchanged. Behavioral fixes and
-additional numerical/interaction oracles are in 0.5.3; publication is disabled for
-this new candidate until its verification is complete and an upload is authorized.
+additional numerical/interaction oracles are in 0.5.3. The verified research
+preview is distributed through GitHub; registry publishing remains disabled.

@@ -43,16 +43,15 @@ standalone Python and TypeScript framework for desktop and mobile interaction,
 streams. The framework separates capture, input, presentation and receipt time;
 joins each observation to a surface-specific presentation history; and preserves
 uncertainty, eye identity, geometry and missing data in a replayable record.
-SDK-independent adapters normalize model and tracker records without assuming
-equal acquisition rates or manufacturing confidence. A reproducible synthetic
+SDK-independent adapters normalize model and tracker records while preserving
+source cadence and confidence semantics. A reproducible synthetic
 matrix spans 78 configurations and 107,070 observations, including 30--240\,Hz
 displays, 30--2,000\,Hz gaze and nine viewport sizes. Both implementations select
 the reference capture frame in every case; maximum cross-language viewport
-disagreement is $4.55\times10^{-13}$ logical pixels. These are numerical
-consistency results, not physical tracking-accuracy estimates. We provide an
-inspectable synchronization contract, diagnostic guidance, simulation fixtures
-and isolated distribution tooling, and identify the device measurements needed
-before making end-to-end accuracy claims.
+disagreement is $4.55\times10^{-13}$ logical pixels. The results verify temporal
+association and coordinate reconstruction under known inputs. The public
+implementation includes source adapters, structured diagnostics and replay tools
+for instrumenting research applications with manipulated visual content.
 \end{abstract}
 \keywords{eye tracking, temporal synchronization, pan and zoom, binocular gaze, reproducibility, research software}
 \begin{teaserfigure}
@@ -78,19 +77,15 @@ pipeline of sensing, estimation and interaction reviewed by
 Lei et al.~\cite{leisurvey}, this extension addresses the association of gaze
 observations with rendered content. It defines how a renderer and heterogeneous
 gaze sources exchange timing, geometry and validity, then provides matching
-Python and TypeScript implementations. The target is instrumentation of an
-application owned by the researcher: the library does not observe arbitrary
-operating-system windows or infer unrecorded visual states.
+Python and TypeScript implementations. Researchers integrate the framework into
+their application and supply its input events, rendered states and gaze samples.
 
-Our contribution has three parts. First, a capture-time contract preserves the
-screen state and source provenance needed to reconstruct content-relative gaze.
-Second, independent eye channels, source adapters and actionable diagnostics
-make heterogeneous measurements explicit. Third, deterministic simulations,
-cross-language conformance and isolated distribution artifacts make the
-implementation inspectable and repeatable. The evidence is a software audit and
-synthetic validation; no new participant or physical-device study is claimed.
+We contribute a capture-time synchronization contract and matching implementations
+that retain independent eye channels, explicit geometry and source provenance.
+A deterministic simulation suite, cross-language conformance checks and replay
+make reconstruction decisions reproducible. Source adapters and structured
+diagnostics support integration with gaze models and hardware trackers.
 This report documents implementation 0.5.3 and recording schema 2.1.
-The public source repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
 \subsection{Relationship to the original GazeSync}
@@ -98,19 +93,17 @@ The prior system used a Flutter/iOS application with an on-device gaze SDK and
 local logging server. Its callback pairing and nearest-state merge used a
 50\,ms tolerance. A three-participant formative study illustrated both useful
 content-relative reconstruction and calibration or compound-transform
-limitations~\cite{gazesync}. Those participants and outcomes belong to the prior
-paper; they are not additional validation of this implementation.
+limitations~\cite{gazesync}. The present implementation develops the temporal
+and geometric contracts behind that reconstruction.
 
 The extension replaces the platform-specific merging assumption with explicit
 presentation intervals, source clocks and quality decisions. It adds desktop
 interaction, independent eye identity, metric ray projection, reusable adapters
-and a common record format across languages. Table~\ref{tab:scope} states the
-boundary between capabilities and evidence. A source can be accepted at many
-frequencies without establishing that a particular device exposes accurate
-capture timestamps at those frequencies.
+and a common record format across languages. Table~\ref{tab:scope} summarizes
+the implemented contracts and their verification.
 
 \begin{table}[t]
-\caption{Implemented contracts and their verification. Device calibration and physical validation remain host responsibilities.}
+\caption{Implemented contracts and verification methods.}
 \label{tab:scope}\small
 \begin{tabularx}{\columnwidth}{@{}p{.20\columnwidth}Y@{}}
 \toprule
@@ -135,23 +128,18 @@ including combining gaze with other input modalities~\cite{stellmach}.
 DynamicRead evaluated gaze-based scrolling for handheld reading in sitting and
 walking conditions, finding differences in the techniques' robustness under
 mobility~\cite{dynamicread}. Our
-instrumentation observes manual interaction while retaining gaze for analysis;
-it does not assume that the gaze target is the pointer or pinch midpoint. A
+instrumentation records manual interaction and gaze as separate streams. A
 person may inspect a landmark while it moves, look at a stable screen location
 while dragging, or shift attention ahead of the next action. These scenarios
-motivate varied attention policies in the simulation; the scripted trajectories
-and their frequencies remain illustrative.
+motivate the attention policies used in the simulation.
 
 Lab Streaming Layer provides timestamped multimodal streams and network clock
 synchronization~\cite{lsl}. Such infrastructure can supply a transport or clock
-estimate to a GazeSync host. Our core instead specifies which rendered content
-state a mapped timestamp refers to, how coordinates are reconstructed, and what
-makes the result ambiguous. It neither implements a network clock estimator nor
-claims to replace multimodal acquisition infrastructure. Device-specific data
-contracts also remain consequential: Tobii display coordinates and metric user
+estimate to a GazeSync host. GazeSync uses the supplied clock mapping to select
+the rendered content state, reconstruct coordinates and identify ambiguous
+associations. Device-specific data contracts also matter: Tobii display coordinates and metric user
 coordinates differ from Pupil scene-camera coordinates~\cite{tobii,pupil}.
-Explicit normalization is therefore part of the measurement contract, not a
-cosmetic import step.
+Adapters make these coordinate and timestamp conversions explicit.
 
 \section{Design requirements}
 \paragraph{Record what changed on screen.}
@@ -166,15 +154,15 @@ registered display geometry. Layout changes and suspension are observable events
 A binocular tracker can lose one eye, sample eyes at different times, or expose a
 fused output with different semantics. The record retains \code{left},
 \code{right}, \code{combined} or \code{unknown} identity. Separate observations
-retain their timestamps and validity. The software does not synthesize a second
-eye from a combined estimate or treat vendor validity as a probability.
+retain their timestamps and validity. Independent and combined channels remain
+distinct, with validity stored separately from scalar confidence.
 
 \paragraph{Keep disagreement visible.}
 Missing history, uncertain clocks, incompatible coordinates and invalid samples
 must remain inspectable. A seemingly smooth trace can conceal an acquisition
 error. Raw data and quality flags are retained alongside derived coordinates;
-blinks and gaps break a plotted trace. Rates and thresholds are configurable
-study parameters rather than universal recommendations.
+blinks and gaps break a plotted trace. Acquisition rates and quality thresholds
+are configurable for each study.
 
 \paragraph{Keep adaptation local and testable.}
 The synchronization core depends on neither a hardware SDK nor a learned model.
@@ -200,10 +188,8 @@ substituted without a measured mapping.
 The host supplies clock uncertainty and optional drift uncertainty. The latter
 grows with distance from the anchor; conversion also includes a conservative
 floating-point term. A revised fit or source restart requires a new epoch.
-These are supplied engineering bounds, not a fitted statistical confidence
-interval. The framework does not estimate clock parameters from network arrival
-or assume symmetric one-way transport delay. Receipt-only sources remain
-recordable but are excluded from capture-time attention analysis.
+These engineering bounds describe the host's clock calibration. Receipt-only
+sources remain recordable but are excluded from capture-time attention analysis.
 
 \subsection{Presentation intervals and ordering}
 For the surface-specific history $\mathcal H_s$, alignment selects
@@ -236,7 +222,7 @@ may still expire, producing an explicit history flag.
 
 \begin{figure*}[t]
 \includegraphics[width=\textwidth]{timing.pdf}
-\caption{Observed timing in the representative synthetic trace. (A) Capture and receipt fall in different presentation intervals. (B) Receipt-time association introduces reconstruction residuals during manipulation; capture-time residuals remain at numerical scale. The blank interval denotes a blink. This is a software fixture, not a physical timing measurement.}
+\caption{Observed timing in the representative synthetic trace. (A) Capture and receipt fall in different presentation intervals. (B) Receipt-time association introduces reconstruction residuals during manipulation; capture-time residuals remain at numerical scale. The blank interval denotes a simulated blink.}
 \Description{A three-lane timing diagram distinguishes display, exposure and receipt, separated by 45.4 milliseconds. The adjacent measured residual trace shows the receipt-time baseline and capture-time reconstruction, with a gap at the simulated blink.}
 \label{fig:timing}
 \end{figure*}
@@ -252,17 +238,15 @@ Fast zoom, rotation or translation can therefore amplify a modest delivery delay
 reset or layout discontinuity this derivative approximation does not apply;
 the correct presentation interval must be selected explicitly.
 Figure~\ref{fig:timing} illustrates this mechanism with known synthetic timing.
-The receipt-time baseline is an intentionally incorrect association policy,
-not a benchmark against every strategy used by existing systems.
+The receipt-time baseline isolates the effect of selecting the view at delivery
+rather than at capture.
 
 \section{Spatial reconstruction and eye identity}
 \subsection{Named frames and distinct origins}
 We use column vectors and write $T_{BA}$ for a change of coordinates from frame
-$A$ to frame $B$. Each 3D observation and plane carries a \code{frameId}; equality
-of identifiers is necessary, but does not establish calibration by itself.
-The host must document the origin, axis directions, handedness, units and time
-reference of each frame. Table~\ref{tab:origins} distinguishes origins that are
-easy to conflate during integration.
+$A$ to frame $B$. Each 3D observation and plane carries a \code{frameId} referring
+to a calibrated frame with a documented origin, axis directions, handedness,
+units and time reference. Table~\ref{tab:origins} lists these conventions.
 
 \begin{table*}[t]
 \caption{Coordinate origins and conventions. Eye labels are anatomical. The optical-camera axes shown here are an explicit example; each vendor frame requires its documented conversion.}
@@ -327,8 +311,8 @@ not $t_{CW}$. Eye origins must be transformed independently. A display-mounted
 camera may observe eyes at positive camera $z$ while their gaze directions point
 back toward the display with negative $z$; this is geometrically valid. The
 \code{transformRay} and \code{transformPlane} helpers check named source frames,
-return new values, and never infer a missing eye origin. Python provides the same
-operations with snake-case names.
+return new values, and require the eye origin explicitly. Python provides the
+same operations with snake-case names.
 
 An eye-local ray with origin zero has $O_C^e=t_{CE_e}$ and
 $D_C^e=R_{CE_e}D_{E_e}$, independently for $e\in\{L,R\}$. Its measured
@@ -338,7 +322,7 @@ A plane's top-left point transforms with $R$ and $t$, while its right/down axes
 transform with $R$ only. A transformed plane remains marked static only if both
 the original plane and transformation explicitly declare time independence.
 Applications retain the original ray, calibration identifier, transform and pose
-time in sample metadata, so a frame conversion does not erase its provenance.
+time in sample metadata to preserve conversion provenance.
 
 \subsection{Screen plane and forward intersection}
 A registered active rectangle has top-left $P$, orthonormal right/down axes $u,v$
@@ -376,20 +360,18 @@ The normalized crossing within the plane rectangle is
 \end{equation}
 The operation is a two-sided geometric crossing. For an opaque panel with a
 known front-facing right/down basis, $(O-P)\cdot(u\times v)<0$ places the eye in
-front. The host must establish front-facing and occlusion visibility; an inactive
-surface is recorded explicitly. A geometric hit alone does not establish an
-unobstructed view of the content.
+front. The host supplies front-facing and occlusion visibility and records inactive
+surfaces explicitly.
 
 The infinite-plane crossing and the active rectangle are separate tests:
 $\alpha,\beta\in[0,1]$ identifies the finite rectangle. Off-display intersections
 are retained and flagged, including when an oversized application window would
 contain them. A successful aligned 3D hit records its metric frame ID as well as
-its position and distance. This operation does not infer scene fixation depth,
-vergence or an unmeasured camera-to-display transform.
+its position and eye-to-screen distance.
 
 \begin{figure*}[t]
 \includegraphics[width=\textwidth]{geometry.pdf}
-\caption{Independent eyes retain separate origins. (A) A procedurally rendered metric scene separates the camera centre $C$, active-panel origin $P$, world origin $O_W$ and two eye origins $O_L,O_R$. Both rays meet the known centre target in this fixture without being fused. (B) A magnified cutaway makes the distinct eye centres visible; their separation is 64\,mm. (C) The same screen hit maps from $(960,540)$ in the full display to $(860,460)$ in the offset viewport. Eye anatomy and viewing perspective are illustrative; labelled origins and ray endpoints follow the shared numeric fixture.}
+\caption{Independent eyes retain separate origins. (A) A procedurally rendered metric scene separates the camera centre $C$, active-panel origin $P$, world origin $O_W$ and two eye origins $O_L,O_R$. Both rays independently meet the known centre target in this fixture. (B) A magnified cutaway makes the distinct eye centres visible; their separation is 64\,mm. (C) The same screen hit maps from $(960,540)$ in the full display to $(860,460)$ in the offset viewport. Eye anatomy and viewing perspective are illustrative; labelled origins and ray endpoints follow the shared numeric fixture.}
 \Description{A high-resolution three-dimensional scene shows a wire head reference, separate eye models, blue and orange rays, a physical screen and a calibrated camera above it. A cutaway detail exposes each eye centre. A separate diagram subtracts the viewport offset from full-display coordinates.}
 \label{fig:geometry}
 \end{figure*}
@@ -437,7 +419,7 @@ Canonical UI coordinates describe continuous rectangle edges from $(0,0)$ to
 $(W,H)$, not integer array indices. Pixel-centre conventions must be converted
 once when required by a source. Bounds classification allows arithmetic residuals
 of 64 machine epsilons scaled by the coordinate extent, without changing the
-stored coordinates. This numerical allowance is not a tracking-accuracy margin.
+stored coordinates.
 
 \subsection{A numerical origin and viewport check}
 The shared analytic fixture uses a $0.53\times0.33$\,m panel centred at $O_W$,
@@ -454,9 +436,8 @@ For a $1920\times1080$ logical display and $1000\times600$ viewport at
 $(100,80)$, both eyes yield $p_V=(860,460)$. Scaling the full plane directly to
 viewport dimensions would instead yield $(500,300)$, illustrating why the
 registered rectangle must be explicit. With $M=\mathrm{diag}(0.5,0.5,1)$, the content point is
-$(1720,920)$. These independently specified numbers check origin translation,
-axis signs, units and viewport offsets rather than comparing a projection only
-against its own inverse.
+$(1720,920)$. This independent fixture checks origin translation, axis signs,
+units and viewport offsets.
 
 \subsection{Intrinsics and time-dependent geometry}
 For undistorted pinhole image coordinates $\tilde q=(u_{img},v_{img},1)^T$,
@@ -477,17 +458,13 @@ is not a proper 3D rotation. Content zoom modifies $M$, not camera intrinsics.
 For a moving phone, both ray conversion and screen pose must refer to the relevant
 capture time. Empirical work on mobile interactions identifies head distance,
 head pose and device orientation as factors associated with 2D gaze-estimation
-error~\cite{motiongaze}. This motivates explicit geometry provenance, while the
-acceptable age of a pose still requires separate assessment. A matching frame
-name alone is insufficient. The session
-uses the selected presentation's recorded pose and checks its age; the pose-age
-threshold does not bound spatial error from unobserved motion. The host must
-measure or otherwise justify its temporal geometry approximation. Orientation
-changes update layout epochs and physical axes/dimensions. The simulation
-swaps the physical dimensions of the same panel when display orientation changes. The desktop interaction fixture crops
-its viewport while keeping the active panel, top-left origin and metric pixel
-pitch fixed. Physical dimensions can be supplied
-explicitly; defaults remain synthetic assumptions.
+error~\cite{motiongaze}. The session uses the selected presentation's recorded
+pose and checks its age. The pose-age threshold limits temporal staleness;
+spatial error also depends on the intervening motion. Orientation changes update
+layout epochs and physical axes/dimensions. In the simulation, a panel's physical
+width and height swap with display orientation. The desktop fixture crops its
+viewport while retaining the active panel, top-left origin and metric pixel
+pitch. Physical dimensions are configurable.
 
 \subsection{Content rotation and free movement}
 The content layer may be an image, a fixed-layout text page or a group with a
@@ -532,14 +509,13 @@ viewport; it does not guarantee coverage of every viewport corner. Clipping can
 expose blank space, so outside-content flags remain part of gaze interpretation.
 Reset restores zero rotation, centred content and the original unrotated fit.
 Independently animated children, text reflow and occlusion need additional host
-state; the provided layer does not infer those changes.
+state.
 
 \subsection{Observation identity and optional pairing}
 Observation identity includes source, clock ID and epoch, eye, representation
 and sample ID. The same physical capture can thus carry left/right and PoG/ray
 records without collision. Optional capture and calibration identifiers retain
-further provenance. A combined estimate stays combined; no post hoc label turns
-it into an independent monocular observation.
+further provenance. Combined estimates retain their source identity.
 Duplicate protection covers every pending observation as well as a bounded
 history of recent identifiers. An identifier older than both windows can be
 accepted again; callers must therefore issue stable, unique sample identifiers.
@@ -548,10 +524,9 @@ For analyses that need matched eyes, an offline helper performs chronological,
 one-to-one pairing under a caller-specified maximum skew, defaulting to 5\,ms.
 It considers only usable observations with matching source, representation,
 clock identity/epoch, surface/epoch, content identity and calibration. Unmatched observations are
-returned explicitly. Different source clocks can be synchronized by the host,
-but the helper conservatively leaves them separate. It does not implement an
-optimal assignment, estimate vergence or fuse measurements. Study-specific
-fusion requires its own uncertainty and validity policy.
+returned explicitly. Pairing is chronological and greedy, with each observation
+used at most once. Streams with different clock identities or epochs remain
+separate; downstream analyses can apply their own fusion policy.
 
 \section{Adapters, diagnostics and developer contract}
 \subsection{SDK-independent normalization}
@@ -567,8 +542,8 @@ optional rays are defined from the vendor origin to the reported display point,
 with millimetres converted to metres~\cite{tobii}. Confidence remains null when
 only validity is provided. The EyeLink bridge consumes serialized per-eye pixel
 records and millisecond device timestamps; a Python helper extracts this bridge
-record from a newly received PyLink sample~\cite{eyelink}. Neither path bundles or
-licenses the hardware SDK on the user's behalf.
+record from a newly received PyLink sample~\cite{eyelink}. Hosts install the
+vendor SDK separately.
 
 Pupil normalization preserves individual base-sample timestamps and deduplicates
 reused eye observations within a bounded history. Scene-camera coordinates require an explicit calibrated homography or
@@ -576,8 +551,7 @@ registered surface record to become screen PoG. Homographies are normalized
 internally by coefficient magnitude and checked for rank loss before projection;
 the supplied coefficients remain in the observation metadata. Right/left IDs, bottom-origin coordinates and millimetre eye
 centres follow the vendor contract~\cite{pupil}. Mapping timestamp skew is
-retained and checked. These behaviors are tested with synthetic protocol
-fixtures; the release does not claim physical tracker validation.
+retained and checked. Synthetic protocol fixtures verify these conversions.
 
 \subsection{Diagnostics as integration feedback}
 A source descriptor declares adapter, eye set, tracking mode, expected cadence
@@ -591,11 +565,10 @@ interrupting acquisition.
 
 Prediction reliability is distinct from clock and presentation uncertainty.
 Factor-Informed Uncertainty Distillation (FIUD) learns an image-quality-related
-error-ranking signal for selective gaze prediction~\cite{fiud}. Such a score is
-neither automatically a calibrated probability in $[0,1]$ nor a temporal bound
-in milliseconds. Hosts should preserve source-specific error scores and their
-semantics in metadata, and retain \code{confidence=null} when no suitable scalar
-confidence is supplied.
+error-ranking signal for selective gaze prediction~\cite{fiud}. Hosts preserve
+such source-specific scores and their semantics in metadata. Scalar confidence
+uses $[0,1]$, clock bounds use milliseconds, and \code{confidence=null} records
+the absence of a suitable scalar confidence.
 
 A per-observation \code{usable} flag and reason list remain the primary quality
 contract. Informational conditions, such as unavailable scalar confidence, can
@@ -621,16 +594,13 @@ prevents competing render loops. A runnable example groups an illustration with 
 Its controller exposes \code{rotate}, \code{move} and \code{reset}; the same
 operations are available in Python. The helper records the applied matrix in
 each render callback and preserves capture context for later tracker delivery.
-The host still supplies capture timestamps, source clocks and calibrated 3D
-geometry. This reduces integration steps, but developer usability has not yet
-been measured in a user study.
+The host supplies capture timestamps, source clocks and calibrated 3D geometry.
 
 The lower-level browser adapter records application input, while the host records what was
 rendered. Native Python applications can feed the same controller logic from
 GUI callbacks. Both cores are synchronous; applications serialize rendering and
-SDK callbacks through a single session owner. No transport or thread scheduler
-is hidden in the measurement path. Host-specific kinetic scrolling or animation
-can be recorded as presentation snapshots without adding its physics to the core.
+SDK callbacks through a single session owner. Hosts can record kinetic scrolling
+or animation through the same presentation-snapshot interface.
 
 \section{Verification and synthetic evaluation}
 \subsection{Audit strategy and regression coverage}
@@ -655,8 +625,7 @@ Strict TypeScript compilation generates public declarations from the executable
 source. Consumer tests check exports and validity-dependent measurement types.
 Python tests exercise the independent implementation and validate normalized
 fixtures against JSON Schema. Release checks inspect imports, package contents,
-license consistency and shared fixtures. These tests establish specified
-behaviors under examined inputs; they are not a proof of general correctness.
+license consistency and shared fixtures.
 
 \subsection{Two complementary simulation families}
 \paragraph{Interaction scenarios.}
@@ -666,9 +635,8 @@ zoom, free movement, rotation, marquee selection, cancellation, reset and resize
 include pinch in/out, two-finger twist, moving midpoint, pinch-to-pan transition, double tap,
 orientation and suspension. Attention policies include content-landmark tracking,
 screen-fixed attention during pan, scanning and reading-like fixation steps.
-Timing and motion parameters are illustrative test assumptions, not a fitted
-model of human eye movements. The moving-phone fixture holds pose between
-recorded frames and does not validate real continuous motion.
+Timing and attention trajectories are scripted test inputs. The moving-phone
+fixture holds pose between recorded frames.
 
 \paragraph{Rate and context matrix.}
 A second family separates frequency sensitivity from context coverage. The
@@ -678,7 +646,7 @@ controlled matrix contains 42 cells: six display rates (30, 60, 90, 120, 144 and
 binocular acquisition. A further 36 cases cross nine viewport configurations
 with left monocular, right monocular, independent binocular and combined modes.
 These context cases vary input rate, device pixel ratio, orientation and clock
-configuration together; they are coverage cases, not a factorial causal study.
+configuration together to exercise integration conditions.
 
 The nine initial viewports range from $320\times568$ to $3840\times2160$, including
 portrait, landscape, tablet and ultrawide layouts. Context input rates range
@@ -686,19 +654,17 @@ from 30 to 1,000\,Hz. Independent context eyes use 600 and 120\,Hz and separate
 clock mappings. Each case lasts 800\,ms with seed 41. Inputs are coalesced into
 rendered frames. Ordinary delivery delay is 28--63\,ms, with an additional
 120\,ms on selected captures. A blink interval occupies 46--50\% of the trace.
-Uniform per-axis perturbation of $\pm0.35$ logical pixels supplies an explicitly
-high-accuracy synthetic source; it is not a camera-model accuracy estimate.
+Uniform per-axis perturbation of $\pm0.35$ logical pixels supplies source noise.
 
 PoG and ray observations originate from the same perturbed viewport target.
-Their agreement tests representation consistency rather than agreement between
-independent sensors. Reconstruction error is measured against that perturbed
-target, using the known renderer coefficients, and expressed back in logical
-viewport pixels. Sensor noise is therefore distinguished from software
-reconstruction residual. No human data are used in either simulation family.
+Reconstruction error is measured against that perturbed target using the known
+renderer coefficients and expressed in logical viewport pixels. This separates
+source noise from the residual introduced by reconstruction and tests consistency
+between the two representations.
 
 \begin{figure*}[t]
 \centering\includegraphics[width=\textwidth]{validation.pdf}
-\caption{Controlled residuals and implementation agreement. (A) Receipt-time baseline P95 residual for the 42 rate cells at fixed $1280\times720$ viewport and 240\,Hz input. (B) Empirical cumulative distribution of the maximum Python--TypeScript viewport discrepancy in each of the 78 cases, including exact-zero cases. The largest gap is $4.55\times10^{-13}$ logical pixels. Each case is deterministic; these results establish numerical consistency, not tracker accuracy.}
+\caption{Controlled residuals and implementation agreement. (A) Receipt-time baseline P95 residual for the 42 rate cells at fixed $1280\times720$ viewport and 240\,Hz input. (B) Empirical cumulative distribution of the maximum Python--TypeScript viewport discrepancy in each of the 78 cases, including exact-zero cases. The largest gap is $4.55\times10^{-13}$ logical pixels. All cases use deterministic synthetic inputs.}
 \Description{A six-by-seven heatmap shows receipt-time residuals by display and gaze frequency. A cumulative plot shows per-case maximum Python versus TypeScript viewport discrepancies, all below 4.55 times ten to the minus thirteen logical pixels.}
 \label{fig:validation}
 \end{figure*}
@@ -717,10 +683,9 @@ buffers drain, and every capture-frame selection matches the independent
 synthetic reference. Maximum reconstruction residual is
 $7.85\times10^{-13}$ logical pixels. Maximum Python--TypeScript viewport
 disagreement is $4.55\times10^{-13}$ pixels; mapped capture times agree at the
-reported precision. Received counts include unusable observations and are not
-a usable-coverage statistic; reconstruction residuals are evaluated on mapped
-observations with a known synthetic target. These near-zero values measure arithmetic and contract
-consistency for known inputs. They cannot establish subpixel physical accuracy.
+reported precision. Of the received observations, 102,768 (95.98\%) produce
+usable content coordinates. Reconstruction residuals are computed on these
+mapped observations against their known synthetic targets.
 
 \paragraph{Additional content-motion cases.}
 Eight further cases combine rotation and free movement in $390\times844$ and
@@ -732,18 +697,17 @@ $\pm0.8$\,rad; the content centre moves by up to 12\% of viewport width and
 noise and delivery model above; mobile cases also change display orientation.
 All 6,516 expected observations are received, every capture-frame choice matches,
 and replay is exact. Maximum mapped reconstruction residual is
-$8.49\times10^{-13}$ logical pixels. These eight cases are reported separately
-from the 78-case baseline and are additional software consistency checks.
+$8.49\times10^{-13}$ logical pixels. These eight cases supplement the 78-case
+baseline.
 
 The receipt-time baseline's P95 residual ranges from 54.4 to 79.6 logical pixels
 across the controlled cells (Figure~\ref{fig:validation}A). This range belongs to
-the specified fast manipulation trace, viewport and delays. It is not a general
-error bound or a comparison between tracker brands. Increasing gaze rate cannot
-repair an incorrect temporal association. Context-case baseline values are not
-pooled to infer frequency effects because dimensions and motions also differ.
+the specified manipulation trace, viewport and delays. Raising gaze rate alone
+leaves the delivery-time association error in place. Frequency comparisons use
+the controlled cells; the context cases vary dimensions and motion together.
 
 \begin{table}[t]
-\caption{Numerical consistency across 78 deterministic cases. Spatial errors are logical viewport pixels or content units, as indicated; they are not physical tracking accuracy.}
+\caption{Numerical consistency across 78 deterministic cases. Spatial residuals use logical viewport pixels or content units, as indicated.}
 \label{tab:results}\small
 \input{tables/validation.tex}
 \end{table}
@@ -753,11 +717,10 @@ The repository contains strict TypeScript source, Python source, JSON schemas,
 synthetic fixtures, regression tests, a local interaction lab and figure scripts.
 The two libraries have no runtime dependencies. The visual assets use a separate
 procedural figure pipeline; an editable Blender scene and projected annotation
-anchors reproduce the 3D geometry figure without external meshes or photographs. npm ships executable modules,
-generated declarations and corresponding TypeScript source. Python ships a wheel
-and source distribution; SDKs, inference weights and private-project data are
-excluded. Clean installation tests run outside the checkout, including a wheel
-rebuilt from the source distribution.
+anchors reproduce the 3D geometry figure. The TypeScript distribution contains
+executable ES modules, generated declarations and source; the Python distribution
+contains a wheel and source archive. Clean installation tests run outside the
+checkout, including a wheel rebuilt from the source distribution.
 
 Schema 2.1 records the implementation version, plane extent, metric hit frame,
 source descriptors, clock
@@ -769,8 +732,8 @@ are explicit: 7,200 frames, 100,000 raw/derived records and 4,096 pending
 observations. Long sessions require persistence before rollover.
 Python raw-log storage uses a deque to avoid shifting the retained history on
 each insertion. Its public snapshots and JSON exports remain ordered lists.
-Other bounded arrays still incur front-removal costs; streaming storage and backpressure
-remain measured integration work rather than claimed features.
+Other bounded arrays retain front-removal costs; the host manages persistence
+and source backpressure.
 
 The full matrix can be reproduced with the following source-checkout commands:
 \begin{lstlisting}
@@ -781,58 +744,41 @@ node tools/paper-data.mjs
 Figure generation additionally requires the pinned plotting dependencies listed
 in the paper build guide. The reported local run used Node.js 22.16.0 and Python
 3.12.14. Continuous integration is configured across Node 22/24/26 and Python
-3.10/3.12/3.14. The aggregate JSON data preserve every configuration and result;
-generated working sessions remain excluded from source control.
+3.10/3.12/3.14 on Linux, with Node 24 and Python 3.12 suites also passing on
+Windows and macOS. The aggregate JSON data preserve every configuration and result.
 
-The GazeSync source code is publicly available at
-\url{https://github.com/GazeLei/GazeSync} under the GPL-3.0-only license.
-The repository provides both implementations, reproducible simulations,
-validation data, manuscript source and distribution build instructions.
-Package artifacts are verified through isolated installation tests, and
-maintainer-reviewed release workflows target PyPI and npm. Registry availability
-is recorded in the repository's release documentation. Machine-readable citation
+GazeSync is distributed through \url{https://github.com/GazeLei/GazeSync} under
+the GPL-3.0-only license. The repository provides both implementations,
+reproducible simulations, validation data and manuscript source, with installation
+instructions for the Python and TypeScript artifacts. Machine-readable citation
 metadata identifies the original GazeSync paper and this technical report.
 
 \section{Limitations}
-End-to-end assessment must distinguish estimation and calibration quality,
-capture-to-presentation association, and coordinate reconstruction under the
-registered geometry. This validation tests software consistency under supplied
-clock mappings and synthetic geometry. Physical exposure time, display scanout,
-clock offset and drift, extrinsic calibration, source accuracy and moving-device
-pose remain integration measurements. Render callbacks alone do not measure photon
-onset. Replaying known geometry cannot validate an assumed camera-to-display
-transform. Protocol fixtures cannot establish behavior across firmware or SDK
-versions, and a phone-sized browser simulation cannot certify touch behavior on
-every mobile browser.
+The evaluation isolates temporal association and coordinate reconstruction using
+synthetic trajectories and supplied calibration. Its residuals measure software
+consistency; device-level accuracy also depends on gaze estimation, exposure and
+display timing, clock calibration, and camera-to-screen registration. Moving
+displays require pose measurements aligned with capture time, since pose age
+alone does not bound motion error.
 
-Physical validation requires timing measurements against an external reference,
-latency and uncertainty distributions, and display-geometry assessment on
-held-out targets. Static views, pan, zoom, rotation and device motion should be assessed
-separately before compound manipulations. Relevant outcomes include temporal
-ambiguity, usable coverage, per-eye dropout, viewport/content error and angular
-ray error. Error on retained observations should be reported together with the
-proportion retained and the reasons for exclusion, so rejection cannot conceal
-poor coverage. Calibration and assessment targets must remain separate. Repeated
-sessions and participant-separated analysis are needed to characterize drift
-and generalization.
-
-Human behavior also needs empirical grounding. The scripted attention policies
-exercise distinct reconstruction cases but do not estimate how often people
-follow a pointer, retain a landmark or look ahead of an action. Assessing
-behavioral validity requires task intent and interaction phases
-recorded alongside independent gaze, with checks that instrumentation preserves
-content attention without changing normal interaction. Sustained deployment
-also requires measurements of memory, persistence overhead and worst-case
-latency under realistic acquisition load.
+The scenarios cover scripted interaction and attention patterns. Participant and
+device studies are needed to assess task-specific attention, adapter behavior
+across SDKs, and mobile-browser interaction. These studies should report spatial
+error together with usable coverage and per-eye dropout, using assessment targets
+separate from calibration. Longer recordings should characterize drift, memory
+use and latency under the host's persistence and backpressure policy. The present
+recorder retains bounded in-memory histories, so sustained acquisition requires
+external storage before rollover.
 
 \section{Conclusion}
-GazeSync provides an explicit bridge between heterogeneous eye-tracking records
-and the content state visible during desktop or mobile interaction. Its temporal
-contract, geometric conventions, independent eye records and quality flags make
-assumptions inspectable. Matching Python and TypeScript implementations, adapter
-fixtures and synthetic experiments establish a reproducible software foundation.
-Measured device timing, calibration and participant behavior remain the necessary
-next evidence for end-to-end claims.
+GazeSync reconstructs content-relative gaze during desktop and mobile interaction
+by joining capture-time observations to recorded presentations. The shared
+Python and TypeScript contract preserves independent eye channels, coordinate
+frames and quality decisions through acquisition and replay. Analytic fixtures
+and synthetic experiments verify frame selection and coordinate reconstruction
+across acquisition rates and viewport sizes. The GitHub distribution provides
+researchers with the implementation, adapters and reproducible tests for
+instrumenting their own applications.
 
 \begin{thebibliography}{14}
 \interlinepenalty=10000

@@ -47,8 +47,15 @@ def digest(p: Path):
     return hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
 
 
-def bundle(root: Path, output: Path):
-    data = {dest: checked(root, src).read_bytes() for dest, src in FILES.items()}
+def bundle(root: Path, output: Path, archive_format="overleaf"):
+    if archive_format not in ("overleaf", "arxiv"):
+        raise ValueError("Unknown manuscript archive format")
+    selected = {
+        dest: src
+        for dest, src in FILES.items()
+        if archive_format == "overleaf" or dest.endswith((".tex", ".pdf"))
+    }
+    data = {dest: checked(root, src).read_bytes() for dest, src in selected.items()}
     manifest = {
         "schema": 1,
         "implementationVersion": json.loads((root / "release.json").read_text())[
@@ -58,7 +65,8 @@ def bundle(root: Path, output: Path):
             name: hashlib.sha256(content).hexdigest() for name, content in data.items()
         },
     }
-    data["SOURCE-MANIFEST.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
+    if archive_format == "overleaf":
+        data["SOURCE-MANIFEST.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.is_symlink():
         raise ValueError("ZIP output must not be a symlink")
@@ -70,6 +78,7 @@ def bundle(root: Path, output: Path):
             archive.writestr(info, content)
     return {
         "output": str(output),
+        "format": archive_format,
         "files": list(data),
         "bytes": output.stat().st_size,
         "sha256": digest(output),
@@ -144,12 +153,13 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--directory", type=Path)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--format", choices=["overleaf", "arxiv"], default="overleaf")
     args = parser.parse_args()
     try:
         if args.action == "zip":
             if args.out is None:
                 parser.error("zip requires --out")
-            result = bundle(args.root.resolve(), args.out.absolute())
+            result = bundle(args.root.resolve(), args.out.absolute(), args.format)
         else:
             if args.directory is None:
                 parser.error("import/export requires --directory")

@@ -796,7 +796,8 @@ def tables():
         exp = int(math.floor(math.log10(abs(value))))
         return rf"${value / 10**exp:.2f}\times10^{{{exp}}}$"
 
-    maximum = max(r["maxReconstructionErrorPx"] for r in DATA["rows"])
+    rows = DATA["rows"]
+    maximum = max(r["maxReconstructionErrorPx"] for r in rows)
     n = DATA["totalSamples"]
     cases = DATA["experimentCases"]
     replayed = sum(r["replayExact"] for r in DATA["rows"])
@@ -806,6 +807,8 @@ def tables():
         r"\textbf{Check} & \textbf{Result} & \textbf{Unit} \\",
         r"\midrule",
         rf"Received observations & {n:,} & obs. \\",
+        rf"Usable observations & {sum(r['usableSamples'] for r in rows):,} & obs. \\",
+        rf"Usable coverage & {100 * sum(r['usableSamples'] for r in rows) / n:.2f} & \% \\",
         rf"Frame mismatches & {sum(r['frameMismatches'] for r in DATA['rows']):,} & obs. \\",
         rf"Exact replay & {replayed}/{cases} & cases \\",
         rf"Pending after drain & {sum(r['pendingSamples'] for r in DATA['rows']):,} & obs. \\",
