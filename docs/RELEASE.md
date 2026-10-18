@@ -149,7 +149,7 @@ scope and documentation.
 | npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
 | arXiv | Optional for software release; retain the technical-report citation until submission. |
-| Package uploads | TestPyPI 0.5.2 authorized and in progress. Python release gate enabled; npm remains private. Production uploads are pending. |
+| Package uploads | TestPyPI 0.5.2 uploaded and verified. Python release gate enabled; npm remains private. Production PyPI and npm uploads are pending. |
 
 The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
 86 cross-language configurations, wheel/sdist rebuilds and isolated npm installs.
@@ -208,10 +208,44 @@ uses the immutable `v0.5.2` tag; production uploads require a separate decision.
 ## TestPyPI validation run - 18 October 2026
 
 The maintainer requested a fresh full verification followed by TestPyPI. Version
-0.5.2 retains npm `private:true`; only `release.yml` destination `testpypi` is to be
-dispatched. Verify the wheel and source-distribution hashes against the workflow
-artifacts, then install `gazesync==0.5.2` from the TestPyPI index in an isolated
-environment. Do not add the production index as a fallback for this dependency-free
-package. Check the CLI, capture-time reconstruction, independent-eye behavior,
-3D projection and replay from the installed distribution. Record completion and
-workflow evidence here after the upload is verified.
+0.5.2 passed 98 Node tests, 69 Python tests, TypeScript consumer checks, 86
+cross-language cases and the 216,000-observation virtual retention check. Clean
+wheel/sdist/npm installations also passed. The immutable `v0.5.2` tag points to
+`a76987279a4fa3c1c7b3131a0c24fa503ca9c467`.
+
+The [TestPyPI release](https://test.pypi.org/project/gazesync/0.5.2/) was uploaded
+through [the approved workflow](https://github.com/GazeLei/GazeSync/actions/runs/39154626101)
+using its `testpypi` environment and OIDC publisher. Both Python artifacts include
+digital attestations. The npm publishing job was skipped; no production PyPI
+workflow was dispatched. All seven
+[tag verification jobs](https://github.com/GazeLei/GazeSync/actions/runs/39154626064)
+also passed.
+
+Before approving the upload, actual workflow artifacts were downloaded and their
+inventories and payload bytes checked against the reviewed source. After upload,
+both files were downloaded from TestPyPI and their SHA-256 values matched those
+workflow artifacts:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `gazesync-0.5.2-py3-none-any.whl` | 54,817 | `e689e93f32d2b4d5997d7e97ac103f4de23364d9658da2067bf2ec0b5843a6b5` |
+| `gazesync-0.5.2.tar.gz` | 57,540 | `9263da4df60ed8f867fad0944742b6ccc6e349828a72ecfad546d1cea90aaf4c` |
+
+A new temporary virtual environment installed the exact wheel with:
+
+```sh
+python -m pip install --index-url https://test.pypi.org/simple/ --no-deps gazesync==0.5.2
+```
+
+The pip download hash matched the verified workflow wheel. Installed-module checks
+confirmed version/schema metadata, independent eye-origin projection into the
+(860,460) cropped viewport, content-aware binocular pairing, content rotation,
+movement/reset and exact replay. Eight installed Python simulation cases processed
+6,516 observations with zero frame mismatches; a separate CLI simulation and
+replay covered 1,150 observations. Neither the source checkout nor the production
+index served as an import/download fallback. Evidence and logs are retained in
+ignored `artifacts/testpypi-20261018/`.
+
+Production PyPI and npm uploads remain pending. Do not move `v0.5.2` or replace
+its TestPyPI files. Subsequent source changes require a new version/tag when
+publishing through the tagged workflow.

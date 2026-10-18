@@ -59,7 +59,8 @@ Counts refer to observations: one capture can produce PoG and ray records for
 each eye. Tiny reconstruction residuals indicate numerical consistency, not
 physical gaze accuracy. Context cases vary multiple factors and are not a causal
 frequency study. Hardware adapters have synthetic contract tests rather than
-physical-device certification. Public registry publication remains disabled.
+physical-device certification. Version 0.5.2 has passed TestPyPI validation;
+production PyPI and npm uploads remain pending.
 
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical

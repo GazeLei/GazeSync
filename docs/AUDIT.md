@@ -299,3 +299,17 @@ available release workflows in formal technical-report language. No registry
 upload, arXiv identifier, conference acceptance or new hardware result is claimed.
 The existing baseline, coverage, moving-pose and human-study limitations remain;
 wording changes do not supply those missing measurements.
+
+
+## TestPyPI end-to-end validation - 18 October 2026
+
+After a fresh repeat of the 0.5.2 suites, `v0.5.2` was published to TestPyPI through
+[workflow 39154626101](https://github.com/GazeLei/GazeSync/actions/runs/39154626101).
+Workflow-built wheel/sdist inventories and bytes matched the reviewed checkout;
+the registry downloads and pip-installed wheel matched their SHA-256 hashes.
+A clean external environment then passed independent 3D/cropped-viewport,
+content-boundary pairing, controller and replay checks, eight simulation cases
+(6,516 observations), and a separate CLI simulation/replay (1,150 observations).
+This verifies the actual TestPyPI distribution route. It does not add hardware
+accuracy evidence. Production PyPI and npm uploads were not performed. Artifact
+hashes and the exact source commit are recorded in [release preparation](RELEASE.md).
