@@ -235,7 +235,7 @@ The code is **GPL-3.0-only**. [LICENSE](LICENSE) contains the terms;
 [NOTICE](NOTICE) distinguishes manuscript rights and separately licensed SDKs.
 Citation is a scholarly request, not an additional software-license restriction.
 See [release preparation](https://github.com/GazeLei/GazeSync/blob/main/docs/RELEASE.md) for npm/PyPI artifacts, trusted
-publishing, the initial npm bootstrap and the disabled publication gates.
+publishing, the initial npm bootstrap and the registry approval steps.
 
 This is a standalone repository with no imports, datasets, checkpoints or Git
 history from the private parent project. Contributions start with
