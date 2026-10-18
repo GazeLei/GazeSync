@@ -4,7 +4,7 @@ Upload this ZIP as a new Overleaf project. Select main.tex as the main document,
 pdfLaTeX as the compiler, and TeX Live 2025 or newer. The archive contains the
 four finished PDF figures and the generated results table; no Python, Node or
 Blender execution is needed to compile. Use the supplied latexmkrc locally.
-The manuscript is an author-review draft with publication rights in NOTICE.
+This technical report uses the separate manuscript publication rights in NOTICE.
 
 Canonical source: GazeLei/GazeSync, paper/ directory.
 Connected Overleaf project:

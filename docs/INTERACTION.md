@@ -150,3 +150,11 @@ python -m gazesync simulate --width 390 --height 844 --content-motion \
 The eight-case report is `artifacts/validation/interaction-conformance.json`.
 It compares both languages on identical rendered events; independent Python
 simulation tests also exercise its own generator.
+
+
+A DOM helper exclusively owns its viewport, content element and session until
+`dispose()`. Mounting another helper on either element is rejected before styles
+or listeners change, even when it supplies a different session. Disposing the
+helper releases that ownership so the elements can be mounted again. A wheel,
+programmatic zoom or keyboard movement between touch taps breaks the double-tap
+sequence, as do reset, movement and rotation commands.

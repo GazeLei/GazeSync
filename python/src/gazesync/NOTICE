@@ -6,8 +6,8 @@ scripts are licensed under GPL-3.0-only. The complete license is in LICENSE. No
 vendor SDK or binary is included. Those SDKs remain subject to their respective
 licenses.
 
-The manuscript and generated manuscript figures in paper/ are research draft
-material; their publication rights are reserved pending author approval. The
+The manuscript and generated manuscript figures in paper/ are research publication
+material; their publication rights are reserved by the authors. The
 machine-readable synthetic validation data in paper/data/ are provided under
 GPL-3.0-only alongside the software. Third-party papers and original private
 project materials are not distributed here.

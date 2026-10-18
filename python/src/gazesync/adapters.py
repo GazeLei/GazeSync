@@ -541,6 +541,21 @@ class EyeLinkAdapter(_Adapter):
         return result
 
 
+def _normalized_homography(value: Any) -> list[float]:
+    coefficients = _numbers(value, 9)
+    if coefficients is None:
+        raise ValueError("Homography needs nine finite numbers")
+    magnitude = max(abs(n) for n in coefficients)
+    if magnitude == 0:
+        raise ValueError("Homography must be nonsingular")
+    normalized = [n / magnitude for n in coefficients]
+    a, b, c, d, e, f, g, h, i = normalized
+    determinant = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+    if abs(determinant) <= 32 * math.ulp(1.0):
+        raise ValueError("Singular or ill-conditioned homography")
+    return normalized
+
+
 class PupilCoreAdapter(_Adapter):
     def __init__(self, options: Mapping[str, Any]) -> None:
         super().__init__(
@@ -551,11 +566,16 @@ class PupilCoreAdapter(_Adapter):
             "mixed",
             "vendor-estimate",
         )
+        options = self._options
         h = options.get("sceneToSurface")
-        if h is not None and (not options.get("mappingId") or _numbers(h, 9) is None):
-            raise ValueError(
-                "A finite calibrated homography and mappingId are required"
-            )
+        self._homography = None
+        if h is not None:
+            if (
+                not isinstance(options.get("mappingId"), str)
+                or not options["mappingId"]
+            ):
+                raise ValueError("A calibrated homography needs a nonempty mappingId")
+            self._homography = _normalized_homography(h)
         if "maxMappingSkewMs" in options:
             positive(options["maxMappingSkewMs"], "maxMappingSkewMs")
         self._seen: OrderedDict[Any, bool] = OrderedDict()
@@ -649,7 +669,7 @@ class PupilCoreAdapter(_Adapter):
             else "unknown"
         )
         if p is not None and eye in self._source["eyes"]:
-            h = o.get("sceneToSurface")
+            h = self._homography
             if h is None:
                 warnings.append(self._warning("SURFACE_REGISTRATION_REQUIRED", eye))
             else:
@@ -682,7 +702,7 @@ class PupilCoreAdapter(_Adapter):
                             {
                                 "mappingId": o["mappingId"],
                                 "vendorTopic": topic,
-                                "sceneToSurface": list(h),
+                                "sceneToSurface": list(o["sceneToSurface"]),
                                 "scenePoint": [p["x"], p["y"]],
                             },
                         ),

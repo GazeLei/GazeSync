@@ -1,6 +1,6 @@
 {
   "name": "gazesync",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "license": "GPL-3.0-only",
   "type": "module",
@@ -118,7 +118,8 @@
     "pretest:types": "npm run build",
     "prerelease:check": "npm run build",
     "preexport": "npm run build",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.js\" \"tools/**/*.mjs\" \"examples/**/*.js\""
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.js\" \"tools/**/*.mjs\" \"examples/**/*.js\"",
+    "test:retention": "npm run build && node tools/retention-check.mjs"
   },
   "engines": {
     "node": ">=22"

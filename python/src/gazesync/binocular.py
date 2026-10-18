@@ -25,6 +25,7 @@ def pair_eyes(
                 "clockEpoch",
                 "surfaceId",
                 "surfaceEpoch",
+                "contentId",
                 "calibrationId",
             )
         )

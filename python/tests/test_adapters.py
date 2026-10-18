@@ -151,3 +151,23 @@ def test_pupil_rejected_packet_does_not_consume_either_eye_and_clocks_are_distin
         if s["eye"] == "right"
     )
     assert unknown["confidence"] is None and unknown["timeMs"] == 1000
+
+
+def test_pupil_homography_is_invertible_and_scale_invariant():
+    options = {**FIXTURE["base"], "eyes": ["right"], "mappingId": "calibration"}
+    packet = {
+        "topic": "gaze.2d.0.",
+        "timestamp": 1,
+        "norm_pos": [0.25, 0.75],
+        "confidence": 0.9,
+    }
+    for scale in (1, 1e-150, -1e-150, 1e150):
+        adapter = PupilCoreAdapter(
+            {**options, "sceneToSurface": [scale, 0, 0, 0, scale, 0, 0, 0, scale]}
+        )
+        row = adapter.adapt(packet)["samples"][0]
+        assert row["valid"] is True
+        assert row["point"] == {"x": 0.25, "y": 0.25}
+    for h in ([0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 2, 0, 0, 0, 0, 1], [0] * 9):
+        with pytest.raises(ValueError, match="[Hh]omography"):
+            PupilCoreAdapter({**options, "sceneToSurface": h})

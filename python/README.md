@@ -43,7 +43,7 @@ SDK callbacks and rendering run in different threads.
 Code license: **GPL-3.0-only**. See https://github.com/GazeLei/GazeSync for both citations, diagnostic
 codes, package-release instructions and the academic implementation manuscript.
 This development version has not yet been published to PyPI. The tested wheel can
-be installed directly with `pip install /path/to/gazesync-0.5.1-py3-none-any.whl`.
+be installed directly with `pip install /path/to/gazesync-0.5.2-py3-none-any.whl`.
 After the first authorized public release, the ordinary route will be
 `pip install gazesync`.
 

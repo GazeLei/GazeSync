@@ -161,7 +161,8 @@
     "tools/test_package_smoke.py",
     "tools/npm_consumer_check.mjs",
     "docs/assets/overview.svg",
-    "docs/assets/content-surface.png"
+    "docs/assets/content-surface.png",
+    "tools/retention-check.mjs"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

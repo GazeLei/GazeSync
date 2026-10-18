@@ -377,3 +377,62 @@ def test_extreme_time_arithmetic_cannot_make_nonfinite_recordings():
     assert s.diagnostics.report()["streams"][0]["observedHz"] is None
     s.flush(100)
     json.dumps(s.export(), allow_nan=False)
+
+
+def test_pairing_separates_content_replacements():
+    s = setup()
+    s.present(
+        t=10,
+        view=create_view(800, 600, 1600, 1200),
+        contentId="next-page",
+        surface={"id": "screen", "epoch": "1"},
+    )
+    s.gaze(sample("left", 9), 20)
+    s.gaze(sample("right", 11), 20)
+    rows = s.flush(100)
+    assert all(row["usable"] for row in rows)
+    pairs = pair_eyes(rows)
+    assert len(pairs) == 2
+    assert all(p["left"] is None or p["right"] is None for p in pairs)
+
+
+@pytest.mark.parametrize("command", ["zoom", "wheel", "key"])
+def test_view_command_interrupts_double_tap(command):
+    c = ZoomController(create_view(400, 600, 800, 1200))
+
+    def tap(t):
+        c.pointer_down(id=1, x=200, y=300, t=t, pointer_type="touch")
+        c.pointer_up(id=1, x=200, y=300, t=t + 10)
+
+    tap(0)
+    if command == "zoom":
+        c.zoom(1.25, 20)
+    elif command == "wheel":
+        c.wheel(x=200, y=300, delta_y=-80, t=20)
+    else:
+        c.key(key="ArrowLeft", t=20)
+    before = dict(c.view)
+    tap(40)
+    assert c.view == before
+
+
+def test_diagnostic_observer_failure_count():
+    calls = []
+
+    def observer(event):
+        calls.append(event)
+        raise RuntimeError("observer failed")
+
+    s = GazeSession(on_diagnostic=observer)
+    s.present(
+        t=0,
+        view=create_view(800, 600, 1600, 1200),
+        surface={"id": "screen", "epoch": "1"},
+    )
+    s.gaze(sample("left", 20), 30)
+    assert len(s.flush(100)) == 1
+    failed = next(
+        d for d in s.diagnostics.report()["issues"] if d["code"] == "CALLBACK_FAILED"
+    )
+    assert len(calls) > 1
+    assert failed["count"] == len(calls)

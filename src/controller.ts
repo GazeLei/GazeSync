@@ -149,6 +149,7 @@ export class ZoomController {
     finite(t, "input time");
     if (![0, 1, 2].includes(deltaMode))
       throw new RangeError("Unknown wheel deltaMode");
+    this.lastTap = null;
     if (this.pointers.size) this.cancel(t, "wheel-interrupt");
     const pixels =
       deltaY * (deltaMode === 1 ? 16 : deltaMode === 2 ? this.view.height : 1);
@@ -166,6 +167,7 @@ export class ZoomController {
   ) {
     finite(t, "input time");
     const next = zoomAt(this.view, factor, anchor);
+    this.lastTap = null;
     if (this.pointers.size) this.cancel(t, "zoom-interrupt");
     this.view = next;
     this.emit("zoom", t, { factor, anchor });
@@ -409,6 +411,7 @@ export class ZoomController {
     else if (
       ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)
     ) {
+      this.lastTap = null;
       if (this.pointers.size) this.cancel(t, "key-interrupt");
       this.view = panBy(
         this.view,

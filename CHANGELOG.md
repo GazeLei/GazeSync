@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 - 2026-10-18 (development, not published)
+
+- Keep binocular pairs within one content identity.
+- Reject degenerate Pupil homographies and preserve projective scale invariance.
+- Break double-tap sequences when another view command intervenes.
+- Reject competing DOM owners even when they use distinct sessions.
+- Accumulate diagnostic observer failures instead of overwriting their counts.
+- Require actual boolean publication/author flags.
+- Add a virtual-time retention check and revise the manuscript as a technical report.
+- Retain schema 2.1 and disabled publication; use the original implementation for older recordings.
+
 ### First-release setup - 2026-10-18
 
 - Allow software publication before the implementation preprint receives an arXiv ID; retain author and registry gates.

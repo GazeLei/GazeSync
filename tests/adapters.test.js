@@ -133,3 +133,35 @@ test("Pupil validates a complete packet before committing per-eye deduplication"
   assert.equal(unknown.confidence, null); // Never borrow the fused packet's confidence for this eye.
   assert.equal(unknown.timeMs, 1000);
 });
+
+test("Pupil homographies reject rank loss and preserve projective scale", () => {
+  const options = {
+    ...fixture.base,
+    eyes: ["right"],
+    mappingId: "calibration",
+  };
+  const packet = {
+    topic: "gaze.2d.0.",
+    timestamp: 1,
+    norm_pos: [0.25, 0.75],
+    confidence: 0.9,
+  };
+  for (const scale of [1, 1e-150, -1e-150, 1e150]) {
+    const adapter = new PupilCoreAdapter({
+      ...options,
+      sceneToSurface: [scale, 0, 0, 0, scale, 0, 0, 0, scale],
+    });
+    const row = adapter.adapt(packet).samples[0];
+    assert.equal(row.valid, true);
+    assert.deepEqual(row.point, { x: 0.25, y: 0.25 });
+  }
+  for (const h of [
+    [0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 2, 0, 0, 0, 0, 1],
+    Array(9).fill(0),
+  ])
+    assert.throws(
+      () => new PupilCoreAdapter({ ...options, sceneToSurface: h }),
+      /homography/i,
+    );
+});

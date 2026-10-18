@@ -109,11 +109,13 @@ test("rate and presentation warnings distinguish sampled frames from change-only
     false,
   );
 });
-test("diagnostic callback failures do not interrupt capture", () => {
+test("diagnostic callback failures are counted without interrupting capture", () => {
+  let calls = 0;
   const s = new GazeSession(
     {},
     {
       onDiagnostic() {
+        calls++;
         throw new Error("observer failed");
       },
     },
@@ -130,9 +132,11 @@ test("diagnostic callback failures do not interrupt capture", () => {
   });
   s.gaze(sample("left", 20), 30);
   assert.equal(s.flush(100).length, 1);
-  assert.ok(
-    s.diagnostics.report().issues.some((d) => d.code === "CALLBACK_FAILED"),
-  );
+  const failed = s.diagnostics
+    .report()
+    .issues.find((d) => d.code === "CALLBACK_FAILED");
+  assert.ok(calls > 1);
+  assert.equal(failed.count, calls);
 });
 test("unequal per-eye rates and independent clocks survive orientation and high event rates", () => {
   const experiment = generateExperiment({
@@ -204,4 +208,21 @@ test("source registration is insensitive to JSON object key order but rejects ch
       s.registerSource({ ...source, eyeRatesHz: { left: 120, right: 120 } }),
     /immutable/,
   );
+});
+
+test("binocular pairing separates content replacements within a layout epoch", () => {
+  const s = setup();
+  s.present({
+    t: 10,
+    view: s.frames[0].view,
+    contentId: "next-page",
+    surface: { id: "screen", epoch: "1" },
+  });
+  s.gaze(sample("left", 9), 20);
+  s.gaze(sample("right", 11), 20);
+  const rows = s.flush(100);
+  assert.ok(rows.every((row) => row.usable));
+  const pairs = pairEyes(rows);
+  assert.equal(pairs.length, 2);
+  assert.ok(pairs.every((pair) => pair.left === null || pair.right === null));
 });

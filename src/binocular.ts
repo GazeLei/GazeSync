@@ -26,6 +26,7 @@ export function pairEyes(
       s.clockEpoch,
       s.surfaceId,
       s.surfaceEpoch,
+      s.contentId ?? null,
       s.calibrationId ?? null,
     ]);
     if (!groups.has(key)) groups.set(key, { left: [], right: [] });

@@ -6,8 +6,8 @@ Python/TypeScript contract, multi-source adapters and synthetic verification.
 
 The implementation report authors are **Yaxiong Lei, Shijing He, Xinya Gong and
 Juan Ye**, in that order. The original paper citation retains its published
-eight-author list. The implementation report is a draft, has not been accepted at
-CHI, and has no arXiv identifier yet. Metadata is explicit in `metadata.json`.
+eight-author list. The implementation report is a standalone technical report. It does not claim
+CHI acceptance and has no arXiv identifier yet. Metadata is explicit in `metadata.json`.
 Both BibTeX entries appear directly in the repository README and CITATION files.
 
 [Read the compiled report](GazeSync-implementation.pdf) or edit [main.tex](main.tex).
@@ -64,11 +64,11 @@ physical-device certification. Public registry publication remains disabled.
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical
 (860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.5.1 uses schema 2.1; earlier recordings need their original code.
+Implementation 0.5.2 uses schema 2.1; earlier recordings need their original code.
 
-Manuscript and generated figure publication rights are reserved pending author
-approval (root NOTICE). The supplied original LaTeX archive is not redistributed
-here; the editable implementation draft is maintained in this independent repo.
+Manuscript and generated figure publication rights are reserved by the authors
+(root NOTICE). The supplied original LaTeX archive is not redistributed
+here; the editable implementation report is maintained in this independent repo.
 
 ## Overleaf and the current review
 
@@ -133,3 +133,17 @@ The 0.5.1 release audit fixes adapter/configuration and recorder edge cases. The
 manuscript's implementation identifier and synthetic data are synchronized; its
 numerical conclusions and layout are unchanged. The detailed defects, regressions
 and remaining PyPI gates are recorded in `docs/AUDIT.md` and `docs/RELEASE.md`.
+
+
+## Formal technical report revision - 0.5.2
+
+The report now describes the public source repository and release tooling without
+draft/private-repository boilerplate. Author order, scientific scope and the
+separate manuscript rights are unchanged. Citation metadata identifies this as a
+technical report while the implementation arXiv identifier remains unset.
+The functional review fixes content-aware pairing, homography conditioning,
+interrupted tap sequences, DOM ownership, observer failure counts and strict
+publication flags. The regenerated validation data preserve the reported
+numerical results. See `docs/AUDIT.md` for reproductions and the additional
+virtual-time retention check; it is not a physical-device or long-running
+performance study.

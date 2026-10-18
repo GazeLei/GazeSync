@@ -355,6 +355,23 @@ test("DOM helper tolerates repeated clock ticks, rejects competing ownership, an
   callbacks.delete(key);
   cb(); // performance.now can repeat within its resolution; this must not finalize away the current tick.
   assert.equal(app.session.frames.length, 2);
+  assert.throws(
+    () =>
+      createGazeSurface(viewport, content, {
+        contentWidth: 400,
+        contentHeight: 600,
+      }),
+    /already owned/,
+  );
+  const sibling = { parentElement: viewport, style: {} };
+  assert.throws(
+    () =>
+      createGazeSurface(viewport, sibling, {
+        contentWidth: 400,
+        contentHeight: 600,
+      }),
+    /already owned/,
+  );
   const [other, otherContent] = makeSurface();
   assert.throws(
     () =>
@@ -380,5 +397,11 @@ test("DOM helper tolerates repeated clock ticks, rejects competing ownership, an
   );
   assert.equal(other.style.touchAction, "pan-y");
   assert.equal(otherContent.style.transform, "original");
+  assert.equal(callbacks.size, 0);
+  const replacement = createGazeSurface(viewport, content, {
+    contentWidth: 400,
+    contentHeight: 600,
+  });
+  replacement.dispose();
   assert.equal(callbacks.size, 0);
 });

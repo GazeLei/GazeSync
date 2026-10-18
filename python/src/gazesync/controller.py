@@ -140,6 +140,7 @@ class ZoomController:
         finite(t, "input time")
         if delta_mode not in (0, 1, 2):
             raise ValueError("Unknown wheel deltaMode")
+        self.last_tap = None
         if self.pointers:
             self.cancel(t, "wheel-interrupt")
         pixels = delta_y * (
@@ -160,6 +161,7 @@ class ZoomController:
             else anchor
         )
         next_view = zoom_at(self.view, factor, anchor)
+        self.last_tap = None
         if self.pointers:
             self.cancel(t, "zoom-interrupt")
         self.view = next_view
@@ -381,6 +383,7 @@ class ZoomController:
         ):
             self.rotate((-1 if key == "[" else 1) * math.pi / 12, t)
         elif key in ("ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"):
+            self.last_tap = None
             if self.pointers:
                 self.cancel(t, "key-interrupt")
             self.view = pan_by(

@@ -619,8 +619,23 @@ export interface PupilOptions extends AdapterOptions {
   surfaceName?: string;
   maxMappingSkewMs?: number;
 }
+function normalizedHomography(value: unknown): Homography {
+  const coefficients = numbers(value, 9);
+  if (!coefficients)
+    throw new TypeError("Homography needs nine finite numbers");
+  const magnitude = Math.max(...coefficients.map(Math.abs));
+  if (magnitude === 0) throw new RangeError("Homography must be nonsingular");
+  const normalized = coefficients.map((n) => n / magnitude) as Homography;
+  const [a, b, c, d, e, f, g, h, i] = normalized;
+  const determinant =
+    a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(determinant) <= 32 * Number.EPSILON)
+    throw new RangeError("Singular or ill-conditioned homography");
+  return normalized;
+}
 export class PupilCoreAdapter extends Adapter<PupilOptions> {
   private seen = new Set<string>();
+  private homography?: Homography;
   constructor(pupil: PupilOptions) {
     super(
       pupil,
@@ -630,15 +645,14 @@ export class PupilCoreAdapter extends Adapter<PupilOptions> {
       "mixed",
       "vendor-estimate",
     );
-    if (
-      pupil.sceneToSurface &&
-      (!pupil.mappingId ||
-        pupil.sceneToSurface.length !== 9 ||
-        !pupil.sceneToSurface.every(Number.isFinite))
-    )
-      throw new TypeError(
-        "A finite calibrated homography and mappingId are required",
-      );
+    pupil = this.options;
+    if (pupil.sceneToSurface != null) {
+      if (typeof pupil.mappingId !== "string" || !pupil.mappingId)
+        throw new TypeError(
+          "A calibrated homography needs a nonempty mappingId",
+        );
+      this.homography = normalizedHomography(pupil.sceneToSurface);
+    }
     if (pupil.maxMappingSkewMs !== undefined)
       positive(pupil.maxMappingSkewMs, "maxMappingSkewMs");
   }
@@ -726,13 +740,13 @@ export class PupilCoreAdapter extends Adapter<PupilOptions> {
             ? "left"
             : "unknown";
     if (p && this.descriptor.eyes.includes(eye)) {
-      if (!this.options.sceneToSurface)
+      if (!this.homography)
         warnings.push(this.warning("SURFACE_REGISTRATION_REQUIRED", eye));
       else {
         // Pupil norm coordinates start bottom-left; the calibration maps top-left scene -> top-left surface.
         const x = p.x,
           y = 1 - p.y,
-          h = this.options.sceneToSurface,
+          h = this.homography,
           w = h[6] * x + h[7] * y + h[8];
         const mapped = {
           x: (h[0] * x + h[1] * y + h[2]) / w,
@@ -754,7 +768,7 @@ export class PupilCoreAdapter extends Adapter<PupilOptions> {
             {
               mappingId: this.options.mappingId!,
               vendorTopic: topic,
-              sceneToSurface: [...h],
+              sceneToSurface: [...this.options.sceneToSurface!],
               scenePoint: [p.x, p.y],
             },
           ),

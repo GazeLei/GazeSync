@@ -3,7 +3,7 @@ message: Please cite both the original GazeSync paper and the implementation rep
   is included directly in README.md and in CITATION.bib. The implementation arXiv identifier is pending.
 type: software
 title: 'GazeSync: synchronized 2D and 3D gaze during desktop and mobile view manipulation'
-version: 0.5.1
+version: 0.5.2
 license: GPL-3.0-only
 repository-code: https://github.com/GazeLei/GazeSync
 authors:
@@ -55,4 +55,4 @@ references:
   - family-names: Ye
     given-names: Juan
   url: https://github.com/GazeLei/GazeSync/tree/main/paper
-  notes: Implementation report draft 0.5.1; arXiv submission pending.
+  notes: Technical report 0.5.2; arXiv submission pending.

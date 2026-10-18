@@ -178,12 +178,13 @@ export class Diagnostics {
       this.onDiagnostic?.(structuredClone(event));
     } catch {
       if (code !== "CALLBACK_FAILED") {
+        const previous = this.issues.get("callback-failed");
         this.issues.set("callback-failed", {
           code: "CALLBACK_FAILED",
           ...diagnosticCatalog.CALLBACK_FAILED,
-          timeMs,
-          count: 1,
-          lastTimeMs: timeMs,
+          timeMs: previous?.timeMs ?? timeMs,
+          count: (previous?.count ?? 0) + 1,
+          lastTimeMs: Math.max(previous?.lastTimeMs ?? timeMs, timeMs),
         });
       }
     }

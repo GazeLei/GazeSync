@@ -84,6 +84,10 @@ export async function checkRelease(
   ])
     if (pkg.scripts?.[hook] !== undefined)
       throw new Error(`Unexpected npm installation hook: ${hook}`);
+  if (typeof release.publicationEnabled !== "boolean")
+    throw new Error("publicationEnabled must be boolean");
+  if (typeof paper.authorsFinalized !== "boolean")
+    throw new Error("authorsFinalized must be boolean");
   if (!release.publicationEnabled && pkg.private !== true)
     throw new Error("Disabled release requires npm private:true");
   if (

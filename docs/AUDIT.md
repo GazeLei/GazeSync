@@ -256,3 +256,46 @@ UI screenshot are under ignored `artifacts/audit-npm-20261018/`.
 No public package, registry placeholder, trusted-publisher grant, login or
 repository visibility change was created. Authenticated upload and provenance
 remain external verification steps after the maintainer completes setup.
+
+
+## Functional and manuscript review: 0.5.2, 18 October 2026
+
+Scope: clock conversion, presentation ordering and uncertainty, affine/rigid and
+ray-plane geometry, independent-eye pairing, source adapters, gesture state,
+DOM lifecycle, diagnostics, replay and release configuration. Focused new
+regressions failed on 0.5.1 before these repairs; both language implementations
+were changed where the corresponding behavior exists.
+
+| Finding | Reproduction and repair |
+| --- | --- |
+| P2: pairs crossed content replacements. | Usable left/right captures at 9/11 ms on different `contentId` values were paired within the default 5 ms skew. Content identity now participates in the grouping key. |
+| P2: homography validity depended on arbitrary matrix scale. | `1e-150 I` rejected the same PoG accepted by `I`; a rank-one matrix returned a valid (0,0). Coefficients are normalized once, rank loss is rejected, and the supplied matrix remains in metadata. |
+| P2: interrupted touch taps triggered unwanted reset. | Tap, zoom to 1.25x, tap reset the view. Wheel, zoom and keyboard movement now clear the pending tap candidate in both controllers. |
+| P2: distinct sessions could compete over the same DOM. | Mounting a second helper on the same viewport/content succeeded and installed another render loop. Weak ownership sets reject the competing mount and are released by disposal. |
+| P2: diagnostic observer failures were undercounted. | Multiple first-occurrence diagnostic callbacks threw, but `CALLBACK_FAILED.count` stayed at one. Both implementations accumulate the count and preserve occurrence times. |
+| P2: string flags could bypass intended release state. | `publicationEnabled: "false"` was truthy; non-boolean author flags were also accepted. Both metadata fields now require actual JSON booleans. |
+
+Validation: 98 Node tests, 69 Python tests, TypeScript consumer checks, five shared
+geometry fixtures, ten adapter fixtures, 78 baseline and eight content-motion
+cross-language configurations. The 107,070 baseline and 6,516 content-motion
+observations retain zero frame mismatches and the previously reported numerical
+residuals. Wheel, sdist and npm clean installations pass; the wheel is rebuilt
+from the sdist and actual archive file bytes are verified.
+
+`npm run test:retention` additionally runs 600 seconds of **virtual time** with two
+surfaces, 60 Hz presentation and independent 240/120 Hz eyes, mixing 2D PoG and 3D
+rays with delayed delivery. It receives all 216,000 expected observations:
+214,920 are usable and 1,080 intentionally invalid. The pending buffer peaks at
+19; every retained collection stays within the explicitly reduced budgets of
+2,048 raw/derived records, 90 frames and 256 pending observations. The expected
+322,043 raw and 213,952 aligned retention evictions are counted exactly; truncated
+replay is rejected. The known centre-target residual is below 6e-14 logical
+pixels. This is a bounded-state correctness fixture, not a real-time throughput,
+default-capacity memory benchmark or physical-device experiment. Its summary is
+written to `artifacts/validation/retention.json` and included in CI artifacts.
+
+The report now describes the public source repository, implementation 0.5.2 and
+available release workflows in formal technical-report language. No registry
+upload, arXiv identifier, conference acceptance or new hardware result is claimed.
+The existing baseline, coverage, moving-pose and human-study limitations remain;
+wording changes do not supply those missing measurements.

@@ -99,3 +99,13 @@ units such as `originUnits: "cm"` raise an error rather than being treated as me
 convert to supported `m` or `mm` explicitly. Pupil deduplication commits only after
 all outputs in a packet validate, so a malformed packet does not consume either
 eye's timestamp. A repaired retry can then be normalized normally.
+
+
+### Homography validation
+
+Pupil scene-to-surface homographies must be finite, numerically nonsingular 3x3
+matrices with a nonempty `mappingId`. The adapter normalizes coefficients by
+their largest absolute magnitude before its determinant and horizon checks;
+nonzero scalar multiples therefore describe the same mapping. The original
+coefficients remain in sample metadata. Rank-loss checks reject a collapsed
+mapping, but do not establish physical calibration accuracy.

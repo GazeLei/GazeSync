@@ -71,9 +71,27 @@ test("release: publication gates allow a pending preprint and reject inconsisten
       checkRelease(temp, { publication: true, registry: "pypi" }),
       /Public release is disabled/,
     );
+    for (const value of ["false", "true", 1, null]) {
+      await writeFile(
+        releasePath,
+        JSON.stringify({ ...release, publicationEnabled: value }),
+      );
+      await assert.rejects(
+        checkRelease(temp, { publication: true, registry: "pypi" }),
+        /publicationEnabled must be boolean/,
+      );
+    }
     await writeFile(
       releasePath,
       JSON.stringify({ ...release, publicationEnabled: true }),
+    );
+    await writeFile(
+      paperPath,
+      JSON.stringify({ ...paper, authorsFinalized: "false" }),
+    );
+    await assert.rejects(
+      checkRelease(temp),
+      /authorsFinalized must be boolean/,
     );
     await writeFile(
       paperPath,

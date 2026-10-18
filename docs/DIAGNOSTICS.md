@@ -38,3 +38,9 @@ changing session state. `off-display` identifies a hit outside the complete acti
 display, even if it is within a larger viewport. `rayHit.frameId` identifies the
 metric origin/basis of its 3D coordinates. These flags cannot diagnose an unknown
 physical calibration merely from a well-formed frame name.
+
+
+`CALLBACK_FAILED.count` counts observer invocations that raised an exception,
+across diagnostic contexts. Its first occurrence time is preserved and its most
+recent time is monotonic. Repeated occurrences of the same original diagnostic
+are aggregated without invoking the first-occurrence observer again.

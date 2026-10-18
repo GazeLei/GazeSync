@@ -62,12 +62,13 @@ class Diagnostics:
             try:
                 self._observer(copy.deepcopy(event))
             except Exception:
+                previous = self._issues.get("callback-failed", {})
                 self._issues["callback-failed"] = {
                     "code": "CALLBACK_FAILED",
                     **DIAGNOSTIC_CATALOG["CALLBACK_FAILED"],
-                    "timeMs": time_ms,
-                    "count": 1,
-                    "lastTimeMs": time_ms,
+                    "timeMs": previous.get("timeMs", time_ms),
+                    "count": previous.get("count", 0) + 1,
+                    "lastTimeMs": max(previous.get("lastTimeMs", time_ms), time_ms),
                 }
 
     def gaze(

@@ -4,7 +4,7 @@ The independent public repository is `GazeLei/GazeSync`. The code license is
 **GPL-3.0-only**, selected by the maintainer. Covered distributed modifications
 must comply with GPL source-sharing obligations; the license does not require
 upstream patch submission or academic citation. Citation is requested separately.
-The manuscript remains an author-review draft with its own rights notice.
+The manuscript has its own publication-rights notice.
 [SPDX's GPL-3.0-only entry](https://spdx.org/licenses/GPL-3.0-only.html) identifies
 the exact license. Review compatibility before combining a proprietary vendor
 SDK into a distributed application; the shipped normalizers bundle no SDK.
@@ -38,7 +38,7 @@ are copied. Re-review the inventory when adding a source file.
 
 Software publication does **not** require an arXiv identifier. The maintainer
 explicitly chose to add it after submission. Keep `paper/metadata.json.arxivId`
-null and the implementation citation labelled as a draft until a real identifier
+null and the implementation citation labelled as a technical report until a real identifier
 exists; then update the paper and citation files together. A supplied identifier
 is checked for format, not independently authenticated by the release tool.
 
@@ -57,7 +57,7 @@ repository. `release.json` still has `publicationEnabled:false`, and npm still h
    Prepare registry installation wording for the release and verify it after
    upload. A Python-only release may retain npm `private:true`; enabling npm
    later needs a new release commit and version tag, not a moved published tag.
-4. Commit the verified metadata and create the matching `v0.5.1` tag. Dispatch
+4. Commit the verified metadata and create the matching `v0.5.2` tag. Dispatch
    `release.yml` for `testpypi` first, approve its environment deployment, then
    install from that index in a clean environment. Approve `pypi` separately.
    Use the npm bootstrap below for its first upload.
@@ -146,7 +146,7 @@ scope and documentation.
 | TestPyPI account and publisher | Email/2FA verified; pending publisher added for `gazesync`, `GazeLei/GazeSync`, `release.yml`, `testpypi`. |
 | npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
-| arXiv | Optional for software release; retain the honest draft citation until submission. |
+| arXiv | Optional for software release; retain the technical-report citation until submission. |
 | Package uploads | None. `publicationEnabled:false` and npm `private:true` remain set. |
 
 The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
@@ -178,7 +178,7 @@ Only after explicit upload approval and rebuilding the enabled release:
 ```sh
 npm login --registry=https://registry.npmjs.org/
 npm whoami --registry=https://registry.npmjs.org/
-npm publish ./artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz \
+npm publish ./artifacts/release/0.5.2/npm/gazesync-0.5.2.tgz \
   --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
 
@@ -190,3 +190,14 @@ the required CI identity. The publish job accepts exactly one inspected tarball
 and does not rebuild it or run package lifecycle scripts.
 
 The Overleaf ZIP is a separate manuscript artifact, not an npm or Python package.
+
+
+## Revised candidate: 0.5.2
+
+The follow-up functional review introduces six targeted repairs and updates the
+technical report. The candidate version is now 0.5.2, with schema 2.1 retained;
+0.5.1 recordings require their original implementation. Publication and author
+flags must be actual JSON booleans. The deterministic retention check now runs
+in CI and in the release verification job before upload. Account and environment
+configuration above is unchanged; no registry upload or release tag has been
+created. See [the audit record](AUDIT.md) for the new regressions and limits.

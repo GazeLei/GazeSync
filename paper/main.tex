@@ -89,8 +89,8 @@ make heterogeneous measurements explicit. Third, deterministic simulations,
 cross-language conformance and isolated distribution artifacts make the
 implementation inspectable and repeatable. The evidence is a software audit and
 synthetic validation; no new participant or physical-device study is claimed.
-This draft documents implementation 0.5.1 and recording schema 2.1.
-The development repository is \url{https://github.com/GazeLei/GazeSync}.
+This report documents implementation 0.5.2 and recording schema 2.1.
+The public source repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
 \subsection{Relationship to the original GazeSync}
@@ -394,8 +394,8 @@ vergence or an unmeasured camera-to-display transform.
 \end{figure*}
 
 \subsection{Display, viewport and content coordinates}
-The geometric audit exposed a missing distinction between the physical rectangle
-represented by a plane and the logical viewport. If the plane describes the
+The physical rectangle represented by a plane and the logical viewport define
+distinct coordinate domains. If the plane describes the
 \emph{full active display}, with logical dimensions $W_D,H_D$, then
 \begin{equation}
  p_D=(W_D\alpha,H_D\beta),\qquad p_V=p_D-(l,t),
@@ -450,9 +450,9 @@ $D_W^L=(0.032,0,-0.6)$ and intersects at $Q_W=(0,0,0)$.
 The right eye is checked independently at $O_W^R=(0.032,0,0.6)$.
 
 For a $1920\times1080$ logical display and $1000\times600$ viewport at
-$(100,80)$, both eyes yield $p_V=(860,460)$. The previous full-plane-to-viewport
-scaling incorrectly produced $(500,300)$, a regression now reproduced and fixed
-in both languages. With $M=\mathrm{diag}(0.5,0.5,1)$, the correct content point is
+$(100,80)$, both eyes yield $p_V=(860,460)$. Scaling the full plane directly to
+viewport dimensions would instead yield $(500,300)$, illustrating why the
+registered rectangle must be explicit. With $M=\mathrm{diag}(0.5,0.5,1)$, the content point is
 $(1720,920)$. These independently specified numbers check origin translation,
 axis signs, units and viewport offsets rather than comparing a projection only
 against its own inverse.
@@ -478,13 +478,12 @@ capture time. Empirical work on mobile interactions identifies head distance,
 head pose and device orientation as factors associated with 2D gaze-estimation
 error~\cite{motiongaze}. This motivates explicit geometry provenance, while the
 acceptable age of a pose still requires separate assessment. A matching frame
-name alone is insufficient. The current session
+name alone is insufficient. The session
 uses the selected presentation's recorded pose and checks its age; the pose-age
 threshold does not bound spatial error from unobserved motion. The host must
 measure or otherwise justify its temporal geometry approximation. Orientation
-changes update layout epochs and physical axes/dimensions. The corrected
-simulation swaps one panel's physical dimensions, rather than inferring a new
-device size from the rotated pixel width. The desktop interaction fixture crops
+changes update layout epochs and physical axes/dimensions. The simulation
+swaps the physical dimensions of the same panel when display orientation changes. The desktop interaction fixture crops
 its viewport while keeping the active panel, top-left origin and metric pixel
 pitch fixed. Physical dimensions can be supplied
 explicitly; defaults remain synthetic assumptions.
@@ -507,15 +506,16 @@ would change this mapping. Content rotation leaves the calibrated metric screen
 plane unchanged. Both PoG and screen-ray intersections use the inverse of the
 matrix selected at capture time.
 
-For a viewport anchor $a$ moving to $b$, first recover
-$q=s^{-1}R(-\theta)(a-t)$. A scale factor $f$ and angular change $\delta$ then give
+For an initial viewport anchor $a$, let $q=s^{-1}R(-\theta)(a-t)$. Moving the
+anchor to $b$, scaling by $f$ and rotating by $\delta$ gives
 \begin{equation}
  s'=\operatorname{clamp}(sf,s_{\min},s_{\max}),\quad
  \theta'=\theta+\delta,\quad
  t'=b-s'R(\theta')q.
  \label{eq:anchoredrotation}
 \end{equation}
-Thus $q$ stays under the new anchor before boundary constraints. A two-contact
+Orientations are stored modulo $2\pi$. Thus $q$ stays under the new anchor
+before boundary constraints. A two-contact
 gesture derives $a,b$ from the initial/current midpoints, $f$ from their distance
 ratio and $\delta$ from the unwrapped angular change. Scale, rotation and movement
 are applied together before bounding once. Near-coincident contacts suspend
@@ -546,7 +546,7 @@ accepted again; callers must therefore issue stable, unique sample identifiers.
 For analyses that need matched eyes, an offline helper performs chronological,
 one-to-one pairing under a caller-specified maximum skew, defaulting to 5\,ms.
 It considers only usable observations with matching source, representation,
-clock identity/epoch, surface/epoch and calibration. Unmatched observations are
+clock identity/epoch, surface/epoch, content identity and calibration. Unmatched observations are
 returned explicitly. Different source clocks can be synchronized by the host,
 but the helper conservatively leaves them separate. It does not implement an
 optimal assignment, estimate vergence or fuse measurements. Study-specific
@@ -570,9 +570,10 @@ record from a newly received PyLink sample~\cite{eyelink}. Neither path bundles 
 licenses the hardware SDK on the user's behalf.
 
 Pupil normalization preserves individual base-sample timestamps and deduplicates
-reused eye observations within a bounded history. Scene-camera coordinates do
-not become screen PoG without an explicit calibrated homography or registered
-surface record. Right/left IDs, bottom-origin coordinates and millimetre eye
+reused eye observations within a bounded history. Scene-camera coordinates require an explicit calibrated homography or
+registered surface record to become screen PoG. Homographies are normalized
+internally by coefficient magnitude and checked for rank loss before projection;
+the supplied coefficients remain in the observation metadata. Right/left IDs, bottom-origin coordinates and millimetre eye
 centres follow the vendor contract~\cite{pupil}. Mapping timestamp skew is
 retained and checked. These behaviors are tested with synthetic protocol
 fixtures; the release does not claim physical tracker validation.
@@ -604,7 +605,8 @@ remain available for a different downstream analysis that states its own policy.
 \subsection{Human interaction and host responsibilities}
 The controller anchors wheel zoom at the pointer, distinguishes drag from
 selection-box zoom, supports keyboard reset and cancels an active gesture when
-another view command takes over. Touch interaction tracks contacts, pinch scale
+another view command takes over. Intervening view commands also break touch
+double-tap sequences. Touch interaction tracks contacts, pinch scale
 and midpoint translation; releasing one contact transitions to pan without a
 jump. Double tap, cancellation, resize, orientation change and background/resume
 are explicit cases. Browser handling follows pointer-event ownership and
@@ -613,7 +615,8 @@ embedded editable controls.
 
 A convenience browser entry point, \code{createGazeSurface}, attaches one content
 layer to a viewport and handles input, CSS transforms, resize, lifecycle records
-and teardown. A runnable example groups an illustration with ordinary HTML text.
+and teardown. Exclusive ownership of the viewport, content layer and session
+prevents competing render loops. A runnable example groups an illustration with ordinary HTML text.
 Its controller exposes \code{rotate}, \code{move} and \code{reset}; the same
 operations are available in Python. The helper records the applied matrix in
 each render callback and preserves capture context for later tracker delivery.
@@ -630,15 +633,15 @@ can be recorded as presentation snapshots without adding its physics to the core
 
 \section{Verification and synthetic evaluation}
 \subsection{Audit strategy and regression coverage}
-The audit follows failure paths across geometry, event ordering, browser input,
-recording, replay and package boundaries. Earlier defects included cross-surface
-frame selection, keyboard zoom overwritten by a stale drag baseline, unstable
-small-scale inversion, malformed-record mutation, delayed future-time quarantine
-and undetected replay gaps. Focused regression tests reproduce those triggers.
-The extension adds explicit eye identity, shared adapter fixtures, receipt-time
-exclusion, nullable confidence and clock-boundary checks in both languages.
+Regression coverage spans geometry, event ordering, browser input, recording,
+replay and package boundaries. Tests check surface-specific frame selection,
+gesture interruption, conditioned matrix inversion, transactional record
+validation, future-time quarantine and complete replay sequences. Further cases
+check content-aware eye pairing, homography scale invariance, DOM ownership and
+strict publication flags. Shared fixtures exercise eye identity, source adapters,
+receipt-time exclusion, nullable confidence and clock boundaries in both languages.
 
-The geometry audit adds independent numeric fixtures for camera/eye origins,
+Independent geometry fixtures cover camera/eye origins,
 full-display versus cropped-viewport mapping, per-eye Tobii UCS offsets and
 non-symmetric rotations. Both languages additionally test 100 arbitrary rigid
 frame changes, inverse transformations, reflected/scaled matrices, direction
@@ -780,14 +783,16 @@ in the paper build guide. The reported local run used Node.js 22.16.0 and Python
 3.10/3.12/3.14. The aggregate JSON data preserve every configuration and result;
 generated working sessions remain excluded from source control.
 
-Code is licensed GPL-3.0-only. The manuscript has separate draft publication
-rights. The repository is currently private and registry publishing is disabled;
-no public package availability or implementation arXiv identifier is claimed.
-Maintainer-reviewed workflows prepare the official npm and PyPI routes. Citation
-metadata requests both the original GazeSync paper and this implementation report;
-it will be updated with the real preprint identifier after submission.
+The GazeSync source code is publicly available at
+\url{https://github.com/GazeLei/GazeSync} under the GPL-3.0-only license.
+The repository provides both implementations, reproducible simulations,
+validation data, manuscript source and distribution build instructions.
+Package artifacts are verified through isolated installation tests, and
+maintainer-reviewed release workflows target PyPI and npm. Registry availability
+is recorded in the repository's release documentation. Machine-readable citation
+metadata identifies the original GazeSync paper and this technical report.
 
-\section{Limitations and evaluation agenda}
+\section{Limitations}
 End-to-end assessment must distinguish estimation and calibration quality,
 capture-to-presentation association, and coordinate reconstruction under the
 registered geometry. This validation tests software consistency under supplied
@@ -799,9 +804,9 @@ transform. Protocol fixtures cannot establish behavior across firmware or SDK
 versions, and a phone-sized browser simulation cannot certify touch behavior on
 every mobile browser.
 
-The next evaluation should measure timing against an external reference, report
-latency distributions and uncertainty, and test display geometry on held-out
-targets. Static views, pan, zoom, rotation and device motion should be assessed
+Physical validation requires timing measurements against an external reference,
+latency and uncertainty distributions, and display-geometry assessment on
+held-out targets. Static views, pan, zoom, rotation and device motion should be assessed
 separately before compound manipulations. Relevant outcomes include temporal
 ambiguity, usable coverage, per-eye dropout, viewport/content error and angular
 ray error. Error on retained observations should be reported together with the
@@ -812,11 +817,12 @@ and generalization.
 
 Human behavior also needs empirical grounding. The scripted attention policies
 exercise distinct reconstruction cases but do not estimate how often people
-follow a pointer, retain a landmark or look ahead of an action. A future study
-should record task intent and interaction phases alongside independent gaze,
-then test whether the instrumentation preserves meaningful content attention
-without changing normal interaction. Longer runs should measure memory,
-persistence overhead and worst-case latency under realistic acquisition load.
+follow a pointer, retain a landmark or look ahead of an action. Assessing
+behavioral validity requires task intent and interaction phases
+recorded alongside independent gaze, with checks that instrumentation preserves
+content attention without changing normal interaction. Sustained deployment
+also requires measurements of memory, persistence overhead and worst-case
+latency under realistic acquisition load.
 
 \section{Conclusion}
 GazeSync provides an explicit bridge between heterogeneous eye-tracking records

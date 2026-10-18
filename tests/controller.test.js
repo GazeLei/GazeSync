@@ -270,3 +270,20 @@ test("API and keyboard changes interrupt gestures, validate atomically and can d
   assert.equal(fixed.key({ key: "]", t: 4 }), false);
   assert.throws(() => fixed.setMode("rotate"), /disabled/);
 });
+
+test("another view command breaks a touch double-tap sequence", () => {
+  for (const interrupt of [
+    (c) => c.zoom(1.25, 20),
+    (c) => c.wheel({ x: 200, y: 300, deltaY: -80, t: 20 }),
+    (c) => c.key({ key: "ArrowLeft", t: 20 }),
+  ]) {
+    const c = make();
+    down(c, 1, 200, 300, 0);
+    up(c, 1, 200, 300, 10);
+    interrupt(c);
+    const before = { ...c.view };
+    down(c, 1, 200, 300, 40);
+    up(c, 1, 200, 300, 50);
+    assert.deepEqual(c.view, before);
+  }
+});

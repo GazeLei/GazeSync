@@ -69,3 +69,9 @@ R8 优先级中：阈值和默认参数缺少选择依据
 
 18 October 2026 - Content manipulation extension (0.5.0)
 Adds anchored 2D rotation, free movement, pinch/twist and DOM integration. The manuscript separates the eight additional synthetic content-motion cases from the 78-case baseline. It explicitly limits the convenience layer to fixed-layout content and makes no empirical developer-usability claim. Physical validation and developer-study review items remain open.
+
+
+2026-10-18 正式技术报告修订与 0.5.2 审查
+本轮复现并修复六项问题：跨 contentId 双眼配对、单应矩阵缩放与退化检查、被其他操作打断的双击序列、不同 session 对同一 DOM 的重复挂载、诊断回调失败计数覆盖，以及发布布尔字段的字符串误用。对应回归与范围见 docs/AUDIT.md。
+全文改用 technical report 表述；删除仓库私有、draft publication rights 等过时管理文字，压缩修复历史，保留正确的坐标例子、实测限制及真实发布状态。引用元数据保留 arXiv 待提交事实，没有虚构正式录用或注册表发布。
+新增 600 秒虚拟时间保留窗口检查，覆盖两块 surface、不同眼动频率、2D/3D、延迟到达和缓冲区滚动。它不等同于 R2 建议的真实长时性能/内存测量，R2 仅获得额外正确性证据。R1 的原系统对照、R3 的误差/覆盖率敏感性、R4 的研究用途图、R5 的真实连续姿态与物理时序、R6 的工具比较仍未完成；R7 的开发历史表述已精简；R8 的参数敏感性仍需实验。

@@ -1,6 +1,6 @@
 # Synchronization and coordinate contract
 
-Version 0.5.0 emits schema 2.1. Both implementations accept the same JSON records;
+Version 0.5.2 emits schema 2.1. Both implementations accept the same JSON records;
 Python uses snake_case method names but preserves camelCase wire fields.
 
 ## Time and presentation
@@ -64,7 +64,9 @@ includes source, clock ID/epoch, eye, representation and sample ID. One capture
 can therefore produce left/right and PoG/ray observations without collision.
 For repeated records of the same observation use the same ID. Duplicate detection
 is bounded by the retention budget; it is not a lifetime deduplication database.
-Independent eyes retain their own times and validity. Confidence may be null when
+Independent eyes retain their own times and validity. Offline eye pairing also
+requires matching content identity, so a content replacement cannot create a
+pair spanning two stimuli. Confidence may be null when
 a tracker reports validity alone. A scalar confidence is source-specific, not a
 universally calibrated probability.
 

@@ -4,7 +4,7 @@ Synchronize eye-tracking measurements with the screen state a person was viewing
 while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.5.1 · schema 2.1 · GPL-3.0-only.** The source repository is
+**Development release 0.5.2 · schema 2.1 · GPL-3.0-only.** The source repository is
 public; the first PyPI and npm uploads are being prepared. Neither package has
 been published to a registry yet.
 
@@ -38,8 +38,8 @@ Use the verified wheel or npm tarball while the first registry release is being
 prepared:
 
 ```sh
-python -m pip install /absolute/path/to/gazesync-0.5.1-py3-none-any.whl
-npm install /absolute/path/to/gazesync-0.5.1.tgz
+python -m pip install /absolute/path/to/gazesync-0.5.2-py3-none-any.whl
+npm install /absolute/path/to/gazesync-0.5.2.tgz
 ```
 
 For a source checkout, follow the next section. After the first public uploads,
@@ -153,7 +153,7 @@ The library does not hook the OS or record unrelated applications.
 Use [the coordinate-frame guide](docs/COORDINATES.md) to distinguish camera, eye,
 active display, viewport and content origins. It includes measured-extrinsic
 conversion, named rigid-transform helpers and the full-display/cropped-viewport
-contract. Ray hits retain their metric frame ID. Version 0.5.1 uses schema 2.1;
+contract. Ray hits retain their metric frame ID. Version 0.5.2 uses schema 2.1;
 older recordings require their original implementation.
 
 ## Adapt a source and investigate warnings
@@ -167,7 +167,7 @@ aggregated counts, rate estimates and corrective actions.
 `pairEyes` / `pair_eyes` is an optional offline, chronological, one-to-one pairing
 operation with a maximum skew. It never averages eyes or silently substitutes a
 combined measurement. Streams with different clock identities, epochs or
-calibrations remain separate. Direction-only data stay available for downstream
+calibrations or content identities remain separate. Direction-only data stay available for downstream
 analysis but cannot be projected without a measured eye origin.
 
 ## Reproduce the evidence
@@ -175,6 +175,7 @@ analysis but cannot be projected without a measured eye origin.
 ```sh
 npm run simulate -- --out artifacts/scenarios
 npm run test:conformance
+npm run test:retention
 .venv/bin/python -m gazesync simulate --width 390 --height 844 \
   --display-hz 120 --input-hz 1000 --gaze-hz 600 --right-gaze-hz 120 \
   --mode binocular-independent
@@ -214,13 +215,13 @@ its geometry and its verification.
   title = {{GazeSync}: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking},
   author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
   year = {2026},
-  howpublished = {Implementation report draft, version 0.5.1},
+  howpublished = {Technical report, version 0.5.2},
   url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
   note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
 }
 ```
 
-The implementation preprint's arXiv identifier is pending; the draft entry uses
+The implementation preprint's arXiv identifier is pending; the report entry uses
 the repository URL. It can be added after software release. Both entries are
 also maintained in [CITATION.bib](CITATION.bib).
 

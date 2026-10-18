@@ -189,6 +189,8 @@ export function attachBrowserControls(
 }
 
 const ownedSessions = new WeakSet<GazeSession>();
+const ownedViewports = new WeakSet<HTMLElement>();
+const ownedContents = new WeakSet<HTMLElement | SVGElement>();
 
 export interface GazeSurfaceOptions {
   contentWidth: number;
@@ -219,6 +221,10 @@ export function createGazeSurface(
 ) {
   if (content.parentElement !== viewport)
     throw new Error("content must be a direct child of viewport");
+  if (ownedViewports.has(viewport) || ownedContents.has(content))
+    throw new Error(
+      "Viewport or content is already owned by a GazeSync DOM surface",
+    );
   const doc = viewport.ownerDocument,
     win = doc.defaultView!;
   const style = win.getComputedStyle(viewport);
@@ -285,6 +291,8 @@ export function createGazeSurface(
     boxSizing: content.style.boxSizing,
   };
   ownedSessions.add(session);
+  ownedViewports.add(viewport);
+  ownedContents.add(content);
   if (style.position === "static") viewport.style.position = "relative";
   viewport.style.overflow = "hidden";
   Object.assign(content.style, {
@@ -365,6 +373,8 @@ export function createGazeSurface(
     Object.assign(viewport.style, previousViewport);
     Object.assign(content.style, previousContent);
     ownedSessions.delete(session);
+    ownedViewports.delete(viewport);
+    ownedContents.delete(content);
   }
   try {
     render();

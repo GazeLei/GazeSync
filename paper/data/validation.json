@@ -6,7 +6,7 @@
     "architecture": "arm64"
   },
   "schemaVersion": "2.1",
-  "implementationVersion": "0.5.1",
+  "implementationVersion": "0.5.2",
   "geometryFixtureCases": 5,
   "maxGeometryDifference": 1.3877787807814457e-17,
   "adapterCases": 10,
