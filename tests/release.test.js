@@ -17,10 +17,22 @@ import { createDemoServer } from "../tools/server.mjs";
 import { checkRelease } from "../tools/release-check.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// npm's Windows entry point is a command script, not a directly spawnable executable.
+// Use its JS entry point without a shell so paths with spaces remain literal arguments.
+const npmCli =
+  process.env.npm_execpath ??
+  (process.platform === "win32"
+    ? resolve(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js")
+    : undefined);
+const runNpm = (args, options) =>
+  npmCli
+    ? execFileSync(process.execPath, [npmCli, ...args], options)
+    : execFileSync("npm", args, options);
+
 test("release: npm archive contains only reviewed package files", async () => {
   const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
   const [packed] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--ignore-scripts", "--json"], {
+    runNpm(["pack", "--dry-run", "--ignore-scripts", "--json"], {
       cwd: root,
       encoding: "utf8",
     }),
@@ -228,8 +240,7 @@ test("release: a tarball-installed consumer resolves ESM and TypeScript exports 
   const temp = await mkdtemp(resolve(tmpdir(), "gazesync-npm-consumer-"));
   try {
     const [packed] = JSON.parse(
-      execFileSync(
-        "npm",
+      runNpm(
         ["pack", "--ignore-scripts", "--json", "--pack-destination", temp],
         { cwd: root, encoding: "utf8" },
       ),
@@ -238,8 +249,7 @@ test("release: a tarball-installed consumer resolves ESM and TypeScript exports 
       resolve(temp, "package.json"),
       '{"private":true,"type":"module"}',
     );
-    execFileSync(
-      "npm",
+    runNpm(
       [
         "install",
         "--no-audit",
