@@ -35,29 +35,30 @@
 \renewcommand{\shortauthors}{Lei et al.}
 \begin{document}
 \begin{abstract}
-A gaze sample and a zoom event can arrive together even though they describe
-different screen states. Recovering attention on manipulated content therefore
-requires explicit temporal and spatial provenance. We extend GazeSync into a
-standalone Python and TypeScript framework for desktop and mobile interaction,
-2D points of gaze, 3D eye-origin rays, and independent monocular or binocular
-streams. The framework separates capture, input, presentation and receipt time;
-joins each observation to a surface-specific presentation history; and preserves
-uncertainty, eye identity, geometry and missing data in a replayable record.
-SDK-independent adapters normalize model and tracker records while preserving
-source cadence and confidence semantics. A reproducible synthetic
-matrix spans 78 configurations and 107,070 observations, including 30--240\,Hz
-displays, 30--2,000\,Hz gaze and nine viewport sizes. Both implementations select
-the reference capture frame in every case; maximum cross-language viewport
-disagreement is $4.55\times10^{-13}$ logical pixels. The results verify temporal
-association and coordinate reconstruction under known inputs. The public
-implementation includes source adapters, structured diagnostics and replay tools
-for instrumenting research applications with manipulated visual content.
+Moving, zooming and rotating visual content change the relationship between
+screen gaze and the underlying stimulus. Delayed gaze samples must therefore be
+associated with the content transform at capture. We extend GazeSync into a
+standalone Python and TypeScript framework for reconstructing content-relative
+gaze during desktop and mobile manipulation of images, fixed-layout text and
+grouped content. It supports 2D points of gaze, 3D eye-origin rays, and independent
+monocular or binocular streams. Mouse, keyboard and touch controls combine
+translation, scaling and rotation within a common content coordinate system.
+The framework separates capture, input, presentation and receipt time, records
+the applied transform, and retains eye identity, geometry, uncertainty and
+missing data for replay. SDK-independent adapters preserve source cadence and
+confidence semantics. A reproducible synthetic matrix comprises 78 rate/context
+configurations and eight combined-motion configurations, totaling 113,586
+observations across 30--240\,Hz displays, 30--2,000\,Hz gaze and nine initial
+viewport sizes. Both implementations select the reference capture frame in every
+case; maximum cross-language viewport disagreement is $4.55\times10^{-13}$
+logical pixels. The implementation, structured diagnostics and replay tools are
+distributed through GitHub for instrumenting research applications.
 \end{abstract}
-\keywords{eye tracking, temporal synchronization, pan and zoom, binocular gaze, reproducibility, research software}
+\keywords{eye tracking, temporal synchronization, pan and zoom, content rotation, binocular gaze, reproducibility, research software}
 \begin{teaserfigure}
 \includegraphics[width=\textwidth]{architecture.pdf}
-\caption{GazeSync links natural interaction to content-relative attention. (A) Desktop and mobile views change through mouse, keyboard and touch input. (B) Each eye retains independent timestamps; the screen state at capture, $M_1$, is selected despite later delivery. (C) Gaze is reconstructed on the original content, with raw records and quality decisions retained. The map views and sample paths are schematic.}
-\Description{Three panels show a desktop monitor and pinch gesture on a phone; a timeline of rendered views with separate left/right samples and delayed receipt; and two independent sample paths reconstructed on the same original map.}
+\caption{GazeSync reconstructs attention during content translation, scaling and rotation. (A) Desktop and mobile views change through mouse, keyboard and touch input. (B) Each eye retains independent timestamps; the transformed state at capture, $M_1$, is selected despite later delivery. (C) Gaze is reconstructed on the original content, with raw records and quality decisions retained. The map views and sample paths are schematic.}
+\Description{Three panels show a desktop monitor and pinch gesture on a phone; translated, scaled and rotated map views with separate left/right samples and delayed receipt; and two independent sample paths reconstructed on the original map.}
 \label{fig:architecture}
 \end{teaserfigure}
 \maketitle
@@ -80,8 +81,9 @@ gaze sources exchange timing, geometry and validity, then provides matching
 Python and TypeScript implementations. Researchers integrate the framework into
 their application and supply its input events, rendered states and gaze samples.
 
-We contribute a capture-time synchronization contract and matching implementations
-that retain independent eye channels, explicit geometry and source provenance.
+We contribute a capture-time synchronization contract for moving, zooming and
+rotating visual content, with matching implementations that retain independent
+eye channels, explicit geometry and source provenance.
 A deterministic simulation suite, cross-language conformance checks and replay
 make reconstruction decisions reproducible. Source adapters and structured
 diagnostics support integration with gaze models and hardware trackers.
@@ -98,8 +100,9 @@ and geometric contracts behind that reconstruction.
 
 The extension replaces the platform-specific merging assumption with explicit
 presentation intervals, source clocks and quality decisions. It adds desktop
-interaction, independent eye identity, metric ray projection, reusable adapters
-and a common record format across languages. Table~\ref{tab:scope} summarizes
+interaction, combined translation/scaling/rotation controls, independent eye
+identity, metric ray projection, reusable adapters and a common record format
+across languages. Table~\ref{tab:scope} summarizes
 the implemented contracts and their verification.
 
 \begin{table}[t]
@@ -109,7 +112,7 @@ the implemented contracts and their verification.
 \toprule
 \textbf{Layer} & \textbf{Contract and evidence} \\
 \midrule
-\textbf{Interaction} & Wheel, drag, box and keyboard; pinch, twist and free movement.\newline \emph{Evidence:} gesture and browser regressions. \\
+\textbf{Interaction} & Move, zoom, rotate and reset via mouse, keyboard and touch; box zoom.\newline \emph{Evidence:} gesture and browser regressions. \\
 \addlinespace[3pt]
 \textbf{Signals} & 2D PoG, 3D rays and direction-only records; independent or combined eyes.\newline \emph{Evidence:} analytic and source fixtures. \\
 \addlinespace[3pt]
@@ -228,11 +231,11 @@ may still expire, producing an explicit history flag.
 \end{figure*}
 
 \subsection{Why timing errors become spatial errors}
-For a viewport observation $p_v$ and rendered matrix $M(t)$, content gaze is
-$M(t)^{-1}\widetilde p_v$. Away from discontinuities, a small timing displacement
+For a viewport observation $p_V$ and rendered matrix $M(t)$, content gaze is
+$M(t)^{-1}\widetilde p_V$. Away from discontinuities, a small timing displacement
 $\Delta t$ yields a first-order spatial error proportional to
 \begin{equation}
- \left\|\frac{d M(t)^{-1}}{dt}\widetilde p_v\right\|\,|\Delta t|.
+ \left\|\frac{d M(t)^{-1}}{dt}\widetilde p_V\right\|\,|\Delta t|.
 \end{equation}
 Fast zoom, rotation or translation can therefore amplify a modest delivery delay. At a
 reset or layout discontinuity this derivative approximation does not apply;
@@ -453,7 +456,8 @@ eye. A calibrated eye model supplies that relationship. Image resizing, cropping
 and distortion handling must follow the calibration convention; for an affine
 image-coordinate change $H$, the corresponding intrinsic mapping is $K'=HK$.
 A mirrored preview must be resolved explicitly, because a single-axis reflection
-is not a proper 3D rotation. Content zoom modifies $M$, not camera intrinsics.
+is not a proper 3D rotation. Moving, scaling and rotating the content modify $M$
+while camera intrinsics remain fixed.
 
 For a moving phone, both ray conversion and screen pose must refer to the relevant
 capture time. Empirical work on mobile interactions identifies head distance,
@@ -466,16 +470,18 @@ width and height swap with display orientation. The desktop fixture crops its
 viewport while retaining the active panel, top-left origin and metric pixel
 pitch. Physical dimensions are configurable.
 
-\subsection{Content rotation and free movement}
+\subsection{Content translation, scaling and rotation}
 The content layer may be an image, a fixed-layout text page or a group with a
 stable intrinsic coordinate system. Its top-left origin remains fixed in content
-coordinates while the layer moves within a clipped viewport. In the viewport's
-right/down axes, positive $\theta$ is clockwise and the similarity transform is
+coordinates while the layer moves within a clipped viewport. Moving or panning
+denotes content translation in that viewport. The interaction controller uses
+the similarity-transform subset of the affine mapping above. In the viewport's
+right/down axes, positive $\theta$ is clockwise:
 \begin{equation}
  M=\begin{bmatrix}
  s\cos\theta&-s\sin\theta&t_x\\
  s\sin\theta&s\cos\theta&t_y\\0&0&1
- \end{bmatrix},\qquad p_v=sR(\theta)p_i+t.
+ \end{bmatrix},\qquad p_V=sR(\theta)p_I+t.
  \label{eq:contentrotation}
 \end{equation}
 Here $s>0$, and $t$ is the viewport position of the intrinsic origin. The
@@ -507,7 +513,9 @@ at fit scale. Bounded movement clamps the axis-aligned envelope of all four
 rotated corners and centres an axis when that envelope is smaller than the
 viewport; it does not guarantee coverage of every viewport corner. Clipping can
 expose blank space, so outside-content flags remain part of gaze interpretation.
-Reset restores zero rotation, centred content and the original unrotated fit.
+The core controller defaults to bounded movement; the browser helper defaults
+to free movement. Reset restores zero rotation, centred content and the original
+unrotated fit.
 Independently animated children, text reflow and occlusion need additional host
 state.
 
@@ -580,7 +588,7 @@ remain available for a different downstream analysis that states its own policy.
 The controller anchors wheel zoom at the pointer, distinguishes drag from
 selection-box zoom, supports keyboard reset and cancels an active gesture when
 another view command takes over. Intervening view commands also break touch
-double-tap sequences. Touch interaction tracks contacts, pinch scale
+double-tap sequences. Touch interaction combines pinch scale, twist rotation
 and midpoint translation; releasing one contact transitions to pan without a
 jump. Double tap, cancellation, resize, orientation change and background/resume
 are explicit cases. Browser handling follows pointer-event ownership and
@@ -592,9 +600,12 @@ layer to a viewport and handles input, CSS transforms, resize, lifecycle records
 and teardown. Exclusive ownership of the viewport, content layer and session
 prevents competing render loops. A runnable example groups an illustration with ordinary HTML text.
 Its controller exposes \code{rotate}, \code{move} and \code{reset}; the same
-operations are available in Python. The helper records the applied matrix in
-each render callback and preserves capture context for later tracker delivery.
-The host supplies capture timestamps, source clocks and calibrated 3D geometry.
+operations are available in Python. The helper records \code{performance.now()}
+after applying the CSS matrix and labels the snapshot \code{render-callback}.
+This timestamp estimates presentation; hosts with measured display-onset times
+can supply them through the core presentation interface as \code{display-feedback}.
+The helper preserves capture context for later tracker delivery. The host
+supplies capture timestamps, source clocks and calibrated 3D geometry.
 
 The lower-level browser adapter records application input, while the host records what was
 rendered. Native Python applications can feed the same controller logic from
@@ -619,7 +630,7 @@ frame changes, inverse transformations, reflected/scaled matrices, direction
 magnitudes spanning $10^{-200}$--$10^{200}$, dynamic-pose provenance and physical
 panel dimensions across orientation changes. Five native geometry fixture
 outputs are compared directly between implementations. These fixtures are
-separate from the 78-case acquisition-rate matrix.
+separate from the 86-configuration matrix below.
 
 Strict TypeScript compilation generates public declarations from the executable
 source. Consumer tests check exports and validity-dependent measurement types.
@@ -627,7 +638,7 @@ Python tests exercise the independent implementation and validate normalized
 fixtures against JSON Schema. Release checks inspect imports, package contents,
 license consistency and shared fixtures.
 
-\subsection{Two complementary simulation families}
+\subsection{Interaction scenarios and configuration matrix}
 \paragraph{Interaction scenarios.}
 Desktop and mobile scenarios each last nine seconds at 60\,Hz display and
 120\,Hz gaze, repeated with seeds 1, 41 and 90210. Desktop actions include wheel
@@ -639,8 +650,8 @@ Timing and attention trajectories are scripted test inputs. The moving-phone
 fixture holds pose between recorded frames.
 
 \paragraph{Rate and context matrix.}
-A second family separates frequency sensitivity from context coverage. The
-controlled matrix contains 42 cells: six display rates (30, 60, 90, 120, 144 and
+A second family separates frequency sensitivity from context coverage. Its
+78-case baseline includes 42 controlled cells: six display rates (30, 60, 90, 120, 144 and
 240\,Hz) crossed with seven gaze rates per eye (30, 60, 120, 250, 600, 1,000 and
 2,000\,Hz). It fixes a $1280\times720$ viewport, 240\,Hz input and independent
 binocular acquisition. A further 36 cases cross nine viewport configurations
@@ -656,7 +667,18 @@ rendered frames. Ordinary delivery delay is 28--63\,ms, with an additional
 120\,ms on selected captures. A blink interval occupies 46--50\% of the trace.
 Uniform per-axis perturbation of $\pm0.35$ logical pixels supplies source noise.
 
-PoG and ray observations originate from the same perturbed viewport target.
+\paragraph{Combined content motion.}
+Eight further cases combine translation, scaling and rotation in
+$390\times844$ and $1920\times1080$ viewports with the four eye modes.
+Mobile/desktop configurations use 90/144\,Hz presentation and 125/1,000\,Hz input,
+with 600\,Hz primary and 120\,Hz right-eye sampling where applicable.
+The rotation reaches $\pm0.8$\,rad; the content centre moves by up to 12\% of
+viewport width and 10\% of height while scale varies. These cases retain the
+800\,ms duration, seed, noise and delivery model above; mobile cases also change
+display orientation. Together with the baseline, they form 86 configurations.
+
+Across both parts of the matrix, PoG and ray observations originate from the
+same perturbed viewport target.
 Reconstruction error is measured against that perturbed target using the known
 renderer coefficients and expressed in logical viewport pixels. This separates
 source noise from the residual introduced by reconstruction and tests consistency
@@ -664,7 +686,7 @@ between the two representations.
 
 \begin{figure*}[t]
 \centering\includegraphics[width=\textwidth]{validation.pdf}
-\caption{Controlled residuals and implementation agreement. (A) Receipt-time baseline P95 residual for the 42 rate cells at fixed $1280\times720$ viewport and 240\,Hz input. (B) Empirical cumulative distribution of the maximum Python--TypeScript viewport discrepancy in each of the 78 cases, including exact-zero cases. The largest gap is $4.55\times10^{-13}$ logical pixels. All cases use deterministic synthetic inputs.}
+\caption{Controlled residuals and implementation agreement for the 78-case baseline. (A) Receipt-time baseline P95 residual for the 42 rate cells at fixed $1280\times720$ viewport and 240\,Hz input. (B) Empirical cumulative distribution of the maximum Python--TypeScript viewport discrepancy in each case, including exact-zero cases. The largest gap is $4.55\times10^{-13}$ logical pixels. All cases use deterministic synthetic inputs.}
 \Description{A six-by-seven heatmap shows receipt-time residuals by display and gaze frequency. A cumulative plot shows per-case maximum Python versus TypeScript viewport discrepancies, all below 4.55 times ten to the minus thirteen logical pixels.}
 \label{fig:validation}
 \end{figure*}
@@ -678,7 +700,7 @@ smaller (Table~\ref{tab:results}). The suite additionally compares ten source
 adapter fixtures and checks exact replay of derived alignment within the same
 implementation. Python-native experiment generation is exercised separately.
 
-Across the 78 cases, all 107,070 expected observations are received, pending
+Across the 78 baseline cases, all 107,070 expected observations are received, pending
 buffers drain, and every capture-frame selection matches the independent
 synthetic reference. Maximum reconstruction residual is
 $7.85\times10^{-13}$ logical pixels. Maximum Python--TypeScript viewport
@@ -687,27 +709,25 @@ reported precision. Of the received observations, 102,768 (95.98\%) produce
 usable content coordinates. Reconstruction residuals are computed on these
 mapped observations against their known synthetic targets.
 
-\paragraph{Additional content-motion cases.}
-Eight further cases combine rotation and free movement in $390\times844$ and
-$1920\times1080$ viewports with the four eye modes. Mobile/desktop configurations
-use 90/144\,Hz presentation and 125/1,000\,Hz input, with 600\,Hz primary and
-120\,Hz right-eye sampling where applicable. The deterministic rotation reaches
-$\pm0.8$\,rad; the content centre moves by up to 12\% of viewport width and
-10\% of height while scale varies. These cases retain the 800\,ms duration,
-noise and delivery model above; mobile cases also change display orientation.
-All 6,516 expected observations are received, every capture-frame choice matches,
-and replay is exact. Maximum mapped reconstruction residual is
-$8.49\times10^{-13}$ logical pixels. These eight cases supplement the 78-case
-baseline.
-
 The receipt-time baseline's P95 residual ranges from 54.4 to 79.6 logical pixels
 across the controlled cells (Figure~\ref{fig:validation}A). This range belongs to
 the specified manipulation trace, viewport and delays. Raising gaze rate alone
 leaves the delivery-time association error in place. Frequency comparisons use
 the controlled cells; the context cases vary dimensions and motion together.
 
+\paragraph{Combined-motion results.}
+The eight combined-motion cases receive all 6,516 expected observations, of
+which 6,256 (96.01\%) yield usable content coordinates. Every capture-frame
+choice matches the synthetic reference, pending buffers drain, and replay is
+exact. Maximum mapped reconstruction residual is $8.49\times10^{-13}$ logical
+pixels; maximum Python--TypeScript viewport disagreement is
+$2.27\times10^{-13}$ pixels. Table~\ref{tab:results} reports these results
+alongside the baseline. Across all 86 configurations, 113,586 observations are
+received and the largest viewport disagreement remains
+$4.55\times10^{-13}$ pixels.
+
 \begin{table}[t]
-\caption{Numerical consistency across 78 deterministic cases. Spatial residuals use logical viewport pixels or content units, as indicated.}
+\caption{Numerical consistency for the 78-case rate/context baseline and eight combined-motion cases. Spatial residuals use logical viewport pixels or content units, as indicated.}
 \label{tab:results}\small
 \input{tables/validation.tex}
 \end{table}
@@ -771,12 +791,14 @@ recorder retains bounded in-memory histories, so sustained acquisition requires
 external storage before rollover.
 
 \section{Conclusion}
-GazeSync reconstructs content-relative gaze during desktop and mobile interaction
-by joining capture-time observations to recorded presentations. The shared
+GazeSync reconstructs content-relative gaze while users move, zoom and rotate
+images, fixed-layout text and grouped content on desktop or mobile. It joins
+capture-time observations to recorded content transforms. The shared
 Python and TypeScript contract preserves independent eye channels, coordinate
 frames and quality decisions through acquisition and replay. Analytic fixtures
 and synthetic experiments verify frame selection and coordinate reconstruction
-across acquisition rates and viewport sizes. The GitHub distribution provides
+across acquisition rates, viewport sizes and combined content manipulations.
+The GitHub distribution provides
 researchers with the implementation, adapters and reproducible tests for
 instrumenting their own applications.
 

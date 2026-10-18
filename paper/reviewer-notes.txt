@@ -81,3 +81,24 @@ Adds anchored 2D rotation, free movement, pinch/twist and DOM integration. The m
 使用 Humanizer 对全文进行学术行文检查：删去摘要、图注、背景、结果和结论中重复的免责式表述，将实际限制收束到设备测量、真实使用和持续采集。Limitations 从 253 词精简为 129 词，保留对研究结论有影响的范围和条件。公式、标题、作者顺序和参考文献条目保持不变。
 基于既有 validation.json 补充 102,768/107,070（95.98%）的 usable coverage，并让 Table 3 从同一数据自动生成这两项。该补充解决 R3 中分母/总体覆盖率的报告问题，未增加新的阈值敏感性或物理测量实验。R1 的原系统对照、真实长期性能与设备验证仍为后续研究工作。
 初期软件通过 GitHub 分发；PyPI/npm 延后。准备独立 arXiv 源码包，删除其不需要的构建日志和工具文件。投稿由作者在 arXiv 完成。
+
+
+2026-10-18 Move/zoom/rotate consistency review
+The abstract's zoom-only opening understated the implemented interaction scope.
+The abstract, keywords, contribution statement, scope table, interaction summary
+and conclusion now name translation, scaling and rotation. Figure 1 applies all
+three transforms to its schematic map states; it remains an illustration.
+The eight combined-motion configurations previously appeared only in the results
+prose. Their parameters are now in the method, and Table 3 reports baseline and
+motion results separately. The abstract reports 86 configurations and 113,586
+observations; baseline counts remain 78/107,070 and motion counts 8/6,516. Motion
+coverage is 6,256/6,516 (96.01%), with 2.27e-13 px maximum cross-language viewport
+difference. All values come from the existing checked-in reports. Figure 4
+remains explicitly restricted to the 78-case baseline.
+The review also clarifies the controller's similarity transform versus the
+core's general affine matrix, the different movement defaults of the core and
+browser helper, and render-callback timestamps versus measured display-onset
+input. Viewport/content point notation is consistent; the equations' operations,
+author order and references are unchanged. No runtime behavior or new empirical
+evidence is introduced. The software release v0.5.3 remains immutable; revised
+manuscript sources and PDF are maintained on main and in the paper mirror.

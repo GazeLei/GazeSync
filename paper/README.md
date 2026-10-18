@@ -1,7 +1,8 @@
 # GazeSync implementation report
 
 **GazeSync: Reproducible Synchronization of Screen Interaction and Multi-Source
-Eye Tracking** documents the Python/TypeScript framework, coordinate and timing
+Eye Tracking** documents the Python/TypeScript framework for moving, zooming and
+rotating images, fixed-layout text and grouped content, its coordinate and timing
 contracts, source adapters and synthetic validation.
 
 Authors: **Yaxiong Lei, Shijing He, Xinya Gong and Juan Ye**, in that order.
@@ -13,6 +14,8 @@ implementation report is prepared for arXiv; its identifier will be added to
 Implementation 0.5.3 uses recording schema 2.1. Initial software distribution is
 through [GitHub Releases](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3);
 PyPI and npm publication is deferred.
+The current manuscript is maintained on the main branch; the software release's
+PDF and ZIP assets retain their original snapshot.
 
 ## Rebuild the report
 
@@ -62,17 +65,22 @@ python3 tools/overleaf.py export --directory ../GazeSync-paper --apply
 
 ## Data and figures
 
-- Figure 1 shows schematic desktop/mobile interaction and capture-time alignment.
+- Figure 1 shows desktop/mobile interaction and capture-time alignment, with
+  translation, scaling and rotation applied to the schematic map states.
 - Figure 2 uses the saved synthetic timing trace, including its blink interval.
 - Figure 3 combines a procedural 3D scene with labels anchored to the independent
   geometry fixture. The editable Blender scene and cached renders are included.
-- Figure 4 and Table 3 use the 78-case validation JSON. The table reports usable
-  observations and coverage alongside reconstruction residuals.
+- Figure 4 uses the 78-case baseline validation JSON. Table 3 reports the
+  baseline and eight combined-motion cases in separate columns, including
+  usable observations, coverage and reconstruction residuals.
 
 The baseline contains 107,070 observations, of which 102,768 (95.98%) have usable
-content coordinates. Eight additional content-motion cases are recorded
-separately. Reconstruction residuals use the known perturbed target; device and
-participant validation are discussed in the paper's Limitations section.
+content coordinates. The eight combined-motion cases contain 6,516 observations,
+of which 6,256 (96.01%) are usable. Together they comprise 86 configurations and
+113,586 observations. These counts and both result columns are derived from the
+saved JSON reports. Reconstruction residuals use the known perturbed target;
+device and participant validation are discussed in the paper's Limitations
+section.
 
 Manuscript and figure publication rights are reserved by the authors under the
 root `NOTICE`. Software and synthetic validation data use GPL-3.0-only.

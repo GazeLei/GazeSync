@@ -1,19 +1,19 @@
-\begin{tabularx}{\columnwidth}{@{}Yrl@{}}
+\begin{tabularx}{\columnwidth}{@{}Yrrl@{}}
 \toprule
-\textbf{Check} & \textbf{Result} & \textbf{Unit} \\
+\textbf{Check} & \textbf{Baseline} & \textbf{Motion} & \textbf{Unit} \\
 \midrule
-Received observations & 107,070 & obs. \\
-Usable observations & 102,768 & obs. \\
-Usable coverage & 95.98 & \% \\
-Frame mismatches & 0 & obs. \\
-Exact replay & 78/78 & cases \\
-Pending after drain & 0 & obs. \\
+Received observations & 107,070 & 6,516 & obs. \\
+Usable observations & 102,768 & 6,256 & obs. \\
+Usable coverage & 95.98 & 96.01 & \% \\
+Frame mismatches & 0 & 0 & obs. \\
+Exact replay & 78/78 & 8/8 & cases \\
+Pending after drain & 0 & 0 & obs. \\
 \addlinespace[3pt]
-\multicolumn{3}{@{}l}{\textit{Maximum numerical differences}} \\
+\multicolumn{4}{@{}l}{\textit{Maximum numerical differences}} \\
 \addlinespace[2pt]
-Reconstruction residual & $7.85\times10^{-13}$ & px \\
-Python--TS viewport & $4.55\times10^{-13}$ & px \\
-Python--TS content & $4.55\times10^{-13}$ & units \\
-Python--TS capture time & 0 & ms \\
+Reconstruction residual & $7.85\times10^{-13}$ & $8.49\times10^{-13}$ & px \\
+Python--TS viewport & $4.55\times10^{-13}$ & $2.27\times10^{-13}$ & px \\
+Python--TS content & $4.55\times10^{-13}$ & $5.08\times10^{-13}$ & units \\
+Python--TS capture time & 0 & 0 & ms \\
 \bottomrule
 \end{tabularx}

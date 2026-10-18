@@ -25,11 +25,13 @@ from matplotlib.patches import (
 )
 from matplotlib.path import Path as MplPath
 from matplotlib.ticker import MaxNLocator
+from matplotlib.transforms import Affine2D
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "paper/figures"
 OUT.mkdir(exist_ok=True)
 DATA = json.loads((ROOT / "paper/data/validation.json").read_text())
+MOTION = json.loads((ROOT / "paper/data/interaction-validation.json").read_text())
 TIMING = json.loads((ROOT / "paper/data/timing.json").read_text())
 INK, MUTED, BLUE, ORANGE, GREEN = "#24343B", "#5F7078", "#0072B2", "#D55E00", "#00876C"
 LINE, PALE = "#CDD7DA", "#F3F6F7"
@@ -95,12 +97,14 @@ def rounded(ax, rect, face="white", edge=LINE, radius=0.035, lw=0.8, zorder=1):
     return p
 
 
-def map_scene(ax, rect, zoom=1, focus=(0.5, 0.5), landmark=True):
-    """One intrinsic square scene, rendered through a uniform affine and crop."""
+def map_scene(ax, rect, zoom=1, focus=(0.5, 0.5), landmark=True, rotation=0):
+    """One intrinsic scene with translation, scale and clockwise rotation."""
     x, y, w, h = rect
     clip = Rectangle((x, y), w, h, fc="#F5F3EC", ec="none", zorder=2)
     ax.add_patch(clip)
     scale = max(w, h) * zoom
+    # Plot coordinates point up; screen-positive clockwise rotation points down.
+    scene_transform = Affine2D().rotate_around(x + w / 2, y + h / 2, -rotation)
 
     def xy(p):
         return (
@@ -110,6 +114,7 @@ def map_scene(ax, rect, zoom=1, focus=(0.5, 0.5), landmark=True):
 
     def add(p):
         ax.add_patch(p)
+        p.set_transform(scene_transform + ax.transData)
         p.set_clip_path(clip)
 
     for polygon in [
@@ -195,6 +200,7 @@ def map_scene(ax, rect, zoom=1, focus=(0.5, 0.5), landmark=True):
     if landmark:
         p = xy((0.62, 0.55))
         add(Circle(p, 0.025 * scale, fc=GREEN, ec="white", lw=0.6, zorder=9))
+        p = scene_transform.transform(p)
         if x < p[0] < x + w and y < p[1] < y + h and 0.05 * scale * 72 >= 5.5:
             ax.text(
                 *p,
@@ -208,7 +214,7 @@ def map_scene(ax, rect, zoom=1, focus=(0.5, 0.5), landmark=True):
                 clip_on=True,
                 clip_path=clip,
             )
-    return xy, clip
+    return lambda p: scene_transform.transform(xy(p)), clip
 
 
 def device_monitor(ax, rect):
@@ -376,9 +382,14 @@ def teaser():
         ax.add_patch(Ellipse((xx, 0.33), 0.19, 0.10, fc="white", ec=color, lw=0.8))
         ax.add_patch(Circle((xx, 0.33), 0.025, fc=color, ec="none"))
     ax.text(0.84, 0.33, "2D PoG / 3D rays", fontsize=7.5, color=MUTED, va="center")
-    for i, zoom in enumerate([1.0, 1.8, 2.6]):
+    states = [
+        (1.0, (0.5, 0.5), 0),
+        (1.65, (0.62, 0.55), 0.30),
+        (1.95, (0.56, 0.63), -0.42),
+    ]
+    for i, (zoom, focus, rotation) in enumerate(states):
         x = 2.59 + i * 0.65
-        map_scene(ax, (x, 1.74, 0.53, 0.48), zoom, (0.62, 0.55))
+        map_scene(ax, (x, 1.74, 0.53, 0.48), zoom, focus, rotation=rotation)
         ax.add_patch(
             Rectangle(
                 (x, 1.74),
@@ -397,9 +408,7 @@ def teaser():
             color=GREEN if i == 1 else MUTED,
             lw=0.8,
         )
-    ax.text(
-        3.52, 2.32, "Presented screen states", fontsize=7.4, color=MUTED, ha="center"
-    )
+    ax.text(3.52, 2.32, "Move / zoom / rotate", fontsize=7.4, color=MUTED, ha="center")
     ax.axhspan(0, 0, alpha=0)  # Keep the coordinate system fixed.
     ax.add_patch(
         Rectangle((3.505, 1.19), 0.65, 0.23, fc="#DFF1E9", ec="none", zorder=0)
@@ -796,32 +805,65 @@ def tables():
         exp = int(math.floor(math.log10(abs(value))))
         return rf"${value / 10**exp:.2f}\times10^{{{exp}}}$"
 
-    rows = DATA["rows"]
-    maximum = max(r["maxReconstructionErrorPx"] for r in rows)
-    n = DATA["totalSamples"]
-    cases = DATA["experimentCases"]
-    replayed = sum(r["replayExact"] for r in DATA["rows"])
-    lines = [
-        r"\begin{tabularx}{\columnwidth}{@{}Yrl@{}}",
-        r"\toprule",
-        r"\textbf{Check} & \textbf{Result} & \textbf{Unit} \\",
-        r"\midrule",
-        rf"Received observations & {n:,} & obs. \\",
-        rf"Usable observations & {sum(r['usableSamples'] for r in rows):,} & obs. \\",
-        rf"Usable coverage & {100 * sum(r['usableSamples'] for r in rows) / n:.2f} & \% \\",
-        rf"Frame mismatches & {sum(r['frameMismatches'] for r in DATA['rows']):,} & obs. \\",
-        rf"Exact replay & {replayed}/{cases} & cases \\",
-        rf"Pending after drain & {sum(r['pendingSamples'] for r in DATA['rows']):,} & obs. \\",
-        r"\addlinespace[3pt]",
-        r"\multicolumn{3}{@{}l}{\textit{Maximum numerical differences}} \\",
-        r"\addlinespace[2pt]",
-        rf"Reconstruction residual & {sci(maximum)} & px \\",
-        rf"Python--TS viewport & {sci(DATA['maxViewportDifferencePx'])} & px \\",
-        rf"Python--TS content & {sci(DATA['maxContentDifferenceUnits'])} & units \\",
-        rf"Python--TS capture time & {sci(DATA['maxTimeDifferenceMs'])} & ms \\",
-        r"\bottomrule",
-        r"\end{tabularx}",
+    groups = [DATA["rows"], MOTION["rows"]]
+    metrics = [
+        (
+            "Received observations",
+            lambda rows: f"{sum(r['samples'] for r in rows):,}",
+            "obs.",
+        ),
+        (
+            "Usable observations",
+            lambda rows: f"{sum(r['usableSamples'] for r in rows):,}",
+            "obs.",
+        ),
+        (
+            "Usable coverage",
+            lambda rows: (
+                f"{100 * sum(r['usableSamples'] for r in rows) / sum(r['samples'] for r in rows):.2f}"
+            ),
+            r"\%",
+        ),
+        (
+            "Frame mismatches",
+            lambda rows: str(sum(r["frameMismatches"] for r in rows)),
+            "obs.",
+        ),
+        (
+            "Exact replay",
+            lambda rows: f"{sum(r['replayExact'] for r in rows)}/{len(rows)}",
+            "cases",
+        ),
+        (
+            "Pending after drain",
+            lambda rows: str(sum(r["pendingSamples"] for r in rows)),
+            "obs.",
+        ),
     ]
+    lines = [
+        r"\begin{tabularx}{\columnwidth}{@{}Yrrl@{}}",
+        r"\toprule",
+        r"\textbf{Check} & \textbf{Baseline} & \textbf{Motion} & \textbf{Unit} \\",
+        r"\midrule",
+    ]
+    for label, value, unit in metrics:
+        lines.append(
+            f"{label} & {value(groups[0])} & {value(groups[1])} & {unit} " + r"\\"
+        )
+    lines += [
+        r"\addlinespace[3pt]",
+        r"\multicolumn{4}{@{}l}{\textit{Maximum numerical differences}} \\",
+        r"\addlinespace[2pt]",
+    ]
+    for label, key, unit in [
+        ("Reconstruction residual", "maxReconstructionErrorPx", "px"),
+        ("Python--TS viewport", "crossLanguageViewportDifferencePx", "px"),
+        ("Python--TS content", "crossLanguageContentDifferenceUnits", "units"),
+        ("Python--TS capture time", "crossLanguageTimeDifferenceMs", "ms"),
+    ]:
+        values = [sci(max(r[key] for r in rows)) for rows in groups]
+        lines.append(f"{label} & {values[0]} & {values[1]} & {unit} " + r"\\")
+    lines += [r"\bottomrule", r"\end{tabularx}"]
     target = ROOT / "paper/tables"
     target.mkdir(exist_ok=True)
     (target / "validation.tex").write_text("\n".join(lines) + "\n")
