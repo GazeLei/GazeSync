@@ -67,6 +67,11 @@ test("release: publication gates allow a pending preprint and reject inconsisten
       paperPath = resolve(temp, "paper/metadata.json");
     const release = JSON.parse(await readFile(releasePath, "utf8"));
     const paper = JSON.parse(await readFile(paperPath, "utf8"));
+    // Exercise the closed gate even when the checkout is an approved Python release.
+    await writeFile(
+      releasePath,
+      JSON.stringify({ ...release, publicationEnabled: false }),
+    );
     await assert.rejects(
       checkRelease(temp, { publication: true, registry: "pypi" }),
       /Public release is disabled/,

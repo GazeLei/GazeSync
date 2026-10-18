@@ -43,8 +43,10 @@ exists; then update the paper and citation files together. A supplied identifier
 is checked for format, not independently authenticated by the release tool.
 
 The release workflow runs only by manual dispatch on a version tag in a public
-repository. `release.json` still has `publicationEnabled:false`, and npm still has
-`private:true`. Author metadata must be finalized. TestPyPI uploads are public too.
+repository. The maintainer has authorized TestPyPI validation of 0.5.2, so
+`release.json` has `publicationEnabled:true`; npm retains `private:true`. Only
+the `testpypi` destination is authorized for this run. Production PyPI and npm
+uploads remain separate maintainer decisions. Author metadata must be finalized.
 
 1. Review the exact release commit, package contents, copyright and name
    availability. The four implementation authors are finalized. Manuscript and
@@ -147,7 +149,7 @@ scope and documentation.
 | npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
 | arXiv | Optional for software release; retain the technical-report citation until submission. |
-| Package uploads | None. `publicationEnabled:false` and npm `private:true` remain set. |
+| Package uploads | TestPyPI 0.5.2 authorized and in progress. Python release gate enabled; npm remains private. Production uploads are pending. |
 
 The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
 86 cross-language configurations, wheel/sdist rebuilds and isolated npm installs.
@@ -160,7 +162,7 @@ The preparation commit `2f33ce4` passed all seven
 [CI jobs](https://github.com/GazeLei/GazeSync/actions/runs/39151328284), including
 Node 22/24/26, Python 3.10/3.12/3.14 and the full conformance/package job. The local
 npm archive contains 75 files and is approximately 223 KB; the Python wheel and
-sdist contain 24 and 30 files respectively. Release flags remain disabled.
+sdist contain 24 and 30 files respectively. These are the earlier preparation results.
 
 A registry lookup returning 404 is an availability observation, not a reservation
 or an ownership check. Recheck immediately before the first upload.
@@ -199,5 +201,17 @@ technical report. The candidate version is now 0.5.2, with schema 2.1 retained;
 0.5.1 recordings require their original implementation. Publication and author
 flags must be actual JSON booleans. The deterministic retention check now runs
 in CI and in the release verification job before upload. Account and environment
-configuration above is unchanged; no registry upload or release tag has been
-created. See [the audit record](AUDIT.md) for the new regressions and limits.
+configuration above is unchanged. TestPyPI validation is now authorized and
+uses the immutable `v0.5.2` tag; production uploads require a separate decision. See [the audit record](AUDIT.md) for the new regressions and limits.
+
+
+## TestPyPI validation run - 18 October 2026
+
+The maintainer requested a fresh full verification followed by TestPyPI. Version
+0.5.2 retains npm `private:true`; only `release.yml` destination `testpypi` is to be
+dispatched. Verify the wheel and source-distribution hashes against the workflow
+artifacts, then install `gazesync==0.5.2` from the TestPyPI index in an isolated
+environment. Do not add the production index as a fallback for this dependency-free
+package. Check the CLI, capture-time reconstruction, independent-eye behavior,
+3D projection and replay from the installed distribution. Record completion and
+workflow evidence here after the upload is verified.

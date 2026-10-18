@@ -4,7 +4,13 @@ Capture-time synchronization of desktop/mobile view events and independent or
 combined eye-tracking measurements. The core uses only the Python standard
 library and has the same schema 2.1 contract as the TypeScript implementation.
 
-Install from this checkout during development:
+For TestPyPI validation, install the exact candidate from the separate test index:
+
+```sh
+python -m pip install --index-url https://test.pypi.org/simple/ --no-deps gazesync==0.5.2
+```
+
+Or install from this checkout during development:
 
 ```sh
 pip install -e ./python
@@ -42,7 +48,7 @@ SDK callbacks and rendering run in different threads.
 
 Code license: **GPL-3.0-only**. See https://github.com/GazeLei/GazeSync for both citations, diagnostic
 codes, package-release instructions and the academic implementation manuscript.
-This development version has not yet been published to PyPI. The tested wheel can
+The production PyPI release is pending. The tested wheel can
 be installed directly with `pip install /path/to/gazesync-0.5.2-py3-none-any.whl`.
 After the first authorized public release, the ordinary route will be
 `pip install gazesync`.

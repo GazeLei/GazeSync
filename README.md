@@ -5,8 +5,8 @@ while moving, zooming, rotating or selecting content. The Python and TypeScript 
 share a versioned recording contract and reproducible conformance tests.
 
 **Development release 0.5.2 · schema 2.1 · GPL-3.0-only.** The source repository is
-public; the first PyPI and npm uploads are being prepared. Neither package has
-been published to a registry yet.
+public. This candidate targets TestPyPI validation; production PyPI and npm
+releases are pending.
 
 ![Screen changes enter a session timeline; gaze retains its capture time, selects the captured view and maps independent eyes into content coordinates.](docs/assets/overview.svg)
 
@@ -34,8 +34,14 @@ or [tracker adapter guide](docs/ADAPTERS.md).
 
 ## Install a development build
 
-Use the verified wheel or npm tarball while the first registry release is being
-prepared:
+For the Python test distribution, use the separate TestPyPI index:
+
+```sh
+python -m pip install --index-url https://test.pypi.org/simple/ --no-deps gazesync==0.5.2
+```
+
+Production registry releases are pending. Verified local artifacts can also be
+installed directly:
 
 ```sh
 python -m pip install /absolute/path/to/gazesync-0.5.2-py3-none-any.whl
