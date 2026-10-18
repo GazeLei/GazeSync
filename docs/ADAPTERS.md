@@ -109,3 +109,8 @@ their largest absolute magnitude before its determinant and horizon checks;
 nonzero scalar multiples therefore describe the same mapping. The original
 coefficients remain in sample metadata. Rank-loss checks reject a collapsed
 mapping, but do not establish physical calibration accuracy.
+
+
+Tobii `timestamp` accepts only `device` or `system`; a spelling error is rejected
+instead of selecting a clock implicitly. `includeRay` must be an actual boolean.
+The selected timestamp still requires its own measured session-clock mapping.

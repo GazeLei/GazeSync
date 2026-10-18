@@ -89,7 +89,7 @@ make heterogeneous measurements explicit. Third, deterministic simulations,
 cross-language conformance and isolated distribution artifacts make the
 implementation inspectable and repeatable. The evidence is a software audit and
 synthetic validation; no new participant or physical-device study is claimed.
-This report documents implementation 0.5.2 and recording schema 2.1.
+This report documents implementation 0.5.3 and recording schema 2.1.
 The public source repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
@@ -212,8 +212,9 @@ For the surface-specific history $\mathcal H_s$, alignment selects
        (t^p_j,\mathrm{sequence}_j).
  \label{eq:selection}
 \end{equation}
-The last submitted snapshot wins a timestamp tie. Each snapshot persists until
-its successor. Geometry is not interpolated through an unobserved animation,
+The last submitted snapshot wins a timestamp tie; superseded equal-time
+snapshots have no presentation interval and do not create temporal ambiguity.
+Each effective snapshot persists until its successor. Geometry is not interpolated through an unobserved animation,
 reset or content replacement. The host must record every relevant intermediate
 rendered state, or explicitly assert change-only presentation logging.
 

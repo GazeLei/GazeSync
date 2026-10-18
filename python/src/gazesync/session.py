@@ -531,6 +531,7 @@ class GazeSession:
                     history[i]["geometryKeys"][s["type"]]
                     != history[lower]["geometryKeys"][s["type"]]
                     for i in range(lower + 1, upper + 1)
+                    if i == upper or history[i + 1]["t"] != history[i]["t"]
                 )
             if changed:
                 flags.append("ambiguous-presentation")

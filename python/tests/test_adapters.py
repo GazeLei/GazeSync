@@ -171,3 +171,32 @@ def test_pupil_homography_is_invertible_and_scale_invariant():
     for h in ([0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 2, 0, 0, 0, 0, 1], [0] * 9):
         with pytest.raises(ValueError, match="[Hh]omography"):
             PupilCoreAdapter({**options, "sceneToSurface": h})
+
+
+def test_tobii_timestamp_and_boolean_configuration_reject_typos():
+    for change in (
+        {"timestamp": "sysem"},
+        {"timestamp": None},
+        {"includeRay": "false"},
+        {"includeRay": 1},
+    ):
+        with pytest.raises(ValueError, match="timestamp|includeRay"):
+            TobiiProAdapter({**FIXTURE["base"], "frameId": "ucs", **change})
+    packet = dict(
+        device_time_stamp=1000000,
+        system_time_stamp=9000000,
+        left_gaze_point_on_display_area=[0.5, 0.5],
+        left_gaze_point_validity=True,
+    )
+    assert (
+        TobiiProAdapter({**FIXTURE["base"], "timestamp": "system"}).adapt(packet)[
+            "samples"
+        ][0]["timeMs"]
+        == 9000
+    )
+    assert (
+        TobiiProAdapter({**FIXTURE["base"], "timestamp": "device"}).adapt(packet)[
+            "samples"
+        ][0]["timeMs"]
+        == 1000
+    )

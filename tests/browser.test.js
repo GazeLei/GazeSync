@@ -405,3 +405,102 @@ test("DOM helper tolerates repeated clock ticks, rejects competing ownership, an
   replacement.dispose();
   assert.equal(callbacks.size, 0);
 });
+
+function callbackSurface(options) {
+  const doc = new EventTarget(),
+    win = new EventTarget(),
+    callbacks = new Map();
+  let time = 0,
+    id = 0;
+  Object.assign(win, {
+    performance: { now: () => time },
+    getComputedStyle: () => ({
+      position: "static",
+      paddingLeft: "0px",
+      paddingRight: "0px",
+      paddingTop: "0px",
+      paddingBottom: "0px",
+    }),
+    requestAnimationFrame: (cb) => {
+      callbacks.set(++id, cb);
+      return id;
+    },
+    cancelAnimationFrame: (key) => callbacks.delete(key),
+  });
+  Object.assign(doc, { defaultView: win, hidden: false });
+  const viewport = new SurfaceElement();
+  Object.assign(viewport, {
+    ownerDocument: doc,
+    clientWidth: 400,
+    clientHeight: 600,
+  });
+  const content = { parentElement: viewport, style: {} };
+  const app = createGazeSurface(viewport, content, {
+    contentWidth: 800,
+    contentHeight: 1200,
+    ...options,
+  });
+  return {
+    app,
+    content,
+    callbacks,
+    step(t) {
+      time = t;
+      const [key, cb] = callbacks.entries().next().value;
+      callbacks.delete(key);
+      cb();
+    },
+  };
+}
+
+test("geometry callback cannot alter the recorded transform after it is rendered", () => {
+  const { app, content } = callbackSurface({
+    getGeometry(view) {
+      view.tx = 777;
+      return { devicePixelRatio: 2 };
+    },
+  });
+  assert.equal(
+    content.style.transform,
+    `matrix(${app.session.frames.at(-1).matrix.join(",")})`,
+  );
+  assert.equal(app.controller.view.tx, app.session.frames.at(-1).view.tx);
+  app.dispose();
+});
+
+test("aligned observer failure is diagnosed without stopping subsequent frames", () => {
+  const { app, step, callbacks } = callbackSurface({
+    onAligned() {
+      throw Error("host observer failed");
+    },
+  });
+  app.pushGaze(
+    {
+      id: "s",
+      sourceId: "tracker",
+      eye: "left",
+      clockId: "session",
+      clockEpoch: "0",
+      timeMs: 10,
+      ...app.captureContext,
+      type: "pog2d",
+      space: "normalized-viewport",
+      point: { x: 0.5, y: 0.5 },
+      confidence: 1,
+      valid: true,
+    },
+    20,
+  );
+  assert.doesNotThrow(() => step(100));
+  assert.equal(callbacks.size, 1);
+  step(116);
+  assert.equal(app.session.frames.at(-1).t, 116);
+  assert.equal(app.session.aligned.length, 1);
+  assert.ok(
+    app.session.diagnostics
+      .report()
+      .issues.some((i) => i.code === "CALLBACK_FAILED"),
+  );
+  app.dispose();
+  assert.equal(callbacks.size, 0);
+});

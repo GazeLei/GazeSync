@@ -162,7 +162,9 @@
     "tools/npm_consumer_check.mjs",
     "docs/assets/overview.svg",
     "docs/assets/content-surface.png",
-    "tools/retention-check.mjs"
+    "tools/retention-check.mjs",
+    "tests/behavior.test.js",
+    "python/tests/test_behavior.py"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

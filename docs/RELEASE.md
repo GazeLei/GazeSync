@@ -44,7 +44,8 @@ is checked for format, not independently authenticated by the release tool.
 
 The release workflow runs only by manual dispatch on a version tag in a public
 repository. The maintainer has authorized TestPyPI validation of 0.5.2, so
-`release.json` has `publicationEnabled:true`; npm retains `private:true`. Only
+the tagged 0.5.2 release used `publicationEnabled:true`; npm retained `private:true`.
+The 0.5.3 development candidate has publication disabled again. Only
 the `testpypi` destination is authorized for this run. Production PyPI and npm
 uploads remain separate maintainer decisions. Author metadata must be finalized.
 
@@ -149,7 +150,7 @@ scope and documentation.
 | npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
 | arXiv | Optional for software release; retain the technical-report citation until submission. |
-| Package uploads | TestPyPI 0.5.2 uploaded and verified. Python release gate enabled; npm remains private. Production PyPI and npm uploads are pending. |
+| Package uploads | TestPyPI 0.5.2 uploaded and verified. The 0.5.3 development gate is disabled; npm remains private. Production PyPI and npm uploads are pending. |
 
 The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
 86 cross-language configurations, wheel/sdist rebuilds and isolated npm installs.
@@ -249,3 +250,10 @@ ignored `artifacts/testpypi-20261018/`.
 Production PyPI and npm uploads remain pending. Do not move `v0.5.2` or replace
 its TestPyPI files. Subsequent source changes require a new version/tag when
 publishing through the tagged workflow.
+
+
+## Behavioral follow-up candidate: 0.5.3
+
+The published TestPyPI 0.5.2 tag and files remain unchanged. Behavioral fixes and
+additional numerical/interaction oracles are in 0.5.3; publication is disabled for
+this new candidate until its verification is complete and an upload is authorized.

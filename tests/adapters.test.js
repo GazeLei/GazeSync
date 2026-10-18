@@ -165,3 +165,32 @@ test("Pupil homographies reject rank loss and preserve projective scale", () => 
       /homography/i,
     );
 });
+
+test("Tobii clock and boolean options reject typos before normalization", () => {
+  for (const change of [
+    { timestamp: "sysem" },
+    { timestamp: null },
+    { includeRay: "false" },
+    { includeRay: 1 },
+  ])
+    assert.throws(
+      () => new TobiiProAdapter({ ...fixture.base, frameId: "ucs", ...change }),
+      /timestamp|includeRay/,
+    );
+  const packet = {
+    device_time_stamp: 1000000,
+    system_time_stamp: 9000000,
+    left_gaze_point_on_display_area: [0.5, 0.5],
+    left_gaze_point_validity: true,
+  };
+  assert.equal(
+    new TobiiProAdapter({ ...fixture.base, timestamp: "system" }).adapt(packet)
+      .samples[0].timeMs,
+    9000,
+  );
+  assert.equal(
+    new TobiiProAdapter({ ...fixture.base, timestamp: "device" }).adapt(packet)
+      .samples[0].timeMs,
+    1000,
+  );
+});

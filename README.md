@@ -4,9 +4,9 @@ Synchronize eye-tracking measurements with the screen state a person was viewing
 while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.5.2 · schema 2.1 · GPL-3.0-only.** The source repository is
+**Development release 0.5.3 · schema 2.1 · GPL-3.0-only.** The source repository is
 public. The [Python test release](https://test.pypi.org/project/gazesync/0.5.2/)
-has passed TestPyPI installation checks; production PyPI and npm releases are pending.
+has passed TestPyPI installation checks; production PyPI and npm releases are pending. The 0.5.3 development revision has not been uploaded.
 
 ![Screen changes enter a session timeline; gaze retains its capture time, selects the captured view and maps independent eyes into content coordinates.](docs/assets/overview.svg)
 
@@ -44,8 +44,8 @@ Production registry releases are pending. Verified local artifacts can also be
 installed directly:
 
 ```sh
-python -m pip install /absolute/path/to/gazesync-0.5.2-py3-none-any.whl
-npm install /absolute/path/to/gazesync-0.5.2.tgz
+python -m pip install /absolute/path/to/gazesync-0.5.3-py3-none-any.whl
+npm install /absolute/path/to/gazesync-0.5.3.tgz
 ```
 
 For a source checkout, follow the next section. After the first public uploads,
@@ -159,7 +159,7 @@ The library does not hook the OS or record unrelated applications.
 Use [the coordinate-frame guide](docs/COORDINATES.md) to distinguish camera, eye,
 active display, viewport and content origins. It includes measured-extrinsic
 conversion, named rigid-transform helpers and the full-display/cropped-viewport
-contract. Ray hits retain their metric frame ID. Version 0.5.2 uses schema 2.1;
+contract. Ray hits retain their metric frame ID. Version 0.5.3 uses schema 2.1;
 older recordings require their original implementation.
 
 ## Adapt a source and investigate warnings
@@ -221,7 +221,7 @@ its geometry and its verification.
   title = {{GazeSync}: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking},
   author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
   year = {2026},
-  howpublished = {Technical report, version 0.5.2},
+  howpublished = {Technical report, version 0.5.3},
   url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
   note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
 }

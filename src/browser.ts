@@ -308,7 +308,13 @@ export function createGazeSurface(
     transformOrigin: "0px 0px",
   });
   const aligned = (rows: AlignedGaze[]) => {
-    if (rows.length) options.onAligned?.(rows);
+    if (!rows.length) return;
+    try {
+      options.onAligned?.(rows);
+    } catch {
+      // Results remain in the session; an observer must not stop presentation logging.
+      session.diagnostics.emit("CALLBACK_FAILED", now(), { surfaceId });
+    }
   };
   const beforeTick = (t: number) =>
     t - Math.max(1, Math.abs(t)) * Number.EPSILON;
@@ -319,7 +325,7 @@ export function createGazeSurface(
       view: presentedView,
       contentId,
       surface: {
-        ...options.getGeometry?.(presentedView, t),
+        ...options.getGeometry?.({ ...presentedView }, t),
         id: surfaceId,
         epoch: String(epoch),
         active,

@@ -467,6 +467,10 @@ export class TobiiProAdapter extends Adapter<TobiiOptions> {
       eyes.length === 1 ? "monocular" : "binocular-independent",
       "vendor-estimate",
     );
+    if (tobii.timestamp !== undefined)
+      choice(tobii.timestamp, ["device", "system"], "timestamp");
+    if (tobii.includeRay !== undefined && typeof tobii.includeRay !== "boolean")
+      throw new TypeError("includeRay must be boolean");
     if (eyes.some((eye) => !["left", "right"].includes(eye)))
       throw new TypeError("Tobii per-eye channels must be left or right");
     if (tobii.includeRay && !tobii.frameId)

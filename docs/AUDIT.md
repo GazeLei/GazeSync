@@ -313,3 +313,30 @@ content-boundary pairing, controller and replay checks, eight simulation cases
 This verifies the actual TestPyPI distribution route. It does not add hardware
 accuracy evidence. Production PyPI and npm uploads were not performed. Artifact
 hashes and the exact source commit are recorded in [release preparation](RELEASE.md).
+
+
+## Behavioral and portability verification - 0.5.3
+
+This pass expands behavior coverage beyond package transfer. Independent tests in
+both languages construct 500 tilted-plane ray targets (with direction scales
+from 1e-150 to 1e150), check 500 analytic content landmarks through anchored
+scale/rotation/translation and viewport resizing, and use a linear reference
+model for 40 two-surface timelines containing 80 observations each. Equal-time
+replacement, repeated geometry, clock uncertainty and delayed/out-of-order
+receipt are combined. Nine clock mappings with large absolute origins are
+checked at five offsets each. These are deterministic software checks.
+
+Four new failures were reproduced on 0.5.2 and fixed:
+
+| Finding | Trigger and repair |
+| --- | --- |
+| P2: superseded equal-time frames caused false ambiguity. | At 100 ms a changed view followed by the original view selected the correct final frame but still flagged the short uncertainty window. Only the last snapshot at each timestamp now contributes an interval. |
+| P2: a Tobii clock-option typo silently selected another clock. | `timestamp="sysem"` paired the device timestamp with a caller-declared system clock. Unsupported choices and non-boolean `includeRay` values now reject at construction. |
+| P2: a geometry callback could change the recorded matrix after CSS rendering. | Mutating its view argument produced a different recorded translation. The callback now receives a detached snapshot. |
+| P2: an aligned-output observer exception stopped the animation loop. | A thrown observer skipped scheduling the next frame. The helper records `CALLBACK_FAILED`, retains the output in the session and continues presentation logging. |
+
+Local verification passes 105 Node tests, 74 Python tests, TypeScript declarations
+and the existing 86-case cross-language suite. New Windows/macOS jobs run the full
+Node/Python suites, consumer types and retention check on Node 24/Python 3.12;
+results will be recorded after those native runners complete. Physical mobile
+browsers and hardware trackers require separate testing.

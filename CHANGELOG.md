@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.3 - 2026-10-18 (development, not published)
+
+- Ignore superseded equal-time snapshots when checking temporal ambiguity.
+- Reject misspelled Tobii clock choices and non-boolean ray options.
+- Detach geometry callback views from rendered snapshots; diagnose aligned-observer failures without stopping frame recording.
+- Add independent geometry/transform/timeline oracles and Windows/macOS CI jobs.
+- Retain schema 2.1, require original implementations for prior recordings, and disable uploads for this new candidate.
+
 ## 0.5.2 - 2026-10-18 (development, not published)
 
 - Keep binocular pairs within one content identity.

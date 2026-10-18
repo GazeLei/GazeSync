@@ -376,6 +376,10 @@ class TobiiProAdapter(_Adapter):
             "monocular" if len(eyes) == 1 else "binocular-independent",
             "vendor-estimate",
         )
+        if "timestamp" in options:
+            _choice(options["timestamp"], ("device", "system"), "timestamp")
+        if "includeRay" in options and not isinstance(options["includeRay"], bool):
+            raise ValueError("includeRay must be boolean")
         if any(eye not in ("left", "right") for eye in eyes):
             raise ValueError("Tobii per-eye channels must be left or right")
         if options.get("includeRay") and not options.get("frameId"):

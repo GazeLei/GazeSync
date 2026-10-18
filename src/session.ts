@@ -561,6 +561,8 @@ export class GazeSession {
       const before = history[lower];
       let changed = !before;
       for (let i = lower + 1; !changed && i <= upper; i++) {
+        // Only the last snapshot at a timestamp has a nonempty presentation interval.
+        if (i < upper && history[i + 1].t === history[i].t) continue;
         changed =
           history[i].geometryKeys[s.type] !== before.geometryKeys[s.type];
       }

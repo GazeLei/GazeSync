@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gazesync"
-version = "0.5.2"
+version = "0.5.3"
 description = "Capture-time synchronization of screen events and monocular/binocular 2D/3D gaze"
 readme = "README.md"
 requires-python = ">=3.10"

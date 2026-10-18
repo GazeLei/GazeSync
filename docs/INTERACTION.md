@@ -158,3 +158,10 @@ or listeners change, even when it supplies a different session. Disposing the
 helper releases that ownership so the elements can be mounted again. A wheel,
 programmatic zoom or keyboard movement between touch taps breaks the double-tap
 sequence, as do reset, movement and rotation commands.
+
+
+`getGeometry(view, t)` receives a detached view snapshot: incidental changes to
+that argument cannot alter the rendered matrix or its recorded presentation.
+A failing `onAligned` observer emits `CALLBACK_FAILED` while the aligned records
+remain in the session and presentation logging continues. Geometry-provider
+failures still reject the presentation; hosts must provide valid geometry.

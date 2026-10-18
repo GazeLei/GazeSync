@@ -1,6 +1,6 @@
 # Synchronization and coordinate contract
 
-Version 0.5.2 emits schema 2.1. Both implementations accept the same JSON records;
+Version 0.5.3 emits schema 2.1. Both implementations accept the same JSON records;
 Python uses snake_case method names but preserves camelCase wire fields.
 
 ## Time and presentation
@@ -14,7 +14,8 @@ Do not guess them from arrival time. A changed fit, reconnection or clock reset
 needs a new epoch; mappings are immutable within an epoch.
 
 For a source timestamp, the session selects the latest presentation of the same
-surface at or before mapped capture time. Last submission wins an equal-time tie.
+surface at or before mapped capture time. Last submission wins an equal-time tie;
+superseded snapshots have no presentation interval and do not create ambiguity.
 There is no interpolation across frames or discontinuities. Multiple input events
 may contribute to one presentation through `causeIds`; input itself is not proof
 of a visual change. Use an arbitrary affine `matrix` if the host renders

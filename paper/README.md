@@ -65,7 +65,7 @@ production PyPI and npm uploads remain pending.
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical
 (860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.5.2 uses schema 2.1; earlier recordings need their original code.
+Implementation 0.5.3 uses schema 2.1; earlier recordings need their original code.
 
 Manuscript and generated figure publication rights are reserved by the authors
 (root NOTICE). The supplied original LaTeX archive is not redistributed
