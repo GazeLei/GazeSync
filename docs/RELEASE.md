@@ -51,10 +51,12 @@ repository. `release.json` still has `publicationEnabled:false`, and npm still h
    figure rights remain described separately in `NOTICE`.
 2. Complete the registry account/publisher setup below. Confirm that all three
    GitHub environments have the maintainer reviewer and `v*` **tag** restriction.
-3. After upload approval, set `publicationEnabled:true`; set npm `private:false`
-   only when preparing the npm release. Python publication can keep npm private.
-   Keep versions consistent, rebuild and rerun verification. Update README status
-   to reflect only the registries actually published.
+3. For the planned joint Python/npm release, approve both uploads and set
+   `publicationEnabled:true` and npm `private:false` in the same release commit
+   before tagging. Keep versions consistent, rebuild and rerun verification.
+   Prepare registry installation wording for the release and verify it after
+   upload. A Python-only release may retain npm `private:true`; enabling npm
+   later needs a new release commit and version tag, not a moved published tag.
 4. Commit the verified metadata and create the matching `v0.5.1` tag. Dispatch
    `release.yml` for `testpypi` first, approve its environment deployment, then
    install from that index in a clean environment. Approve `pypi` separately.
@@ -141,8 +143,8 @@ scope and documentation.
 | GitHub environments | All three exist with `GazeLei` review and `v*` tag restrictions. |
 | PyPI account | Maintainer logged in; email verified and TOTP enabled. |
 | PyPI pending publisher | Added for `gazesync`, `GazeLei/GazeSync`, `release.yml`, `pypi`. |
-| TestPyPI account and publisher | Setup in progress; must be verified separately. |
-| npm account and 2FA | Setup pending. CLI authentication must also be checked before bootstrap. |
+| TestPyPI account and publisher | Email/2FA verified; pending publisher added for `gazesync`, `GazeLei/GazeSync`, `release.yml`, `testpypi`. |
+| npm account and CLI | `andrewlei`: verified email, 2FA for authorization/publishing, and successful local CLI authentication. Recheck the session before uploading. |
 | npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
 | arXiv | Optional for software release; retain the honest draft citation until submission. |
 | Package uploads | None. `publicationEnabled:false` and npm `private:true` remain set. |
@@ -154,6 +156,11 @@ with exported modules, declaration files, source-map targets and Markdown links.
 The browser content example was exercised from an installed tarball. See the
 [audit record](AUDIT.md) for the concrete findings and limits of that evidence.
 README assets are included in the npm inventory so its local image links resolve.
+The preparation commit `2f33ce4` passed all seven
+[CI jobs](https://github.com/GazeLei/GazeSync/actions/runs/39151328284), including
+Node 22/24/26, Python 3.10/3.12/3.14 and the full conformance/package job. The local
+npm archive contains 75 files and is approximately 223 KB; the Python wheel and
+sdist contain 24 and 30 files respectively. Release flags remain disabled.
 
 A registry lookup returning 404 is an availability observation, not a reservation
 or an ownership check. Recheck immediately before the first upload.
