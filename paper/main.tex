@@ -64,8 +64,8 @@ before making end-to-end accuracy claims.
 \maketitle
 
 \section{Introduction}
-A person zooms into a map landmark, drags the map, and then resets the view. A
-screen-coordinate gaze point can refer to three different content locations
+A person zooms into a map landmark, rotates the map, drags it, and then resets the view. A
+screen-coordinate gaze point can refer to different content locations
 during that sequence. A delayed tracker callback adds another ambiguity: the
 view visible when the callback is handled may differ from the view at exposure.
 On a phone, simultaneous finger movement and changing display pose introduce
@@ -89,7 +89,7 @@ make heterogeneous measurements explicit. Third, deterministic simulations,
 cross-language conformance and isolated distribution artifacts make the
 implementation inspectable and repeatable. The evidence is a software audit and
 synthetic validation; no new participant or physical-device study is claimed.
-This draft documents implementation 0.4.1 and recording schema 2.1.
+This draft documents implementation 0.5.0 and recording schema 2.1.
 The development repository is \url{https://github.com/GazeLei/GazeSync}.
 
 \section{Background and scope}
@@ -116,7 +116,7 @@ capture timestamps at those frequencies.
 \toprule
 \textbf{Layer} & \textbf{Contract and evidence} \\
 \midrule
-\textbf{Interaction} & Wheel, drag, box and keyboard; pinch and pan.\newline \emph{Evidence:} gesture and browser regressions. \\
+\textbf{Interaction} & Wheel, drag, box and keyboard; pinch, twist and free movement.\newline \emph{Evidence:} gesture and browser regressions. \\
 \addlinespace[3pt]
 \textbf{Signals} & 2D PoG, 3D rays and direction-only records; independent or combined eyes.\newline \emph{Evidence:} analytic and source fixtures. \\
 \addlinespace[3pt]
@@ -247,7 +247,7 @@ $\Delta t$ yields a first-order spatial error proportional to
 \begin{equation}
  \left\|\frac{d M(t)^{-1}}{dt}\widetilde p_v\right\|\,|\Delta t|.
 \end{equation}
-Fast zoom or translation can therefore amplify a modest delivery delay. At a
+Fast zoom, rotation or translation can therefore amplify a modest delivery delay. At a
 reset or layout discontinuity this derivative approximation does not apply;
 the correct presentation interval must be selected explicitly.
 Figure~\ref{fig:timing} illustrates this mechanism with known synthetic timing.
@@ -489,6 +489,50 @@ its viewport while keeping the active panel, top-left origin and metric pixel
 pitch fixed. Physical dimensions can be supplied
 explicitly; defaults remain synthetic assumptions.
 
+\subsection{Content rotation and free movement}
+The content layer may be an image, a fixed-layout text page or a group with a
+stable intrinsic coordinate system. Its top-left origin remains fixed in content
+coordinates while the layer moves within a clipped viewport. In the viewport's
+right/down axes, positive $\theta$ is clockwise and the similarity transform is
+\begin{equation}
+ M=\begin{bmatrix}
+ s\cos\theta&-s\sin\theta&t_x\\
+ s\sin\theta&s\cos\theta&t_y\\0&0&1
+ \end{bmatrix},\qquad p_v=sR(\theta)p_i+t.
+ \label{eq:contentrotation}
+\end{equation}
+Here $s>0$, and $t$ is the viewport position of the intrinsic origin. The
+renderer uses a top-left transform origin; an additional CSS-centred origin
+would change this mapping. Content rotation leaves the calibrated metric screen
+plane unchanged. Both PoG and screen-ray intersections use the inverse of the
+matrix selected at capture time.
+
+For a viewport anchor $a$ moving to $b$, first recover
+$q=s^{-1}R(-\theta)(a-t)$. A scale factor $f$ and angular change $\delta$ then give
+\begin{equation}
+ s'=\operatorname{clamp}(sf,s_{\min},s_{\max}),\quad
+ \theta'=\theta+\delta,\quad
+ t'=b-s'R(\theta')q.
+ \label{eq:anchoredrotation}
+\end{equation}
+Thus $q$ stays under the new anchor before boundary constraints. A two-contact
+gesture derives $a,b$ from the initial/current midpoints, $f$ from their distance
+ratio and $\delta$ from the unwrapped angular change. Scale, rotation and movement
+are applied together before bounding once. Near-coincident contacts suspend
+scale and angle changes and establish a new baseline on separation; lifting one
+contact rebases to one-finger movement. Desktop users can drag in a rotation mode
+or use bracket keys for $15^\circ$ steps. The API accepts radians and movement in
+viewport logical pixels.
+
+Two boundary policies serve different tasks. Free movement permits repositioning
+at fit scale. Bounded movement clamps the axis-aligned envelope of all four
+rotated corners and centres an axis when that envelope is smaller than the
+viewport; it does not guarantee coverage of every viewport corner. Clipping can
+expose blank space, so outside-content flags remain part of gaze interpretation.
+Reset restores zero rotation, centred content and the original unrotated fit.
+Independently animated children, text reflow and occlusion need additional host
+state; the provided layer does not infer those changes.
+
 \subsection{Observation identity and optional pairing}
 Observation identity includes source, clock ID and epoch, eye, representation
 and sample ID. The same physical capture can thus carry left/right and PoG/ray
@@ -567,7 +611,17 @@ are explicit cases. Browser handling follows pointer-event ownership and
 cancellation semantics~\cite{pointerevents}; it avoids capturing keys from
 embedded editable controls.
 
-The browser adapter records application input, while the host records what was
+A convenience browser entry point, \code{createGazeSurface}, attaches one content
+layer to a viewport and handles input, CSS transforms, resize, lifecycle records
+and teardown. A runnable example groups an illustration with ordinary HTML text.
+Its controller exposes \code{rotate}, \code{move} and \code{reset}; the same
+operations are available in Python. The helper records the applied matrix in
+each render callback and preserves capture context for later tracker delivery.
+The host still supplies capture timestamps, source clocks and calibrated 3D
+geometry. This reduces integration steps, but developer usability has not yet
+been measured in a user study.
+
+The lower-level browser adapter records application input, while the host records what was
 rendered. Native Python applications can feed the same controller logic from
 GUI callbacks. Both cores are synchronous; applications serialize rendering and
 SDK callbacks through a single session owner. No transport or thread scheduler
@@ -604,8 +658,8 @@ behaviors under examined inputs; they are not a proof of general correctness.
 \paragraph{Interaction scenarios.}
 Desktop and mobile scenarios each last nine seconds at 60\,Hz display and
 120\,Hz gaze, repeated with seeds 1, 41 and 90210. Desktop actions include wheel
-zoom, pan, marquee selection, cancellation, reset and resize. Mobile actions
-include pinch in/out, moving midpoint, pinch-to-pan transition, double tap,
+zoom, free movement, rotation, marquee selection, cancellation, reset and resize. Mobile actions
+include pinch in/out, two-finger twist, moving midpoint, pinch-to-pan transition, double tap,
 orientation and suspension. Attention policies include content-landmark tracking,
 screen-fixed attention during pan, scanning and reading-like fixation steps.
 Timing and motion parameters are illustrative test assumptions, not a fitted
@@ -663,6 +717,19 @@ reported precision. Received counts include unusable observations and are not
 a usable-coverage statistic; reconstruction residuals are evaluated on mapped
 observations with a known synthetic target. These near-zero values measure arithmetic and contract
 consistency for known inputs. They cannot establish subpixel physical accuracy.
+
+\paragraph{Additional content-motion cases.}
+Eight further cases combine rotation and free movement in $390\times844$ and
+$1920\times1080$ viewports with the four eye modes. Mobile/desktop configurations
+use 90/144\,Hz presentation and 125/1,000\,Hz input, with 600\,Hz primary and
+120\,Hz right-eye sampling where applicable. The deterministic rotation reaches
+$\pm0.8$\,rad; the content centre moves by up to 12\% of viewport width and
+10\% of height while scale varies. These cases retain the 800\,ms duration,
+noise and delivery model above; mobile cases also change display orientation.
+All 6,516 expected observations are received, every capture-frame choice matches,
+and replay is exact. Maximum mapped reconstruction residual is
+$8.49\times10^{-13}$ logical pixels. These eight cases are reported separately
+from the 78-case baseline and are additional software consistency checks.
 
 The receipt-time baseline's P95 residual ranges from 54.4 to 79.6 logical pixels
 across the controlled cells (Figure~\ref{fig:validation}A). This range belongs to

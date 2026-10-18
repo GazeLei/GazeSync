@@ -33,14 +33,17 @@ export const clamp = (value: number, min: number, max: number) =>
 export const fitScale = (v: ViewOptions) =>
   Math.min(v.width / v.contentWidth, v.height / v.contentHeight);
 export const zoomLevel = (v: View) => v.scale / fitScale(v);
-export const viewMatrix = (v: View): Affine => [
-  v.scale,
-  0,
-  0,
-  v.scale,
-  v.tx,
-  v.ty,
-];
+/** CSS/Canvas coefficients [a,b,c,d,e,f], origin at intrinsic content top-left. */
+export function viewMatrix(v: View): Affine {
+  const angle = finite(v.rotation ?? 0, "view rotation");
+  const a = v.scale * Math.cos(angle),
+    b = v.scale * Math.sin(angle);
+  return [a, b, b === 0 ? 0 : -b, a, v.tx, v.ty];
+}
+
+/** Normalized angular step, including wraparound across +/- pi. */
+export const angleDelta = (angle: number) =>
+  Math.atan2(Math.sin(angle), Math.cos(angle));
 
 export function validateMatrix(m: Affine): Affine {
   if (!Array.isArray(m) || m.length !== 6)
@@ -92,18 +95,44 @@ export function constrain(v: View): View {
     fitScale(v) * v.minZoom,
     fitScale(v) * v.maxZoom,
   );
-  const w = v.contentWidth * scale;
-  const h = v.contentHeight * scale;
   positive(scale, "view scale");
-  positive(w, "rendered width");
-  positive(h, "rendered height");
+  finite(v.rotation ?? 0, "view rotation");
+  if (!["content", "none"].includes(v.panBounds ?? "content"))
+    throw new TypeError("panBounds must be content or none");
   finite(v.tx, "view tx");
   finite(v.ty, "view ty");
+  const next = { ...v, scale };
+  if (v.panBounds === "none") return next;
+  // Bounds are the AABB of all four rotated corners, not an axis-aligned image.
+  const [a, b, c, d] = viewMatrix(next);
+  const xs = [
+    0,
+    a * v.contentWidth,
+    c * v.contentHeight,
+    a * v.contentWidth + c * v.contentHeight,
+  ];
+  const ys = [
+    0,
+    b * v.contentWidth,
+    d * v.contentHeight,
+    b * v.contentWidth + d * v.contentHeight,
+  ];
+  const minX = Math.min(...xs),
+    maxX = Math.max(...xs);
+  const minY = Math.min(...ys),
+    maxY = Math.max(...ys);
+  positive(maxX - minX, "rendered width");
+  positive(maxY - minY, "rendered height");
   return {
-    ...v,
-    scale,
-    tx: w <= v.width ? (v.width - w) / 2 : clamp(v.tx, v.width - w, 0),
-    ty: h <= v.height ? (v.height - h) / 2 : clamp(v.ty, v.height - h, 0),
+    ...next,
+    tx:
+      maxX - minX <= v.width
+        ? (v.width - minX - maxX) / 2
+        : clamp(v.tx, v.width - maxX, -minX),
+    ty:
+      maxY - minY <= v.height
+        ? (v.height - minY - maxY) / 2
+        : clamp(v.ty, v.height - maxY, -minY),
   };
 }
 
@@ -114,6 +143,8 @@ export function createView({
   contentHeight,
   minZoom = 1,
   maxZoom = 16,
+  rotation = 0,
+  panBounds = "content",
 }: ViewOptions): View {
   Object.entries({
     width,
@@ -125,12 +156,37 @@ export function createView({
   }).forEach(([k, n]) => positive(n, k));
   if (minZoom > 1 || maxZoom < 1)
     throw new RangeError("Zoom limits must include original fit (1)");
-  const v = { width, height, contentWidth, contentHeight, minZoom, maxZoom };
-  return constrain({ ...v, scale: fitScale(v), tx: 0, ty: 0 });
+  finite(rotation, "rotation");
+  const v = {
+    width,
+    height,
+    contentWidth,
+    contentHeight,
+    minZoom,
+    maxZoom,
+    rotation,
+    panBounds,
+  };
+  const scale = fitScale(v),
+    [a, b, c, d] = viewMatrix({ ...v, scale, tx: 0, ty: 0 });
+  return constrain({
+    ...v,
+    scale,
+    tx: width / 2 - (a * contentWidth + c * contentHeight) / 2,
+    ty: height / 2 - (b * contentWidth + d * contentHeight) / 2,
+  });
 }
 
+/** Original orientation, fit and centre, including when free movement is enabled. */
 export function resetView(v: View): View {
-  return constrain({ ...v, scale: fitScale(v), tx: 0, ty: 0 });
+  const scale = fitScale(v);
+  return constrain({
+    ...v,
+    rotation: 0,
+    scale,
+    tx: (v.width - v.contentWidth * scale) / 2,
+    ty: (v.height - v.contentHeight * scale) / 2,
+  });
 }
 
 export function contentToViewport(v: View, p: Point): Point {
@@ -139,17 +195,19 @@ export function contentToViewport(v: View, p: Point): Point {
 
 export function viewportToContent(v: View, p: Point): Point {
   point(p);
-  return { x: (p.x - v.tx) / v.scale, y: (p.y - v.ty) / v.scale };
+  return applyAffine(invertAffine(viewMatrix(v)), p);
 }
 
-/** Keep the content under `anchor` under `destination`; boundaries can limit this. */
-export function zoomAt(
+/** Apply scale/rotation/translation together, then constrain once. Angles are radians. */
+export function transformAt(
   v: View,
   factor: number,
+  radians: number,
   anchor: Point,
   destination: Point = anchor,
 ): View {
   positive(factor, "zoom factor");
+  finite(radians, "rotation delta");
   point(destination);
   const p = viewportToContent(v, anchor);
   const scale = clamp(
@@ -157,12 +215,32 @@ export function zoomAt(
     fitScale(v) * v.minZoom,
     fitScale(v) * v.maxZoom,
   );
+  const rotation = angleDelta((v.rotation ?? 0) + radians);
+  const next = { ...v, scale, rotation, tx: 0, ty: 0 };
+  const offset = contentToViewport(next, p);
   return constrain({
-    ...v,
-    scale,
-    tx: destination.x - p.x * scale,
-    ty: destination.y - p.y * scale,
+    ...next,
+    tx: destination.x - offset.x,
+    ty: destination.y - offset.y,
   });
+}
+
+/** Keep content under the viewport anchor fixed, except where bounds limit it. */
+export function zoomAt(
+  v: View,
+  factor: number,
+  anchor: Point,
+  destination: Point = anchor,
+): View {
+  return transformAt(v, factor, 0, anchor, destination);
+}
+
+export function rotateAt(
+  v: View,
+  radians: number,
+  anchor: Point = { x: v.width / 2, y: v.height / 2 },
+): View {
+  return transformAt(v, 1, radians, anchor);
 }
 
 export function panBy(v: View, dx: number, dy: number): View {
@@ -200,11 +278,12 @@ export function resizeView(v: View, width: number, height: number): View {
   const center = viewportToContent(v, { x: v.width / 2, y: v.height / 2 });
   const result = { ...v, width, height };
   const scale = fitScale(result) * zoomLevel(v);
+  const offset = contentToViewport({ ...result, scale, tx: 0, ty: 0 }, center);
   return constrain({
     ...result,
     scale,
-    tx: width / 2 - center.x * scale,
-    ty: height / 2 - center.y * scale,
+    tx: width / 2 - offset.x,
+    ty: height / 2 - offset.y,
   });
 }
 

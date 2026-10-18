@@ -5,6 +5,7 @@ import {
   GazeSession,
   ZoomController,
   zoomLevel,
+  viewMatrix,
 } from '../dist/index.js'
 import { attachBrowserControls } from '../dist/browser.js'
 import {
@@ -59,7 +60,7 @@ function loadScenario(next) {
   $('stage').className = device === 'mobile' ? 'stage mobile' : 'stage'
   $('manual').classList.remove('active')
   text('manual', 'Try it yourself')
-  for (const id of ['pan', 'box'])
+  for (const id of ['pan', 'box', 'rotate'])
     $(id).setAttribute('aria-pressed', String(id === 'pan'))
   text(
     'surface-label',
@@ -68,8 +69,8 @@ function loadScenario(next) {
   text(
     'help',
     device === 'mobile'
-      ? 'Pinch to zoom · One finger to pan · Double-tap to reset'
-      : 'Wheel to zoom · Shift-drag a box · Home to reset',
+      ? 'Pinch + twist · One finger to move · Home to restore'
+      : 'Drag to move · [ / ] to rotate · Home to restore',
   )
   text('run-label', 'DETERMINISTIC REPLAY')
   text('play', '▶ Play scenario')
@@ -109,7 +110,7 @@ function startManual() {
   scene.style.aspectRatio = `${width}/${height}`
   const causeIds = []
   const controller = new ZoomController(
-    createView({ width, height, contentWidth: 1600, contentHeight: 1100 }),
+    createView({ width, height, contentWidth: 1600, contentHeight: 1100, panBounds: 'none' }),
     {
       onInput: (e) => {
         session.input(e)
@@ -401,8 +402,7 @@ function drawScene(frame, aligned, now) {
   ctx.fillStyle = '#dce3d9'
   ctx.fillRect(0, 0, v.width, v.height)
   ctx.save()
-  ctx.translate(v.tx, v.ty)
-  ctx.scale(v.scale, v.scale)
+  ctx.transform(...viewMatrix(v))
   ctx.drawImage(mapCanvas, 0, 0)
   ctx.restore()
   const byType = new Map()
@@ -612,8 +612,8 @@ function updateTelemetry(records, now, view) {
         !last || next.captureTimeMs > last.captureTimeMs ? next : last,
       null,
     )
-  text('metric-zoom', `${zoomLevel(view).toFixed(2)}×`)
-  text('zoom-badge', `${zoomLevel(view).toFixed(2)}×`)
+  text('metric-zoom', `${zoomLevel(view).toFixed(2)}× · ${Math.round((view.rotation ?? 0) * 180 / Math.PI)}°`)
+  text('zoom-badge', `${zoomLevel(view).toFixed(2)}× · ${Math.round((view.rotation ?? 0) * 180 / Math.PI)}°`)
   text('metric-delay', a ? `${a.latencyMs.toFixed(1)} ms` : '— ms')
   text(
     'metric-time',
@@ -725,7 +725,7 @@ function animate(now) {
       `${activeView.width} × ${activeView.height} virtual viewport · intrinsic content 1600 × 1100`,
     )
     if (mode === 'manual') {
-      text('interaction-label', 'Independent synthetic gaze · try zoom and pan')
+      text('interaction-label', 'Independent synthetic gaze · try move, zoom and rotate')
       text('play-time', `${((now - live.start) / 1000).toFixed(1)} s`)
     }
     const e =
@@ -763,18 +763,19 @@ $('scrub').addEventListener('input', (e) => {
 $('signal').addEventListener('change', (e) => {
   signal = e.target.value
 })
-for (const id of ['pan', 'box'])
+for (const id of ['pan', 'box', 'rotate'])
   $(id).addEventListener('click', () => {
     startManual()
     live.controller.setMode(id)
-    for (const other of ['pan', 'box'])
+    for (const other of ['pan', 'box', 'rotate'])
       $(other).setAttribute('aria-pressed', String(id === other))
   })
-for (const id of ['plus', 'minus', 'reset'])
+for (const id of ['plus', 'minus', 'reset', 'rotate-left', 'rotate-right'])
   $(id).addEventListener('click', () => {
     startManual()
     const now = performance.now()
     if (id === 'reset') live.controller.reset(now)
+    else if (id.startsWith('rotate-')) live.controller.rotate((id === 'rotate-left' ? -1 : 1) * Math.PI / 12, now)
     else live.controller.zoom(id === 'plus' ? 1.4 : 1 / 1.4, now)
   })
 $('export').addEventListener('click', () => {

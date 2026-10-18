@@ -61,3 +61,5 @@ await writeFile(
     2,
   ) + "\n",
 );
+
+await writeFile("paper/data/interaction-validation.json", await readFile("artifacts/validation/interaction-conformance.json"));

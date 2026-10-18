@@ -346,3 +346,90 @@ test("record/replay preserves source data, frame causes, raw rays and aligned re
   recording.records[1].payload.matrix[0] = 999;
   assert.equal(s.frames[0].matrix[0], 0.5);
 });
+
+test("rotation at a presentation boundary is selected by capture time; blank content is flagged", async () => {
+  const { createView, rotateAt, contentToViewport, GazeSession } =
+    await import("../dist/index.js");
+  const session = new GazeSession();
+  const base = createView({
+    width: 800,
+    height: 600,
+    contentWidth: 400,
+    contentHeight: 200,
+    panBounds: "none",
+  });
+  const rotated = rotateAt(base, Math.PI / 2);
+  const surface = {
+    id: "screen",
+    epoch: "1",
+    plane: {
+      frameId: "world",
+      topLeft: [0, 0, 0],
+      right: [1, 0, 0],
+      down: [0, 1, 0],
+      widthMeters: 0.8,
+      heightMeters: 0.6,
+      static: true,
+    },
+  };
+  session.present({ t: 0, view: base, surface });
+  session.present({ t: 100, view: rotated, surface, causeIds: ["rotate-1"] });
+  for (const [id, t, v, eye, origin] of [
+    ["before", 99, base, "left", [0.35, 0.3, 0.6]],
+    ["after", 100, rotated, "right", [0.45, 0.3, 0.6]],
+  ]) {
+    const point = contentToViewport(v, { x: 300, y: 100 });
+    const common = {
+      id,
+      sourceId: "s",
+      eye,
+      clockId: "session",
+      clockEpoch: "0",
+      timeMs: t,
+      surfaceId: "screen",
+      surfaceEpoch: "1",
+      valid: true,
+      confidence: 1,
+    };
+    session.gaze({ ...common, type: "pog2d", space: "viewport", point }, 160);
+    const hit = [point.x / 1000, point.y / 1000, 0];
+    session.gaze(
+      {
+        ...common,
+        type: "ray3d",
+        ray: {
+          frameId: "world",
+          origin,
+          direction: hit.map((x, i) => x - origin[i]),
+        },
+      },
+      160,
+    );
+  }
+  session.gaze(
+    {
+      id: "blank",
+      sourceId: "s",
+      eye: "left",
+      clockId: "session",
+      clockEpoch: "0",
+      timeMs: 110,
+      surfaceId: "screen",
+      surfaceEpoch: "1",
+      valid: true,
+      confidence: 1,
+      type: "pog2d",
+      space: "viewport",
+      point: { x: 10, y: 10 },
+    },
+    160,
+  );
+  const rows = session.flush(220);
+  for (const r of rows.slice(0, 4)) {
+    assert.ok(Math.abs(r.contentPoint.x - 300) < 1e-8);
+    assert.ok(Math.abs(r.contentPoint.y - 100) < 1e-8);
+    assert.equal(r.presentationTimeMs, r.sampleId === "before" ? 0 : 100);
+  }
+  assert.ok(rows[4].flags.includes("off-content"));
+  assert.equal(rows[4].usable, false);
+});

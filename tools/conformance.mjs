@@ -211,6 +211,25 @@ for (let i = 0; i < screens.length; i++)
       independentClocks: mode === "binocular-independent",
     });
   }
+const baselineCases = cases.length;
+for (const [width, height] of [
+  [390, 844],
+  [1920, 1080],
+])
+  for (const mode of modes)
+    cases.push({
+      name: `content-motion-${width}-${mode}`,
+      width,
+      height,
+      mode,
+      displayHz: width < 700 ? 90 : 144,
+      inputHz: width < 700 ? 125 : 1000,
+      gazeHz: 600,
+      rightGazeHz: 120,
+      contentMotion: true,
+      rotateMidway: width < 700,
+      independentClocks: mode === "binocular-independent",
+    });
 const rows = [];
 let maxDifference = 0,
   total = 0,
@@ -287,6 +306,29 @@ const pythonVersion = spawnSync(
 );
 if (pythonVersion.status !== 0)
   throw new Error(pythonVersion.stderr || "Could not record Python runtime");
+const motionRows = rows.splice(baselineCases);
+const motionReport = {
+  implementationVersion: IMPLEMENTATION_VERSION,
+  allPassed: true,
+  cases: motionRows.length,
+  totalSamples: motionRows.reduce((n, r) => n + r.samples, 0),
+  maxReconstructionErrorPx: Math.max(
+    ...motionRows.map((r) => r.maxReconstructionErrorPx),
+  ),
+  rows: motionRows,
+};
+// Keep the established 78-case baseline separate from the additional interaction experiment.
+total = rows.reduce((n, r) => n + r.samples, 0);
+maxDifference = Math.max(...rows.map((r) => r.crossLanguageMaxDifference));
+maxViewportDifferencePx = Math.max(
+  ...rows.map((r) => r.crossLanguageViewportDifferencePx),
+);
+maxContentDifferenceUnits = Math.max(
+  ...rows.map((r) => r.crossLanguageContentDifferenceUnits),
+);
+maxTimeDifferenceMs = Math.max(
+  ...rows.map((r) => r.crossLanguageTimeDifferenceMs),
+);
 const output = {
   runtime: {
     node: process.version,
@@ -316,4 +358,18 @@ await writeFile(
   ),
   JSON.stringify(output, null, 2) + "\n",
 );
-console.log(JSON.stringify({ ...output, rows: undefined }, null, 2));
+await writeFile(
+  resolve(root, "artifacts/validation/interaction-conformance.json"),
+  JSON.stringify(motionReport, null, 2) + "\n",
+);
+console.log(
+  JSON.stringify(
+    {
+      ...output,
+      rows: undefined,
+      interaction: { ...motionReport, rows: undefined },
+    },
+    null,
+    2,
+  ),
+);

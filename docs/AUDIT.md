@@ -167,3 +167,25 @@ the array API; strengthen Python static input types if parity with TypeScript's
 validity-dependent union is required. Runtime validation remains decisive.
 Paper-specific findings and proposed small experiments are in
 [the review](../paper/reviewer-notes.txt); those experiments are not completed results.
+
+
+## Content manipulation audit: 0.5.0, 18 October 2026
+
+The similarity view now uses clockwise radians and top-left content origins in
+both languages. Rotation, zoom and a moving pinch midpoint are composed before
+bounds are applied once. Free movement is explicit; the default core bounds use
+all four rotated corners. Reset/resize, angle wraparound, contact collapse,
+interruption and rotation-disabled behavior have regression tests.
+
+A DOM convenience layer applies and records the same matrix, retains rendered
+state through lifecycle changes, handles bordered/CSS-scaled frames, and restores
+owned styles/listeners. An image-plus-text example exercised real browser drag,
+rotation buttons, zoom, keyboard movement and Home restoration; its exported raw
+input/presentation recording replayed exactly. This UI check supplied no eye data.
+
+Validation: 89 Node tests, 55 Python tests, strict consumer types and the existing
+78-case baseline pass. Eight extra content-motion cases (6,516 observations) pass
+cross-language alignment, diagnostic comparison and replay, with zero capture-frame
+mismatches and maximum reconstruction residual 8.4934e-13 logical pixels. Separate
+Python-native tests exercise the same eight combinations with its own generator.
+The source geometry is synthetic; no empirical usability claim is made.

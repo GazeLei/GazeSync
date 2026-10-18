@@ -52,6 +52,7 @@ def main():
                 "binocular-independent",
                 "--gaze-hz",
                 "600",
+                "--content-motion",
                 "--right-gaze-hz",
                 "120",
             ],
@@ -84,7 +85,7 @@ def main():
                 "node",
                 "--input-type=module",
                 "-e",
-                "import {GazeSession} from 'gazesync'; import {ModelAdapter} from 'gazesync/adapters'; import {generateExperiment,executeExperiment,summarizeExperiment} from 'gazesync/simulation'; import {attachBrowserControls} from 'gazesync/browser'; const e=generateExperiment({width:390,height:844,displayHz:120,inputHz:1000,gazeHz:600,rightGazeHz:120,mode:'binocular-independent'}); const s=summarizeExperiment(e,executeExperiment(e)); if(s.frameMismatches||!s.replayExact)throw Error('Installed npm smoke failed'); console.log(JSON.stringify(s))",
+                "import {GazeSession} from 'gazesync'; import {ModelAdapter} from 'gazesync/adapters'; import {generateExperiment,executeExperiment,summarizeExperiment} from 'gazesync/simulation'; import {attachBrowserControls,createGazeSurface} from 'gazesync/browser'; const e=generateExperiment({width:390,height:844,displayHz:120,inputHz:1000,gazeHz:600,rightGazeHz:120,mode:'binocular-independent',contentMotion:true}); const s=summarizeExperiment(e,executeExperiment(e)); if(s.frameMismatches||!s.replayExact)throw Error('Installed npm smoke failed'); console.log(JSON.stringify(s))",
             ],
             cwd=tmp,
         )

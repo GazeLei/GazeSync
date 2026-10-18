@@ -5,6 +5,9 @@ import copy
 import math
 from typing import Any, Callable, Mapping
 from .geometry import (
+    angle_delta,
+    rotate_at,
+    transform_at,
     clamp,
     constrain,
     create_view,
@@ -24,6 +27,10 @@ def _distance(a: Mapping[str, float], b: Mapping[str, float]) -> float:
     return math.hypot(a["x"] - b["x"], a["y"] - b["y"])
 
 
+def _angle(a: Mapping[str, float], b: Mapping[str, float]) -> float:
+    return math.atan2(b["y"] - a["y"], b["x"] - a["x"])
+
+
 def _middle(a: Mapping[str, float], b: Mapping[str, float]) -> dict[str, float]:
     return {"x": (a["x"] + b["x"]) / 2, "y": (a["y"] + b["y"]) / 2}
 
@@ -31,14 +38,18 @@ def _middle(a: Mapping[str, float], b: Mapping[str, float]) -> dict[str, float]:
 class ZoomController:
     def __init__(
         self,
-        view: Mapping[str, float],
+        view: Mapping[str, Any],
         *,
         on_input: Callable[[dict[str, Any]], None] | None = None,
         drag_threshold: float = 5,
         double_tap_ms: float = 320,
         double_tap_distance: float = 24,
         input_prefix: str = "input",
+        enable_rotation: bool = True,
     ) -> None:
+        if not isinstance(enable_rotation, bool):
+            raise ValueError("enableRotation must be boolean")
+        self.enable_rotation = enable_rotation
         for value, name in (
             (drag_threshold, "dragThreshold"),
             (double_tap_ms, "doubleTapMs"),
@@ -83,9 +94,43 @@ class ZoomController:
         return event
 
     def set_mode(self, mode: str) -> None:
-        if mode not in ("pan", "box"):
-            raise ValueError("Mode must be pan or box")
+        if mode not in ("pan", "box", "rotate"):
+            raise ValueError("Mode must be pan, box or rotate")
+        if mode == "rotate" and not self.enable_rotation:
+            raise ValueError("Rotation is disabled")
         self.mode = mode
+        self.last_tap = None
+        self._rebase()
+
+    def set_pan_bounds(self, pan_bounds: str, t: float) -> None:
+        finite(t, "input time")
+        next_view = constrain({**self.view, "panBounds": pan_bounds})
+        self.cancel(t, "bounds-change")
+        self.view = next_view
+        self._emit("pan-bounds", t, panBounds=pan_bounds)
+
+    def move(self, dx: float, dy: float, t: float) -> None:
+        finite(t, "input time")
+        next_view = pan_by(self.view, dx, dy)
+        self.cancel(t, "move-interrupt")
+        self.view = next_view
+        self._emit("move", t, dx=dx, dy=dy)
+
+    def rotate(
+        self, radians: float, t: float, anchor: Mapping[str, float] | None = None
+    ) -> None:
+        finite(t, "input time")
+        if not self.enable_rotation:
+            raise ValueError("Rotation is disabled")
+        anchor = (
+            {"x": self.view["width"] / 2, "y": self.view["height"] / 2}
+            if anchor is None
+            else anchor
+        )
+        next_view = rotate_at(self.view, radians, anchor)
+        self.cancel(t, "rotate-interrupt")
+        self.view = next_view
+        self._emit("rotate", t, radians=radians, anchor=anchor)
 
     def wheel(
         self, *, x: float, y: float, delta_y: float, t: float, delta_mode: int = 0
@@ -142,15 +187,37 @@ class ZoomController:
                 "base": dict(self.view),
                 "start": _middle(*pointers),
                 "distance": max(_distance(*pointers), 1),
+                "angle": _angle(*pointers),
+                "rotation": 0,
+                "suspended": _distance(*pointers) < self.drag_threshold,
             }
         elif len(pointers) == 1:
             p = pointers[0]
-            self.gesture = {
-                "type": "box"
-                if p["type"] == "mouse"
-                and (self.mode == "box" or p["shiftKey"])
+            if (
+                self.mode == "rotate"
+                and p["type"] != "touch"
                 and p["button"] != 1
-                else "pan",
+                and not p["shiftKey"]
+            ):
+                anchor = {"x": self.view["width"] / 2, "y": self.view["height"] / 2}
+                self.gesture = {
+                    "type": "rotate",
+                    "base": dict(self.view),
+                    "start": {"x": p["x"], "y": p["y"]},
+                    "anchor": anchor,
+                    "angle": _angle(anchor, p),
+                    "rotation": 0,
+                    "suspended": _distance(anchor, p) < self.drag_threshold,
+                }
+                return
+            self.gesture = {
+                "type": (
+                    "box"
+                    if p["type"] == "mouse"
+                    and (self.mode == "box" or p["shiftKey"])
+                    and p["button"] != 1
+                    else "pan"
+                ),
                 "base": dict(self.view),
                 "start": {"x": p["x"], "y": p["y"]},
             }
@@ -205,12 +272,32 @@ class ZoomController:
             p["moved"] = True
         g, pointers = self.gesture, list(self.pointers.values())
         if g["type"] == "pinch":
-            self.view = zoom_at(
-                g["base"],
-                max(_distance(*pointers), 1) / g["distance"],
-                g["start"],
-                _middle(*pointers),
-            )
+            span = _distance(*pointers)
+            if span < self.drag_threshold:
+                g["suspended"] = True
+            elif g["suspended"]:
+                self._rebase()
+            else:
+                next_angle = _angle(*pointers)
+                g["rotation"] += angle_delta(next_angle - g["angle"])
+                g["angle"] = next_angle
+                self.view = transform_at(
+                    g["base"],
+                    span / g["distance"],
+                    g["rotation"] if self.enable_rotation else 0,
+                    g["start"],
+                    _middle(*pointers),
+                )
+        elif g["type"] == "rotate":
+            if _distance(g["anchor"], p) < self.drag_threshold:
+                g["suspended"] = True
+            elif g["suspended"]:
+                self._rebase()
+            elif p["moved"]:
+                next_angle = _angle(g["anchor"], p)
+                g["rotation"] += angle_delta(next_angle - g["angle"])
+                g["angle"] = next_angle
+                self.view = rotate_at(g["base"], g["rotation"], g["anchor"])
         elif p["moved"] or p["pinched"]:
             if g["type"] == "box":
                 self.selection = {"start": dict(g["start"]), "end": {"x": x, "y": y}}
@@ -289,13 +376,17 @@ class ZoomController:
             self.zoom(1.25, t)
         elif key == "-":
             self.zoom(0.8, t)
+        elif (
+            key in ("[", "]") and self.enable_rotation and not ctrl_key and not meta_key
+        ):
+            self.rotate((-1 if key == "[" else 1) * math.pi / 12, t)
         elif key in ("ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"):
             if self.pointers:
                 self.cancel(t, "key-interrupt")
             self.view = pan_by(
                 self.view,
-                48 if key == "ArrowLeft" else -48 if key == "ArrowRight" else 0,
-                48 if key == "ArrowUp" else -48 if key == "ArrowDown" else 0,
+                -48 if key == "ArrowLeft" else 48 if key == "ArrowRight" else 0,
+                -48 if key == "ArrowUp" else 48 if key == "ArrowDown" else 0,
             )
             self._emit("key-pan", t, key=key)
         else:

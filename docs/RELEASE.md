@@ -132,3 +132,13 @@ that flag to an ordinary local terminal does not supply the required CI identity
 An account token, OAuth grant, package-name claim, public upload and repository
 visibility change are not performed by the preparation tools. The Overleaf ZIP
 is a separate manuscript artifact and is not an npm or Python package.
+
+
+## Content manipulation preparation: 0.5.0
+
+Version 0.5.0 adds matching Python/TypeScript rotation and movement, a DOM surface
+helper and a runnable content example. `artifacts/release/0.5.0/` contains the
+local npm tarball and Python wheel/sdist after `tools/package_smoke.py` passes.
+Install these local artifacts to try the package before the public release.
+Publication remains disabled; the existing author/arXiv and registry checklist
+still applies. No tag or public package is created by the local build.

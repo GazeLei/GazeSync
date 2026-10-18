@@ -56,18 +56,20 @@ def _geometry_key(frame: dict[str, Any], kind: str) -> list[Any]:
         s["epoch"],
         s.get("active", True),
         [d[k] for k in ("width", "height", "left", "top")] if d else None,
-        [
-            p["frameId"],
-            p["topLeft"],
-            p["right"],
-            p["down"],
-            p["widthMeters"],
-            p["heightMeters"],
-            p.get("static", False),
-            s.get("planeSpace", "viewport"),
-        ]
-        if kind == "ray3d" and p
-        else None,
+        (
+            [
+                p["frameId"],
+                p["topLeft"],
+                p["right"],
+                p["down"],
+                p["widthMeters"],
+                p["heightMeters"],
+                p.get("static", False),
+                s.get("planeSpace", "viewport"),
+            ]
+            if kind == "ray3d" and p
+            else None
+        ),
     ]
 
 
@@ -112,6 +114,10 @@ def _validate_surface(surface: Mapping[str, Any], view: Mapping[str, Any]) -> No
         validate_plane(surface["plane"])
         if surface["plane"].get("static") is not True:
             finite(surface.get("poseTimeMs"), "dynamic plane poseTimeMs")
+    if "rotation" in view:
+        finite(view["rotation"], "view.rotation")
+    if view.get("panBounds", "content") not in ("content", "none"):
+        raise ValueError("panBounds must be content or none")
     for key in ("width", "height", "contentWidth", "contentHeight"):
         positive(view.get(key), key)
 

@@ -1,4 +1,13 @@
-import type { ZoomController } from "./controller.js";
+import { ZoomController } from "./controller.js";
+import { createView, viewMatrix } from "./geometry.js";
+import { GazeSession } from "./session.js";
+import type {
+  AlignedGaze,
+  GazeSample,
+  ViewOptions,
+  View,
+  Surface,
+} from "./types.js";
 export interface BrowserOptions {
   onChange?: () => void;
   onLifecycle?: (reason: string) => void;
@@ -52,9 +61,22 @@ export function attachBrowserControls(
   const local = (e: MouseEvent) => {
     const rect = element.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
+    // Border is outside the local viewport. Axis-aligned CSS scaling is supported.
+    const sx = element.offsetWidth > 0 ? rect.width / element.offsetWidth : 1;
+    const sy =
+      element.offsetHeight > 0 ? rect.height / element.offsetHeight : 1;
+    const width = element.clientWidth > 0 ? element.clientWidth : rect.width;
+    const height =
+      element.clientHeight > 0 ? element.clientHeight : rect.height;
     return {
-      x: ((e.clientX - rect.left) * controller.view.width) / rect.width,
-      y: ((e.clientY - rect.top) * controller.view.height) / rect.height,
+      x:
+        ((e.clientX - rect.left - (element.clientLeft || 0) * sx) *
+          controller.view.width) /
+        (width * sx),
+      y:
+        ((e.clientY - rect.top - (element.clientTop || 0) * sy) *
+          controller.view.height) /
+        (height * sy),
     };
   };
   const captured = new Set<number>();
@@ -162,6 +184,192 @@ export function attachBrowserControls(
       element.style.touchAction = previous.touchAction;
       if (previous.tabIndex === null) element.removeAttribute("tabindex");
       else element.setAttribute("tabindex", previous.tabIndex);
+    },
+  };
+}
+
+export interface GazeSurfaceOptions {
+  contentWidth: number;
+  contentHeight: number;
+  contentId?: string;
+  surfaceId?: string;
+  panBounds?: ViewOptions["panBounds"];
+  minZoom?: number;
+  maxZoom?: number;
+  enableRotation?: boolean;
+  session?: GazeSession;
+  onAligned?: (rows: AlignedGaze[]) => void;
+  getGeometry?: (
+    view: View,
+    t: number,
+  ) => Omit<Surface, "id" | "epoch" | "active">;
+}
+
+/**
+ * One fixed-size content layer (image, text, SVG, video, or a group) in a clipped DOM viewport.
+ * Owns rendering, resize/lifecycle snapshots and input; never fabricates eye measurements.
+ * The viewport must have zero padding and no rotated/skewed CSS ancestors. Border is supported.
+ */
+export function createGazeSurface(
+  viewport: HTMLElement,
+  content: HTMLElement | SVGElement,
+  options: GazeSurfaceOptions,
+) {
+  if (content.parentElement !== viewport)
+    throw new Error("content must be a direct child of viewport");
+  const doc = viewport.ownerDocument,
+    win = doc.defaultView!;
+  const style = win.getComputedStyle(viewport);
+  if (
+    [
+      style.paddingLeft,
+      style.paddingRight,
+      style.paddingTop,
+      style.paddingBottom,
+    ].some((v) => parseFloat(v) !== 0)
+  )
+    throw new Error(
+      "GazeSync viewport needs zero padding; put padding on an outer wrapper",
+    );
+  const width = viewport.clientWidth,
+    height = viewport.clientHeight;
+  const session = options.session ?? new GazeSession();
+  const contentId = options.contentId ?? "content",
+    surfaceId = options.surfaceId ?? "surface";
+  if (!contentId || !surfaceId)
+    throw new Error("contentId and surfaceId must be nonempty");
+  const initial = createView({
+    width,
+    height,
+    contentWidth: options.contentWidth,
+    contentHeight: options.contentHeight,
+    panBounds: options.panBounds ?? "none",
+    minZoom: options.minZoom,
+    maxZoom: options.maxZoom,
+  });
+  let epoch = 1,
+    active = !doc.hidden,
+    disposed = false,
+    animation = 0;
+  let causes: string[] = [];
+  const now = () => win.performance.now();
+  const controller = new ZoomController(initial, {
+    enableRotation: options.enableRotation,
+    inputPrefix: `${surfaceId}:input`,
+    onInput: (event) => {
+      session.input(event);
+      causes.push(event.id);
+    },
+  });
+  const previousViewport = {
+    position: viewport.style.position,
+    overflow: viewport.style.overflow,
+  };
+  const previousContent = {
+    position: content.style.position,
+    left: content.style.left,
+    top: content.style.top,
+    width: content.style.width,
+    height: content.style.height,
+    transform: content.style.transform,
+    transition: content.style.transition,
+    animation: content.style.animation,
+    transformOrigin: content.style.transformOrigin,
+    margin: content.style.margin,
+    boxSizing: content.style.boxSizing,
+  };
+  if (style.position === "static") viewport.style.position = "relative";
+  viewport.style.overflow = "hidden";
+  Object.assign(content.style, {
+    position: "absolute",
+    left: "0px",
+    top: "0px",
+    margin: "0px",
+    boxSizing: "border-box",
+    transition: "none",
+    animation: "none",
+    width: `${options.contentWidth}px`,
+    height: `${options.contentHeight}px`,
+    transformOrigin: "0px 0px",
+  });
+  const aligned = (rows: AlignedGaze[]) => {
+    if (rows.length) options.onAligned?.(rows);
+  };
+  let presentedView = { ...controller.view };
+  function commit(t: number) {
+    session.present({
+      t,
+      view: presentedView,
+      contentId,
+      surface: {
+        ...options.getGeometry?.(presentedView, t),
+        id: surfaceId,
+        epoch: String(epoch),
+        active,
+      },
+      causeIds: causes.splice(0),
+      timing: "render-callback",
+    });
+    aligned(session.flush(t));
+  }
+  function render() {
+    if (disposed) return;
+    // A zero-size/hidden layout has no usable viewport; preserve its last geometry and mark inactive.
+    const w = viewport.clientWidth,
+      h = viewport.clientHeight;
+    const visible = !doc.hidden && w > 0 && h > 0;
+    if (
+      visible &&
+      (w !== controller.view.width || h !== controller.view.height)
+    ) {
+      controller.resize(w, h, now());
+      epoch++;
+    }
+    if (active !== visible) {
+      active = visible;
+      epoch++;
+    }
+    presentedView = { ...controller.view };
+    content.style.transform = `matrix(${viewMatrix(presentedView).join(",")})`;
+    commit(now());
+    animation = win.requestAnimationFrame(render);
+  }
+  const controls = attachBrowserControls(viewport, controller, {
+    onLifecycle: (reason) => {
+      if (reason === "background") {
+        active = false;
+        epoch++;
+        commit(now());
+      }
+      // Foreground is committed only with the next rendered state.
+    },
+  });
+  // Images must drag the content layer, not start the browser's native image-drag session.
+  const preventDrag = (event: DragEvent) => event.preventDefault();
+  viewport.addEventListener("dragstart", preventDrag);
+  render();
+  return {
+    session,
+    controller,
+    get captureContext() {
+      return { surfaceId, surfaceEpoch: String(epoch) };
+    },
+    /** Capture captureContext at exposure and register the source clock through session.clocks. */
+    pushGaze(sample: GazeSample, receivedTimeMs = now()) {
+      if (disposed) throw new Error("Gaze surface is disposed");
+      session.gaze(sample, receivedTimeMs);
+      if (!active) aligned(session.flush(receivedTimeMs));
+    },
+    dispose() {
+      if (disposed) return session.export();
+      disposed = true;
+      win.cancelAnimationFrame(animation);
+      controls.dispose();
+      viewport.removeEventListener("dragstart", preventDrag);
+      aligned(session.flush(now(), { final: true }));
+      Object.assign(viewport.style, previousViewport);
+      Object.assign(content.style, previousContent);
+      return session.export();
     },
   };
 }

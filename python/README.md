@@ -41,3 +41,20 @@ SDK callbacks and rendering run in different threads.
 Code license: **GPL-3.0-only**. See https://github.com/GazeLei/GazeSync for both citations, diagnostic
 codes, package-release instructions and the academic implementation manuscript.
 This development version has not yet been published to PyPI.
+
+## Rotate and move arbitrary content
+
+```python
+from gazesync import InteractionController, create_view, view_matrix
+controller = InteractionController(create_view(800, 600, 720, 600, pan_bounds="none"))
+controller.rotate(0.25, 120.0)  # clockwise radians; monotonic milliseconds
+controller.move(40, 20, 140.0) # viewport logical pixels
+# Apply view_matrix(controller.view) in your GUI renderer, then call session.present.
+```
+
+One content layer can contain an image, a fixed-layout text page, or a group.
+`rotate_at` and `transform_at` are pure geometry helpers. `pan_bounds="none"`
+permits free movement at fit; the default `"content"` bounds the rotated rectangle's
+axis-aligned envelope. Home/reset restores original fit, centre and orientation.
+Native hosts supply GUI callbacks; the package does not read the operating system.
+See the repository's `docs/INTERACTION.md` for touch, clipping and timing details.

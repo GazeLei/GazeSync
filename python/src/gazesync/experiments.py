@@ -34,11 +34,15 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
         "noisePx": 0.35,
         "seed": 41,
         "rotateMidway": False,
+        "contentMotion": False,
         "independentClocks": False,
         "name": "experiment",
         **options,
         "rightGazeHz": options.get("rightGazeHz", options.get("gazeHz")),
     }
+    for key in ("rotateMidway", "contentMotion", "independentClocks"):
+        if not isinstance(c[key], bool):
+            raise ValueError(f"{key} must be boolean")
     for key in (
         "width",
         "height",
@@ -96,11 +100,11 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
     eyes = (
         ["left"]
         if c["mode"] == "monocular-left"
-        else ["right"]
-        if c["mode"] == "monocular-right"
-        else ["combined"]
-        if c["mode"] == "binocular-fused"
-        else ["left", "right"]
+        else (
+            ["right"]
+            if c["mode"] == "monocular-right"
+            else ["combined"] if c["mode"] == "binocular-fused" else ["left", "right"]
+        )
     )
     sources = [
         {
@@ -108,9 +112,9 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
             "kind": "simulated",
             "adapter": "multirate-reference-v1",
             "eyes": eyes,
-            "trackingMode": c["mode"]
-            if c["mode"].startswith("binocular")
-            else "monocular",
+            "trackingMode": (
+                c["mode"] if c["mode"].startswith("binocular") else "monocular"
+            ),
             "expectedHz": c["gazeHz"],
             "eyeRatesHz": {
                 e: c["rightGazeHz"] if e == "right" else c["gazeHz"] for e in eyes
@@ -170,6 +174,19 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
                 + height * 0.05 * math.sin(u * 4 * math.pi),
             }
         )
+        if c["contentMotion"]:
+            rotation = 0.8 * math.sin(u * 2 * math.pi)
+            cs, sn = math.cos(rotation), math.sin(rotation)
+            view.update(
+                rotation=rotation,
+                panBounds="none",
+                tx=width / 2
+                - scale * (800 * cs - 550 * sn)
+                + width * 0.12 * math.sin(u * 2 * math.pi),
+                ty=height / 2
+                - scale * (800 * sn + 550 * cs)
+                + height * 0.1 * math.sin(u * 4 * math.pi),
+            )
         cause_ids = []
         while used < len(inputs) and inputs[used]["t"] <= t:
             cause_ids.append(inputs[used]["id"])
@@ -232,10 +249,18 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
                 "y": 550 + 30 * math.cos(t / 210),
             }
             p = {
-                "x": content["x"] * v["scale"]
+                "x": (
+                    content["x"] * math.cos(v.get("rotation", 0))
+                    - content["y"] * math.sin(v.get("rotation", 0))
+                )
+                * v["scale"]
                 + v["tx"]
                 + (random() - 0.5) * 2 * c["noisePx"],
-                "y": content["y"] * v["scale"]
+                "y": (
+                    content["x"] * math.sin(v.get("rotation", 0))
+                    + content["y"] * math.cos(v.get("rotation", 0))
+                )
+                * v["scale"]
                 + v["ty"]
                 + (random() - 0.5) * 2 * c["noisePx"],
             }
@@ -303,8 +328,16 @@ def generate_experiment(options: Mapping[str, Any]) -> dict[str, Any]:
                 truth[_key(sample)] = {
                     "frameTimeMs": frame["t"],
                     "content": {
-                        "x": (p["x"] - v["tx"]) / v["scale"],
-                        "y": (p["y"] - v["ty"]) / v["scale"],
+                        "x": (
+                            math.cos(v.get("rotation", 0)) * (p["x"] - v["tx"])
+                            + math.sin(v.get("rotation", 0)) * (p["y"] - v["ty"])
+                        )
+                        / v["scale"],
+                        "y": (
+                            -math.sin(v.get("rotation", 0)) * (p["x"] - v["tx"])
+                            + math.cos(v.get("rotation", 0)) * (p["y"] - v["ty"])
+                        )
+                        / v["scale"],
                     },
                     "viewport": p,
                     "scale": v["scale"],
@@ -378,9 +411,21 @@ def summarize_experiment(
         current = _last_at(frames, a["receivedTimeMs"])["view"]
         arrival_errors.append(
             math.hypot(
-                (expected["viewport"]["x"] - current["tx"]) / current["scale"]
+                (
+                    math.cos(current.get("rotation", 0))
+                    * (expected["viewport"]["x"] - current["tx"])
+                    + math.sin(current.get("rotation", 0))
+                    * (expected["viewport"]["y"] - current["ty"])
+                )
+                / current["scale"]
                 - expected["content"]["x"],
-                (expected["viewport"]["y"] - current["ty"]) / current["scale"]
+                (
+                    -math.sin(current.get("rotation", 0))
+                    * (expected["viewport"]["x"] - current["tx"])
+                    + math.cos(current.get("rotation", 0))
+                    * (expected["viewport"]["y"] - current["ty"])
+                )
+                / current["scale"]
                 - expected["content"]["y"],
             )
             * expected["scale"]
@@ -405,6 +450,7 @@ def summarize_experiment(
                 "durationMs",
                 "seed",
                 "rotateMidway",
+                "contentMotion",
                 "independentClocks",
             )
         },
@@ -415,9 +461,11 @@ def summarize_experiment(
         "mappedSamples": len(errors),
         "maxReconstructionErrorPx": max(errors, default=0),
         "arrivalBaselineMeanPx": sum(arrival_errors) / max(1, len(arrival_errors)),
-        "arrivalBaselineP95Px": arrival_errors[math.floor(len(arrival_errors) * 0.95)]
-        if arrival_errors
-        else 0,
+        "arrivalBaselineP95Px": (
+            arrival_errors[math.floor(len(arrival_errors) * 0.95)]
+            if arrival_errors
+            else 0
+        ),
         "replayExact": restored.aligned == aligned,
         "pendingSamples": len(session.pending),
     }

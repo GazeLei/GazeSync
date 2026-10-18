@@ -19,7 +19,9 @@
     "dist/session.js",
     "dist/simulation.js",
     "dist/types.js",
-    "dist/version.js"
+    "dist/version.js",
+    "examples/content-surface.html",
+    "examples/content-surface.js"
   ],
   "repositoryFiles": [
     ".github/workflows/ci.yml",
@@ -149,7 +151,11 @@
     "tools/server.mjs",
     "tools/simulate.mjs",
     "tsconfig.build.json",
-    "tsconfig.types.json"
+    "tsconfig.types.json",
+    "examples/content-surface.html",
+    "examples/content-surface.js",
+    "docs/INTERACTION.md",
+    "paper/data/interaction-validation.json"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

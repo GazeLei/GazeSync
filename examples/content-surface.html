@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GazeSync · Image and text</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f5f2;color:#233b39;font:16px/1.5 system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:32px 20px}a{color:#006a5b}h1{font-size:clamp(28px,5vw,42px);letter-spacing:-1px;margin:8px 0}p{max-width:72ch}header p{color:#536860}.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:700}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 12px}button,select{font:inherit;border:1px solid #c8d3ce;border-radius:8px;padding:8px 12px;background:white;color:#233b39}button{cursor:pointer}button:hover,button[aria-pressed=true]{background:#def2e8;border-color:#007861}button:focus-visible,select:focus-visible,#viewport:focus-visible{outline:3px solid #0072b2;outline-offset:3px}#viewport{height:520px;width:100%;padding:0;position:relative;overflow:hidden;border:1px solid #c8d3ce;border-radius:10px;background:repeating-conic-gradient(#e8eee9 0% 25%,#f4f7f3 0% 50%) 0/28px 28px}#content{background:#fffdf5;padding:42px;box-shadow:0 12px 40px #19362a21;font-family:Georgia,serif}#content h2{font-size:34px;line-height:1.1;margin:12px 0 16px;font-weight:normal}#content p{font-size:20px;line-height:1.55;margin:0}#content svg{width:100%;height:220px;display:block;margin-bottom:22px}footer{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px;color:#536860;font-size:14px}code{font-size:13px}pre{overflow:auto;background:#153e37;color:#e3f3e9;border-radius:10px;padding:20px}#status{font-variant-numeric:tabular-nums} @media(max-width:600px){main{padding:20px 12px}#viewport{height:480px}button{padding:9px}.toolbar{gap:6px}}
+  </style>
+</head>
+<body><main>
+<header><a href="../demo/">← Interaction lab</a><p class="eyebrow">GAZESYNC / CONTENT SURFACE</p><h1>Move the content. Keep its coordinates.</h1><p>This page combines a vector image and ordinary HTML text in one content layer. Drag, zoom or rotate them together; the frame stays fixed.</p></header>
+<div class="toolbar" role="group" aria-label="Content controls">
+  <button id="move" aria-pressed="true">Move</button><button id="rotate" aria-pressed="false">Rotate</button>
+  <button id="left" aria-label="Rotate counterclockwise 15 degrees">↶ 15°</button><button id="right" aria-label="Rotate clockwise 15 degrees">↷ 15°</button>
+  <button id="minus" aria-label="Zoom out">−</button><button id="plus" aria-label="Zoom in">+</button><button id="reset">Restore</button>
+  <label>Movement <select id="bounds"><option value="none">Free</option><option value="content">Bounded</option></select></label>
+  <button id="export">Export recording</button>
+</div>
+<div id="viewport" aria-label="Interactive image and text. Drag to move. Choose Rotate to drag around the frame centre. Wheel to zoom. On touchscreens use two fingers to pinch and twist. Brackets rotate, arrows move, Home restores.">
+  <article id="content">
+    <svg viewBox="0 0 636 220" role="img" aria-label="Illustration of a quiet coastline with hills and a circular sun">
+      <rect width="636" height="220" fill="#dbeee5"/><circle cx="500" cy="65" r="31" fill="#e9bc68"/>
+      <path d="M0 150 Q110 5 240 140 T500 110 L636 160 V220 H0Z" fill="#8fae9a"/>
+      <path d="M0 178 Q150 80 290 166 T636 175 V220 H0Z" fill="#356f62"/>
+      <path d="M0 192 Q270 166 636 198 V220 H0Z" fill="#88c3c4"/>
+    </svg>
+    <p style="font:700 12px system-ui;letter-spacing:.14em;color:#42786b">FIELD NOTES / 01</p>
+    <h2>A new perspective</h2>
+    <p>Rotate the page, move it to a different corner, or zoom in to read. Its original top-left remains the content origin. An image, a text block, or a group can use this same surface.</p>
+  </article>
+</div>
+<footer><span>Drag · Wheel / pinch · Two-finger twist · [ ] rotate · Arrows move · Home restore</span><output id="status" aria-live="polite"></output></footer>
+<p>No eye measurements are generated here. Connect your tracker with <code>app.pushGaze(sample, receivedTimeMs)</code>; the helper records each rendered transform and the input events that caused it. Use the interaction lab for simulated gaze.</p>
+<pre><code>import { createGazeSurface } from 'gazesync/browser'
+const app = createGazeSurface(frame, content, {
+  contentWidth: 720, contentHeight: 600,
+  contentId: 'reading-page', panBounds: 'none',
+})
+app.controller.rotate(Math.PI / 12, performance.now())
+app.controller.move(40, 20, performance.now())</code></pre>
+</main><script type="module" src="./content-surface.js"></script></body></html>

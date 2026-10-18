@@ -7,7 +7,7 @@ import sys
 from typing import Any, Mapping, Sequence
 
 Point = dict[str, float]
-View = dict[str, float]
+View = dict[str, Any]
 Vector3 = Sequence[float]
 
 
@@ -39,18 +39,24 @@ def clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, value))
 
 
-def fit_scale(view: Mapping[str, float]) -> float:
+def fit_scale(view: Mapping[str, Any]) -> float:
     return min(
         view["width"] / view["contentWidth"], view["height"] / view["contentHeight"]
     )
 
 
-def zoom_level(view: Mapping[str, float]) -> float:
+def zoom_level(view: Mapping[str, Any]) -> float:
     return view["scale"] / fit_scale(view)
 
 
-def view_matrix(view: Mapping[str, float]) -> list[float]:
-    return [view["scale"], 0, 0, view["scale"], view["tx"], view["ty"]]
+def view_matrix(view: Mapping[str, Any]) -> list[float]:
+    angle = finite(view.get("rotation", 0), "view rotation")
+    a, b = view["scale"] * math.cos(angle), view["scale"] * math.sin(angle)
+    return [a, b, -b if b else 0, a, view["tx"], view["ty"]]
+
+
+def angle_delta(angle: float) -> float:
+    return math.atan2(math.sin(angle), math.cos(angle))
 
 
 def validate_matrix(matrix: Sequence[float]) -> Sequence[float]:
@@ -102,27 +108,39 @@ def apply_affine(matrix: Sequence[float], p: Mapping[str, float]) -> Point:
     return result
 
 
-def constrain(view: Mapping[str, float]) -> View:
+def constrain(view: Mapping[str, Any]) -> View:
     scale = clamp(
         view["scale"],
         fit_scale(view) * view["minZoom"],
         fit_scale(view) * view["maxZoom"],
     )
-    width, height = view["contentWidth"] * scale, view["contentHeight"] * scale
     positive(scale, "view scale")
-    positive(width, "rendered width")
-    positive(height, "rendered height")
+    finite(view.get("rotation", 0), "view rotation")
+    if view.get("panBounds", "content") not in ("content", "none"):
+        raise ValueError("panBounds must be content or none")
     finite(view["tx"], "view tx")
     finite(view["ty"], "view ty")
+    result = {**view, "scale": scale}
+    if view.get("panBounds") == "none":
+        return result
+    a, b, c, d = view_matrix(result)[:4]
+    cw, ch = view["contentWidth"], view["contentHeight"]
+    xs, ys = [0, a * cw, c * ch, a * cw + c * ch], [0, b * cw, d * ch, b * cw + d * ch]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    positive(x1 - x0, "rendered width")
+    positive(y1 - y0, "rendered height")
     return {
-        **view,
-        "scale": scale,
-        "tx": (view["width"] - width) / 2
-        if width <= view["width"]
-        else clamp(view["tx"], view["width"] - width, 0),
-        "ty": (view["height"] - height) / 2
-        if height <= view["height"]
-        else clamp(view["ty"], view["height"] - height, 0),
+        **result,
+        "tx": (
+            (view["width"] - x0 - x1) / 2
+            if x1 - x0 <= view["width"]
+            else clamp(view["tx"], view["width"] - x1, -x0)
+        ),
+        "ty": (
+            (view["height"] - y0 - y1) / 2
+            if y1 - y0 <= view["height"]
+            else clamp(view["ty"], view["height"] - y1, -y0)
+        ),
     }
 
 
@@ -133,6 +151,9 @@ def create_view(
     content_height: float,
     min_zoom: float = 1,
     max_zoom: float = 16,
+    *,
+    rotation: float = 0,
+    pan_bounds: str = "content",
 ) -> View:
     values = {
         "width": width,
@@ -146,33 +167,53 @@ def create_view(
         positive(value, key)
     if min_zoom > 1 or max_zoom < 1:
         raise ValueError("Zoom limits must include original fit (1)")
-    return constrain({**values, "scale": fit_scale(values), "tx": 0, "ty": 0})
+    finite(rotation, "rotation")
+    values.update(rotation=rotation, panBounds=pan_bounds)
+    scale = fit_scale(values)
+    a, b, c, d = view_matrix({**values, "scale": scale, "tx": 0, "ty": 0})[:4]
+    return constrain(
+        {
+            **values,
+            "scale": scale,
+            "tx": width / 2 - (a * content_width + c * content_height) / 2,
+            "ty": height / 2 - (b * content_width + d * content_height) / 2,
+        }
+    )
 
 
-def reset_view(view: Mapping[str, float]) -> View:
-    return constrain({**view, "scale": fit_scale(view), "tx": 0, "ty": 0})
+def reset_view(view: Mapping[str, Any]) -> View:
+    scale = fit_scale(view)
+    return constrain(
+        {
+            **view,
+            "rotation": 0,
+            "scale": scale,
+            "tx": (view["width"] - view["contentWidth"] * scale) / 2,
+            "ty": (view["height"] - view["contentHeight"] * scale) / 2,
+        }
+    )
 
 
-def content_to_viewport(view: Mapping[str, float], p: Mapping[str, float]) -> Point:
+def content_to_viewport(view: Mapping[str, Any], p: Mapping[str, float]) -> Point:
     point(p)
     return apply_affine(view_matrix(view), p)
 
 
-def viewport_to_content(view: Mapping[str, float], p: Mapping[str, float]) -> Point:
+def viewport_to_content(view: Mapping[str, Any], p: Mapping[str, float]) -> Point:
     point(p)
-    return {
-        "x": (p["x"] - view["tx"]) / view["scale"],
-        "y": (p["y"] - view["ty"]) / view["scale"],
-    }
+    return apply_affine(invert_affine(view_matrix(view)), p)
 
 
-def zoom_at(
-    view: Mapping[str, float],
+def transform_at(
+    view: Mapping[str, Any],
     factor: float,
+    radians: float,
     anchor: Mapping[str, float],
     destination: Mapping[str, float] | None = None,
 ) -> View:
+    """Clockwise radians, combined with zoom and movement before bounding once."""
     positive(factor, "zoom factor")
+    finite(radians, "rotation delta")
     destination = anchor if destination is None else destination
     point(destination)
     p = viewport_to_content(view, anchor)
@@ -181,24 +222,44 @@ def zoom_at(
         fit_scale(view) * view["minZoom"],
         fit_scale(view) * view["maxZoom"],
     )
+    rotation = angle_delta(view.get("rotation", 0) + radians)
+    result = {**view, "scale": scale, "rotation": rotation, "tx": 0, "ty": 0}
+    offset = content_to_viewport(result, p)
     return constrain(
         {
-            **view,
-            "scale": scale,
-            "tx": destination["x"] - p["x"] * scale,
-            "ty": destination["y"] - p["y"] * scale,
+            **result,
+            "tx": destination["x"] - offset["x"],
+            "ty": destination["y"] - offset["y"],
         }
     )
 
 
-def pan_by(view: Mapping[str, float], dx: float, dy: float) -> View:
+def zoom_at(
+    view: Mapping[str, Any],
+    factor: float,
+    anchor: Mapping[str, float],
+    destination: Mapping[str, float] | None = None,
+) -> View:
+    return transform_at(view, factor, 0, anchor, destination)
+
+
+def rotate_at(
+    view: Mapping[str, Any], radians: float, anchor: Mapping[str, float] | None = None
+) -> View:
+    anchor = (
+        {"x": view["width"] / 2, "y": view["height"] / 2} if anchor is None else anchor
+    )
+    return transform_at(view, 1, radians, anchor)
+
+
+def pan_by(view: Mapping[str, Any], dx: float, dy: float) -> View:
     finite(dx, "dx")
     finite(dy, "dy")
     return constrain({**view, "tx": view["tx"] + dx, "ty": view["ty"] + dy})
 
 
 def zoom_to_box(
-    view: Mapping[str, float],
+    view: Mapping[str, Any],
     start: Mapping[str, float],
     end: Mapping[str, float],
     minimum_size: float = 6,
@@ -218,7 +279,7 @@ def zoom_to_box(
     )
 
 
-def resize_view(view: Mapping[str, float], width: float, height: float) -> View:
+def resize_view(view: Mapping[str, Any], width: float, height: float) -> View:
     positive(width, "width")
     positive(height, "height")
     center = viewport_to_content(
@@ -226,12 +287,13 @@ def resize_view(view: Mapping[str, float], width: float, height: float) -> View:
     )
     result = {**view, "width": width, "height": height}
     scale = fit_scale(result) * zoom_level(view)
+    offset = content_to_viewport({**result, "scale": scale, "tx": 0, "ty": 0}, center)
     return constrain(
         {
             **result,
             "scale": scale,
-            "tx": width / 2 - center["x"] * scale,
-            "ty": height / 2 - center["y"] * scale,
+            "tx": width / 2 - offset["x"],
+            "ty": height / 2 - offset["y"],
         }
     )
 

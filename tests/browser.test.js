@@ -173,3 +173,142 @@ test("browser adapter scales client coordinates, owns capture, cancels on lifecy
     globalThis.document = oldDocument;
   }
 });
+
+import { createGazeSurface } from "../dist/browser.js";
+test("DOM content helper renders and records identical transforms, handles resize/hidden state, and restores ownership", () => {
+  const viewport = new SurfaceElement(),
+    content = {
+      style: { transform: "original", position: "relative" },
+      parentElement: viewport,
+    };
+  const doc = new EventTarget(),
+    win = new EventTarget(),
+    callbacks = new Map();
+  let time = 0,
+    id = 0;
+  Object.assign(win, {
+    performance: { now: () => time },
+    getComputedStyle: () => ({
+      position: "static",
+      paddingLeft: "0px",
+      paddingRight: "0px",
+      paddingTop: "0px",
+      paddingBottom: "0px",
+    }),
+    requestAnimationFrame: (cb) => {
+      callbacks.set(++id, cb);
+      return id;
+    },
+    cancelAnimationFrame: (key) => callbacks.delete(key),
+  });
+  Object.assign(doc, { defaultView: win, hidden: false });
+  Object.assign(viewport, {
+    ownerDocument: doc,
+    clientWidth: 400,
+    clientHeight: 600,
+  });
+  const app = createGazeSurface(viewport, content, {
+    contentWidth: 800,
+    contentHeight: 1200,
+    contentId: "text",
+  });
+  assert.equal(content.style.transform, "matrix(0.5,0,0,0.5,0,0)");
+  const step = (t) => {
+    time = t;
+    const [key, cb] = callbacks.entries().next().value;
+    callbacks.delete(key);
+    cb();
+  };
+  app.controller.rotate(Math.PI / 2, 2);
+  app.controller.move(20, 30, 3);
+  step(16);
+  const frame = app.session.frames.at(-1);
+  assert.equal(content.style.transform, `matrix(${frame.matrix.join(",")})`);
+  assert.equal(frame.view.rotation, Math.PI / 2);
+  assert.ok(frame.causeIds.length >= 2);
+  app.pushGaze(
+    {
+      id: "g1",
+      sourceId: "tracker",
+      eye: "left",
+      clockId: "session",
+      clockEpoch: "0",
+      timeMs: 20,
+      ...app.captureContext,
+      confidence: 1,
+      valid: true,
+      type: "pog2d",
+      space: "viewport",
+      point: { x: 220, y: 330 },
+    },
+    50,
+  );
+  step(100);
+  const row = app.session.aligned[0];
+  assert.equal(row.usable, true);
+  assert.ok(
+    Math.abs(row.contentPoint.x - 400) < 1e-8 &&
+      Math.abs(row.contentPoint.y - 600) < 1e-8,
+  );
+  viewport.clientWidth = 600;
+  step(120);
+  assert.equal(app.captureContext.surfaceEpoch, "2");
+  time = 130;
+  doc.hidden = true;
+  doc.dispatchEvent(new Event("visibilitychange"));
+  assert.equal(app.session.frames.at(-1).surface.active, false);
+  assert.equal(app.session.frames.at(-1).t, 130);
+  doc.hidden = false;
+  doc.dispatchEvent(new Event("visibilitychange"));
+  assert.equal(app.session.frames.at(-1).surface.active, false); // No foreground presentation before rendering.
+  step(150);
+  assert.equal(app.session.frames.at(-1).surface.active, true);
+  app.dispose();
+  assert.equal(callbacks.size, 0);
+  assert.equal(content.style.transform, "original");
+  assert.equal(viewport.style.touchAction, "pan-y");
+  assert.throws(() => app.pushGaze({}), /disposed/);
+  app.dispose();
+});
+
+test("browser coordinates exclude borders, including when the frame is CSS-scaled", () => {
+  const viewport = new SurfaceElement(),
+    doc = new EventTarget(),
+    win = new EventTarget();
+  Object.assign(doc, { defaultView: win });
+  Object.assign(viewport, {
+    ownerDocument: doc,
+    clientWidth: 400,
+    clientHeight: 600,
+    offsetWidth: 420,
+    offsetHeight: 620,
+    clientLeft: 10,
+    clientTop: 10,
+    getBoundingClientRect: () => ({
+      left: 40,
+      top: 60,
+      width: 210,
+      height: 310,
+    }),
+  });
+  const controller = new ZoomController(
+    createView({
+      width: 400,
+      height: 600,
+      contentWidth: 800,
+      contentHeight: 1200,
+      panBounds: "none",
+    }),
+  );
+  const adapter = attachBrowserControls(viewport, controller);
+  dispatch(viewport, "pointerdown", {
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+    clientX: 145,
+    clientY: 215,
+  });
+  assert.equal(controller.pointers.get(1).x, 200);
+  assert.equal(controller.pointers.get(1).y, 300);
+  adapter.dispose();
+});

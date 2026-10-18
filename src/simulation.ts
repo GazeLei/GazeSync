@@ -216,6 +216,8 @@ function buildActions(device: Device): Action[] {
     pointer(4900, "pointerMove", 3, 700, 520);
     add(4950, "key", { key: "Escape" });
     add(5500, "key", { key: "0", ctrlKey: true });
+    add(5750, "key", { key: "]" });
+    add(5950, "key", { key: "]" });
     add(6200, "wheel", { x: 500, y: 300, deltaY: -4, deltaMode: 1 });
     add(6900, "resize", { width: 900, height: 600 });
     add(8400, "key", { key: "Home" });
@@ -253,6 +255,29 @@ function buildActions(device: Device): Action[] {
     pointer(5200, "pointerMove", 2, 350, 450);
     add(5300, "cancel", { reason: "pointer-cancel" });
     add(6100, "resize", { width: 700, height: 390 });
+    // Twist the content within the landscape viewport; the physical plane is unchanged.
+    pointer(6300, "pointerDown", 4, 290, 195);
+    pointer(6310, "pointerDown", 5, 410, 195);
+    for (let t = 6330; t <= 6800; t += 20) {
+      const u = ease((t - 6330) / 470),
+        angle = (u * Math.PI) / 3;
+      pointer(
+        t,
+        "pointerMove",
+        4,
+        350 - 60 * Math.cos(angle),
+        195 - 60 * Math.sin(angle),
+      );
+      pointer(
+        t + 1,
+        "pointerMove",
+        5,
+        350 + 60 * Math.cos(angle),
+        195 + 60 * Math.sin(angle),
+      );
+    }
+    pointer(6850, "pointerUp", 5, 380, 195 + 30 * Math.sqrt(3));
+    pointer(6860, "pointerUp", 4, 320, 195 - 30 * Math.sqrt(3));
     add(7300, "cancel", { reason: "background" });
     add(8500, "reset");
   }
@@ -296,6 +321,7 @@ export function buildScenario(
       height: device === "mobile" ? 700 : 680,
       contentWidth: 1600,
       contentHeight: 1100,
+      panBounds: "none",
     }),
     { onInput: (e) => inputs.push(e) },
   );
@@ -517,8 +543,14 @@ export function buildScenario(
         frameTimeMs: f.t,
         epoch: f.surface.epoch,
         content: {
-          x: (noisy.x - f.view.tx) / f.view.scale,
-          y: (noisy.y - f.view.ty) / f.view.scale,
+          x:
+            (Math.cos(f.view.rotation ?? 0) * (noisy.x - f.view.tx) +
+              Math.sin(f.view.rotation ?? 0) * (noisy.y - f.view.ty)) /
+            f.view.scale,
+          y:
+            (-Math.sin(f.view.rotation ?? 0) * (noisy.x - f.view.tx) +
+              Math.cos(f.view.rotation ?? 0) * (noisy.y - f.view.ty)) /
+            f.view.scale,
         },
         behavior: phase.mode,
       });
@@ -622,8 +654,14 @@ export function runScenario(device: Device, options: SimulationOptions = {}) {
     );
     const current = at(scenario.frames, a.receivedTimeMs).view;
     const wrong = {
-      x: (target.noisy.x - current.tx) / current.scale,
-      y: (target.noisy.y - current.ty) / current.scale,
+      x:
+        (Math.cos(current.rotation ?? 0) * (target.noisy.x - current.tx) +
+          Math.sin(current.rotation ?? 0) * (target.noisy.y - current.ty)) /
+        current.scale,
+      y:
+        (-Math.sin(current.rotation ?? 0) * (target.noisy.x - current.tx) +
+          Math.cos(current.rotation ?? 0) * (target.noisy.y - current.ty)) /
+        current.scale,
     };
     naiveErrors.push(
       Math.hypot(wrong.x - target.content.x, wrong.y - target.content.y) *

@@ -1,6 +1,6 @@
 # Synchronization and coordinate contract
 
-Version 0.4.1 emits schema 2.1. Both implementations accept the same JSON records;
+Version 0.5.0 emits schema 2.1. Both implementations accept the same JSON records;
 Python uses snake_case method names but preserves camelCase wire fields.
 
 ## Time and presentation
@@ -103,3 +103,13 @@ layout now requires that explicit choice. The hit's metric frame is available as
 change their version fields to force replay. An old ambiguous plane extent needs
 a documented interpretation from the original setup before any migration, with
 the original recording retained. The original 0.3.0 code is commit `3afc151`.
+
+
+## Content transforms in 0.5.0
+
+A view may carry `rotation` in clockwise radians and `panBounds` (`content` or
+`none`). Missing fields mean zero rotation and bounded movement. The recorded
+six-coefficient `matrix` remains authoritative, so schema 2.1 is unchanged.
+Exact replay checks implementation version; use 0.4.1 for its original recordings.
+Each rotated/moved presentation is a new state in the existing timeline. It does
+not alter the metric screen-plane pose or independently move children of a group.

@@ -43,12 +43,16 @@ export interface View {
   scale: number;
   tx: number;
   ty: number;
+  /** Clockwise radians in the y-down viewport. Missing means zero (legacy views). */
+  rotation?: number;
+  /** content: clamp the rotated bounding box; none: freely position content. */
+  panBounds?: "content" | "none";
 }
 export type ViewOptions = Pick<
   View,
   "width" | "height" | "contentWidth" | "contentHeight"
 > &
-  Partial<Pick<View, "minZoom" | "maxZoom">>;
+  Partial<Pick<View, "minZoom" | "maxZoom" | "rotation" | "panBounds">>;
 export interface Plane {
   frameId: string;
   topLeft: Vector3;
@@ -271,6 +275,7 @@ export interface ControllerOptions {
   doubleTapMs?: number;
   doubleTapDistance?: number;
   inputPrefix?: string;
+  enableRotation?: boolean;
 }
 export interface PointerState extends Point {
   id: number | string;
@@ -283,7 +288,24 @@ export interface PointerState extends Point {
   pinched: boolean;
 }
 export type Gesture =
-  | { type: "pinch"; base: View; start: Point; distance: number }
+  | {
+      type: "pinch";
+      base: View;
+      start: Point;
+      distance: number;
+      angle: number;
+      rotation: number;
+      suspended: boolean;
+    }
+  | {
+      type: "rotate";
+      base: View;
+      start: Point;
+      anchor: Point;
+      angle: number;
+      rotation: number;
+      suspended: boolean;
+    }
   | { type: "pan" | "box"; base: View; start: Point };
 export type RayProjection =
   | { reason: string; point?: never; hit?: never; distanceMeters?: never }

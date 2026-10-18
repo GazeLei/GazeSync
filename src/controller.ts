@@ -8,6 +8,9 @@ import type {
   View,
 } from "./types.js";
 import {
+  angleDelta,
+  rotateAt,
+  transformAt,
   clamp,
   constrain,
   createView,
@@ -26,6 +29,7 @@ const middle = (a: Point, b: Point): Point => ({
   x: (a.x + b.x) / 2,
   y: (a.y + b.y) / 2,
 });
+const angle = (a: Point, b: Point) => Math.atan2(b.y - a.y, b.x - a.x);
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
 /** Platform-neutral gesture state machine. No gaze is used as a gesture or hidden control. */
@@ -35,7 +39,8 @@ export class ZoomController {
   dragThreshold: number;
   doubleTapMs: number;
   doubleTapDistance: number;
-  mode: "pan" | "box" = "pan";
+  mode: "pan" | "box" | "rotate" = "pan";
+  enableRotation: boolean;
   pointers = new Map<number | string, PointerState>();
   selection: { start: Point; end: Point } | null = null;
   gesture: Gesture | null = null;
@@ -50,8 +55,12 @@ export class ZoomController {
       doubleTapMs = 320,
       doubleTapDistance = 24,
       inputPrefix = "input",
+      enableRotation = true,
     }: ControllerOptions = {},
   ) {
+    if (typeof enableRotation !== "boolean")
+      throw new TypeError("enableRotation must be boolean");
+    this.enableRotation = enableRotation;
     positive(dragThreshold, "dragThreshold");
     positive(doubleTapMs, "doubleTapMs");
     positive(doubleTapDistance, "doubleTapDistance");
@@ -86,10 +95,46 @@ export class ZoomController {
     return event;
   }
 
-  setMode(mode: "pan" | "box") {
-    if (!["pan", "box"].includes(mode))
-      throw new TypeError("Mode must be pan or box");
+  setMode(mode: "pan" | "box" | "rotate") {
+    if (!["pan", "box", "rotate"].includes(mode))
+      throw new TypeError("Mode must be pan, box or rotate");
+    if (mode === "rotate" && !this.enableRotation)
+      throw new Error("Rotation is disabled");
     this.mode = mode;
+    this.lastTap = null;
+    this.rebase();
+  }
+
+  /** Switch containment without losing the recording of the change. */
+  setPanBounds(panBounds: "content" | "none", t: number) {
+    finite(t, "input time");
+    const next = constrain({ ...this.view, panBounds });
+    this.cancel(t, "bounds-change");
+    this.view = next;
+    this.emit("pan-bounds", t, { panBounds });
+  }
+
+  /** Move content in viewport logical pixels, independent of zoom and rotation. */
+  move(dx: number, dy: number, t: number) {
+    finite(t, "input time");
+    const next = panBy(this.view, dx, dy);
+    this.cancel(t, "move-interrupt");
+    this.view = next;
+    this.emit("move", t, { dx, dy });
+  }
+
+  /** Positive radians rotate clockwise around a viewport anchor. */
+  rotate(
+    radians: number,
+    t: number,
+    anchor = { x: this.view.width / 2, y: this.view.height / 2 },
+  ) {
+    finite(t, "input time");
+    if (!this.enableRotation) throw new Error("Rotation is disabled");
+    const next = rotateAt(this.view, radians, anchor);
+    this.cancel(t, "rotate-interrupt");
+    this.view = next;
+    this.emit("rotate", t, { radians, anchor });
   }
 
   wheel({
@@ -151,9 +196,30 @@ export class ZoomController {
         base: { ...this.view },
         start: middle(pointers[0], pointers[1]),
         distance: Math.max(distance(pointers[0], pointers[1]), 1),
+        angle: angle(pointers[0], pointers[1]),
+        rotation: 0,
+        suspended: distance(pointers[0], pointers[1]) < this.dragThreshold,
       };
     } else if (pointers.length === 1) {
       const p = pointers[0];
+      if (
+        this.mode === "rotate" &&
+        p.type !== "touch" &&
+        p.button !== 1 &&
+        !p.shiftKey
+      ) {
+        const anchor = { x: this.view.width / 2, y: this.view.height / 2 };
+        this.gesture = {
+          type: "rotate",
+          base: { ...this.view },
+          start: { x: p.x, y: p.y },
+          anchor,
+          angle: angle(anchor, p),
+          rotation: 0,
+          suspended: distance(anchor, p) < this.dragThreshold,
+        };
+        return;
+      }
       this.gesture = {
         type:
           p.type === "mouse" &&
@@ -219,12 +285,31 @@ export class ZoomController {
     const g = this.gesture!;
     const pointers = [...this.pointers.values()];
     if (g.type === "pinch") {
-      this.view = zoomAt(
-        g.base,
-        Math.max(distance(pointers[0], pointers[1]), 1) / g.distance,
-        g.start,
-        middle(pointers[0], pointers[1]),
-      );
+      const span = distance(pointers[0], pointers[1]);
+      if (span < this.dragThreshold) g.suspended = true;
+      else if (g.suspended)
+        this.rebase(); // Coincident fingers have no meaningful angle.
+      else {
+        const nextAngle = angle(pointers[0], pointers[1]);
+        g.rotation += angleDelta(nextAngle - g.angle);
+        g.angle = nextAngle;
+        this.view = transformAt(
+          g.base,
+          span / g.distance,
+          this.enableRotation ? g.rotation : 0,
+          g.start,
+          middle(pointers[0], pointers[1]),
+        );
+      }
+    } else if (g.type === "rotate") {
+      if (distance(g.anchor, p) < this.dragThreshold) g.suspended = true;
+      else if (g.suspended) this.rebase();
+      else if (p.moved) {
+        const nextAngle = angle(g.anchor, p);
+        g.rotation += angleDelta(nextAngle - g.angle);
+        g.angle = nextAngle;
+        this.view = rotateAt(g.base, g.rotation, g.anchor);
+      }
     } else if (p.moved || p.pinched) {
       if (g.type === "box")
         this.selection = { start: { ...g.start }, end: { x, y } };
@@ -315,13 +400,20 @@ export class ZoomController {
     } else if (key === "+" || key === "=") this.zoom(1.25, t);
     else if (key === "-") this.zoom(0.8, t);
     else if (
+      (key === "[" || key === "]") &&
+      this.enableRotation &&
+      !ctrlKey &&
+      !metaKey
+    )
+      this.rotate(((key === "[" ? -1 : 1) * Math.PI) / 12, t);
+    else if (
       ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)
     ) {
       if (this.pointers.size) this.cancel(t, "key-interrupt");
       this.view = panBy(
         this.view,
-        key === "ArrowLeft" ? 48 : key === "ArrowRight" ? -48 : 0,
-        key === "ArrowUp" ? 48 : key === "ArrowDown" ? -48 : 0,
+        key === "ArrowLeft" ? -48 : key === "ArrowRight" ? 48 : 0,
+        key === "ArrowUp" ? -48 : key === "ArrowDown" ? 48 : 0,
       );
       this.emit("key-pan", t, { key });
     } else return false;

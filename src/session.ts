@@ -136,6 +136,12 @@ function validateSurface(s: Surface, view: View) {
     if (s.plane.static !== true)
       finite(s.poseTimeMs!, "dynamic plane poseTimeMs");
   }
+  if (view.rotation !== undefined) finite(view.rotation, "view.rotation");
+  if (
+    view.panBounds !== undefined &&
+    !["content", "none"].includes(view.panBounds)
+  )
+    throw new TypeError("panBounds must be content or none");
   for (const k of ["width", "height", "contentWidth", "contentHeight"] as const)
     positive(view[k], k);
 }

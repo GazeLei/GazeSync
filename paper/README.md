@@ -64,7 +64,7 @@ physical-device certification. Public registry publication remains disabled.
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical
 (860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.4.1 uses schema 2.1; earlier recordings need their original code.
+Implementation 0.5.0 uses schema 2.1; earlier recordings need their original code.
 
 Manuscript and generated figure publication rights are reserved pending author
 approval (root NOTICE). The supplied original LaTeX archive is not redistributed
@@ -116,3 +116,14 @@ explicitly cited as an arXiv preprint. The discussion separates estimator and
 calibration quality, temporal association and coordinate reconstruction, and
 clarifies the denominator of reconstruction residuals. No new experiment or
 hardware-validation result is claimed by these citations.
+
+
+## Content manipulation revision - 18 October 2026
+
+Implementation 0.5.0 adds content rotation, free/bounded movement, combined touch
+transforms and the `createGazeSurface` convenience API. The spatial section derives
+the top-left-origin similarity matrix and anchored update, distinguishes physical
+screen pose from content rotation, and documents clipping and stable-layout limits.
+Eight additional synthetic cases are stored in `data/interaction-validation.json`;
+they supplement the established 78-case data and do not constitute a usability or
+physical-device study. The runnable image/text example is in `examples/`.

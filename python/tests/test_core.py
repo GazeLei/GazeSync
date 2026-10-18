@@ -242,3 +242,94 @@ def test_source_registration_ignores_object_key_order_but_preserves_rates():
     assert s.register_source(reordered) == source
     with pytest.raises(ValueError, match="immutable"):
         s.register_source({**source, "eyeRatesHz": {"left": 120, "right": 120}})
+
+
+def test_content_rotation_movement_and_combined_touch():
+    from gazesync import (
+        InteractionController,
+        rotate_at,
+        pan_by,
+        content_to_viewport,
+        viewport_to_content,
+        resize_view,
+        reset_view,
+    )
+
+    base = create_view(800, 600, 400, 200, pan_bounds="none")
+    rotated = rotate_at(base, math.pi / 2)
+    assert content_to_viewport(rotated, {"x": 300, "y": 100}) == pytest.approx(
+        {"x": 400, "y": 500}
+    )
+    moved = pan_by(rotated, -30, 50)
+    assert viewport_to_content(moved, {"x": 370, "y": 550}) == pytest.approx(
+        {"x": 300, "y": 100}
+    )
+    resized = resize_view(moved, 1200, 800)
+    assert viewport_to_content(resized, {"x": 600, "y": 400}) == pytest.approx(
+        viewport_to_content(moved, {"x": 400, "y": 300})
+    )
+    assert reset_view(resized) == create_view(1200, 800, 400, 200, pan_bounds="none")
+    c = InteractionController(base)
+    c.pointer_down(id=1, x=350, y=300, t=0, pointer_type="touch")
+    c.pointer_down(id=2, x=450, y=300, t=1, pointer_type="touch")
+    c.pointer_move(id=1, x=420, y=230, t=2)
+    c.pointer_move(id=2, x=420, y=430, t=3)
+    assert c.view["rotation"] == pytest.approx(math.pi / 2)
+    assert c.view["scale"] == pytest.approx(4)
+    assert content_to_viewport(c.view, {"x": 200, "y": 100}) == pytest.approx(
+        {"x": 420, "y": 330}
+    )
+    c.pointer_up(id=2, x=420, y=430, t=4)
+    previous = dict(c.view)
+    c.pointer_move(id=1, x=430, y=240, t=5)
+    assert c.view["tx"] == pytest.approx(previous["tx"] + 10)
+    assert c.view["ty"] == pytest.approx(previous["ty"] + 10)
+    c.rotate(0.2, 6)
+    assert not c.pointers
+    previous = dict(c.view)
+    with pytest.raises(ValueError):
+        c.rotate(math.inf, 7)
+    assert c.view == previous
+    c.key("Home", 8)
+    assert c.view == base
+
+
+def test_degenerate_twist_and_disabled_rotation():
+    c = ZoomController(create_view(800, 600, 400, 200, pan_bounds="none"))
+    c.pointer_down(id=1, x=400, y=300, t=0, pointer_type="touch")
+    c.pointer_down(id=2, x=400, y=300, t=1, pointer_type="touch")
+    previous = dict(c.view)
+    c.pointer_move(id=2, x=440, y=300, t=2)
+    assert c.view == previous
+    c.pointer_move(id=2, x=450, y=300, t=3)
+    assert c.view["scale"] == pytest.approx(2.5)
+    fixed = ZoomController(c.view, enable_rotation=False)
+    assert not fixed.key("]", 4)
+    with pytest.raises(ValueError):
+        fixed.set_mode("rotate")
+
+
+@pytest.mark.parametrize("size", [(390, 844), (1920, 1080)])
+@pytest.mark.parametrize(
+    "mode",
+    ["monocular-left", "monocular-right", "binocular-independent", "binocular-fused"],
+)
+def test_native_rotating_content_multirate_simulation(size, mode):
+    e = generate_experiment(
+        dict(
+            width=size[0],
+            height=size[1],
+            displayHz=90,
+            inputHz=125,
+            gazeHz=600,
+            rightGazeHz=120,
+            mode=mode,
+            contentMotion=True,
+            rotateMidway=True,
+            independentClocks=mode == "binocular-independent",
+        )
+    )
+    r = summarize_experiment(e, execute_experiment(e))
+    assert r["frameMismatches"] == 0 and r["replayExact"]
+    assert r["mappedSamples"] > 0 and r["maxReconstructionErrorPx"] < 1e-8
+    assert r["samples"] == r["expectedSamples"]

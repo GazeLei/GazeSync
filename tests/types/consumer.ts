@@ -96,3 +96,32 @@ const cameraPlane = transformPlane(registered.plane!, worldToCamera);
 // @ts-expect-error a rigid rotation needs nine row-major coefficients
 const badTransform: RigidTransform = { ...worldToCamera, rotation: [1, 0, 0] };
 void [worldRay, cameraPlane, badTransform];
+
+// The convenience DOM API and rotation helpers remain accessible through public exports.
+import { InteractionController, rotateAt, transformAt } from "gazesync";
+import { createGazeSurface } from "gazesync/browser";
+const interactionView = createView({
+  width: 800,
+  height: 600,
+  contentWidth: 720,
+  contentHeight: 600,
+  panBounds: "none",
+});
+const interaction = new InteractionController(interactionView);
+interaction.rotate(Math.PI / 4, 0);
+interaction.move(10, 20, 1);
+interaction.setPanBounds("content", 2);
+interaction.setMode("rotate");
+rotateAt(interactionView, 0.2);
+transformAt(interactionView, 2, 0.1, { x: 400, y: 300 });
+const surfaceHelper = createGazeSurface(
+  document.createElement("div"),
+  document.createElement("div"),
+  {
+    contentWidth: 720,
+    contentHeight: 600,
+    enableRotation: true,
+    onAligned: (rows) => rows.forEach((row) => row.contentPoint?.x),
+  },
+);
+surfaceHelper.captureContext.surfaceEpoch;

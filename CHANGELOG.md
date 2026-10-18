@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 - 2026-10-18 (development, not published)
+
+- Add anchored clockwise content rotation and combined pinch/twist/midpoint transforms in Python and TypeScript.
+- Add free movement at fit, rotated bounding boxes, rotation drag/shortcuts, and stable contact rebasing. Arrow keys now move content in the named direction.
+- Add the InteractionController alias and explicit move/rotate methods; legacy views default to zero rotation.
+- Add createGazeSurface for image/text/DOM layers with rendered-state recording, lifecycle handling and cleanup; supply a runnable content example.
+- Correct browser input offsets for bordered, axis-aligned scaled frames.
+- Expand synthetic coverage with eight content-motion cases; preserve the established 78-case baseline separately.
+- Retain schema 2.1 (affine matrices already carry rotation) and disabled publication. Exact replay still requires the recorded implementation version.
+
 ## 0.4.0 - 2026-10-15 (development, not published)
 
 - Audit camera/eye/display/viewport origins; add named proper rigid-transform helpers in both languages.

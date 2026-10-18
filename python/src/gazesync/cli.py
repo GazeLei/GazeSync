@@ -44,6 +44,11 @@ def main():
         ],
         default="binocular-independent",
     )
+    p.add_argument(
+        "--content-motion",
+        action="store_true",
+        help="simulate simultaneous content rotation and free movement",
+    )
     p.add_argument("--duration-ms", type=float, default=800)
     p.add_argument("--output")
     args = parser.parse_args()
@@ -92,9 +97,11 @@ def main():
                         "name": case["name"],
                         "source": adapter.source,
                         "results": [
-                            adapter.adapt_surface(p)
-                            if case.get("method") == "surface"
-                            else adapter.adapt(p)
+                            (
+                                adapter.adapt_surface(p)
+                                if case.get("method") == "surface"
+                                else adapter.adapt(p)
+                            )
                             for p in case["packets"]
                         ],
                     }
@@ -108,6 +115,7 @@ def main():
                 "gazeHz": args.gaze_hz,
                 "mode": args.mode,
                 "durationMs": args.duration_ms,
+                "contentMotion": args.content_motion,
             }
             if args.right_gaze_hz is not None:
                 config["rightGazeHz"] = args.right_gaze_hz

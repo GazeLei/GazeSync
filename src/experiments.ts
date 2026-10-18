@@ -37,6 +37,7 @@ export interface ExperimentConfig {
   noisePx?: number;
   seed?: number;
   rotateMidway?: boolean;
+  contentMotion?: boolean;
   independentClocks?: boolean;
 }
 export type ExperimentEvent = { time: number; order: number } & (
@@ -73,6 +74,7 @@ export interface ExperimentSummary {
   durationMs: number;
   seed: number;
   rotateMidway: boolean;
+  contentMotion: boolean;
   independentClocks: boolean;
   samples: number;
   expectedSamples: number;
@@ -111,6 +113,7 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
     noisePx: 0.35,
     seed: 41,
     rotateMidway: false,
+    contentMotion: false,
     independentClocks: false,
     name: "experiment",
     ...options,
@@ -132,6 +135,13 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
           options.width
         : options.physicalHeightMeters,
   };
+  for (const key of [
+    "rotateMidway",
+    "contentMotion",
+    "independentClocks",
+  ] as const)
+    if (typeof c[key] !== "boolean")
+      throw new TypeError(`${key} must be boolean`);
   for (const key of [
     "width",
     "height",
@@ -240,12 +250,30 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
         contentHeight: 1100,
       });
     const scale = base.scale * (1 + 0.8 * Math.sin(Math.PI * u) ** 2);
-    const view = constrain({
+    let view = constrain({
       ...base,
       scale,
       tx: width / 2 - 800 * scale + width * 0.08 * Math.sin(u * 2 * Math.PI),
       ty: height / 2 - 550 * scale + height * 0.05 * Math.sin(u * 4 * Math.PI),
     });
+    if (c.contentMotion) {
+      const rotation = 0.8 * Math.sin(u * 2 * Math.PI),
+        cs = Math.cos(rotation),
+        sn = Math.sin(rotation);
+      view = {
+        ...view,
+        rotation,
+        panBounds: "none",
+        tx:
+          width / 2 -
+          scale * (800 * cs - 550 * sn) +
+          width * 0.12 * Math.sin(u * 2 * Math.PI),
+        ty:
+          height / 2 -
+          scale * (800 * sn + 550 * cs) +
+          height * 0.1 * Math.sin(u * 4 * Math.PI),
+      };
+    }
     const causeIds: string[] = [];
     while (usedInputs < inputs.length && inputs[usedInputs].t <= t)
       causeIds.push(inputs[usedInputs++].id);
@@ -303,8 +331,18 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
           y: 550 + 30 * Math.cos(t / 210),
         };
       const p = {
-        x: content.x * v.scale + v.tx + (random() - 0.5) * 2 * c.noisePx,
-        y: content.y * v.scale + v.ty + (random() - 0.5) * 2 * c.noisePx,
+        x:
+          (content.x * Math.cos(v.rotation ?? 0) -
+            content.y * Math.sin(v.rotation ?? 0)) *
+            v.scale +
+          v.tx +
+          (random() - 0.5) * 2 * c.noisePx,
+        y:
+          (content.x * Math.sin(v.rotation ?? 0) +
+            content.y * Math.cos(v.rotation ?? 0)) *
+            v.scale +
+          v.ty +
+          (random() - 0.5) * 2 * c.noisePx,
       };
       const origin: [number, number, number] = [
         eye === "left" ? -0.032 : eye === "right" ? 0.032 : 0,
@@ -358,7 +396,16 @@ export function generateExperiment(options: ExperimentConfig): Experiment {
         });
         truth[sampleKey(sample)] = {
           frameTimeMs: frame.t,
-          content: { x: (p.x - v.tx) / v.scale, y: (p.y - v.ty) / v.scale },
+          content: {
+            x:
+              (Math.cos(v.rotation ?? 0) * (p.x - v.tx) +
+                Math.sin(v.rotation ?? 0) * (p.y - v.ty)) /
+              v.scale,
+            y:
+              (-Math.sin(v.rotation ?? 0) * (p.x - v.tx) +
+                Math.cos(v.rotation ?? 0) * (p.y - v.ty)) /
+              v.scale,
+          },
           viewport: p,
           scale: v.scale,
         };
@@ -421,8 +468,16 @@ export function summarizeExperiment(
     const current = lastAt(frames, a.receivedTimeMs).view;
     arrivalErrors.push(
       Math.hypot(
-        (expected.viewport.x - current.tx) / current.scale - expected.content.x,
-        (expected.viewport.y - current.ty) / current.scale - expected.content.y,
+        (Math.cos(current.rotation ?? 0) * (expected.viewport.x - current.tx) +
+          Math.sin(current.rotation ?? 0) *
+            (expected.viewport.y - current.ty)) /
+          current.scale -
+          expected.content.x,
+        (-Math.sin(current.rotation ?? 0) * (expected.viewport.x - current.tx) +
+          Math.cos(current.rotation ?? 0) *
+            (expected.viewport.y - current.ty)) /
+          current.scale -
+          expected.content.y,
       ) * expected.scale,
     );
   }
@@ -445,6 +500,7 @@ export function summarizeExperiment(
     durationMs: c.durationMs,
     seed: c.seed,
     rotateMidway: c.rotateMidway,
+    contentMotion: c.contentMotion,
     independentClocks: c.independentClocks,
     samples: session.aligned.length,
     expectedSamples: Object.keys(experiment.truth).length,

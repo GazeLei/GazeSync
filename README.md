@@ -1,20 +1,21 @@
 # GazeSync
 
 Synchronize eye-tracking measurements with the screen state a person was viewing
-while zooming, panning or selecting content. The Python and TypeScript packages
+while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.4.1 · schema 2.1 · GPL-3.0-only.** This repository is
+**Development release 0.5.0 · schema 2.1 · GPL-3.0-only.** This repository is
 currently private. Neither package has been published to a public registry.
 
 ## What is implemented
 
 - Desktop wheel zoom at the pointer, drag to pan, Shift-drag to zoom a box,
-  keyboard zoom/reset/cancel; mobile pinch with a moving midpoint, pan,
+  keyboard move/rotate/zoom/reset/cancel; mobile pinch and twist with a moving midpoint, pan,
   pinch-to-pan transitions, double tap and contact cancellation.
 - Arbitrary positive viewport dimensions, logical pixels and explicit device
   pixel ratio; independent input, presentation and gaze cadences. No 60 Hz or
-  equal-eye-rate assumption. Host-provided affine matrices support rotation.
+  equal-eye-rate assumption. Built-in anchored rotation, combined touch transforms,
+  and free or bounded content movement.
 - 2D PoG, 3D eye-origin rays and retained direction-only measurements; independent
   left/right, monocular, explicitly combined and unknown-eye records.
 - Source-clock conversion with immutable epochs, presentation history per
@@ -37,12 +38,36 @@ npm start                    # http://127.0.0.1:5194/demo/
 python3 -m venv .venv
 .venv/bin/python -m pip install -e './python[test]'
 .venv/bin/python -m pytest python/tests
-npm run test:conformance      # both languages; 78 synthetic configurations
+npm run test:conformance      # 78 baseline + 8 content-motion configurations
 ```
 
 The interaction lab includes deterministic desktop/mobile replay and a manual
 canvas. The full frequency/size/eye matrix runs through the CLI. Use
 `GAZESYNC_PORT=5195 npm start` if the default port is occupied.
+
+## Move an image or text page in the browser
+
+The [content surface example](examples/content-surface.html) is runnable after
+`npm start`. It works with ordinary HTML text, images, SVG and grouped content.
+
+```ts
+import { createGazeSurface } from 'gazesync/browser'
+const app = createGazeSurface(frameElement, contentElement, {
+  contentWidth: 720, contentHeight: 600, contentId: 'page-01',
+  panBounds: 'none', // move freely, including at the original fit scale
+})
+app.controller.rotate(Math.PI / 12, performance.now())
+app.controller.move(40, 20, performance.now())
+// At exposure: retain app.captureContext with your tracker/camera frame.
+// At delivery: app.pushGaze(normalizedSampleWithCaptureContext, performance.now())
+```
+
+The helper records rendered transforms and input, handles resize and lifecycle,
+and offers `dispose()` for teardown. Drag to move, use two fingers to pinch and
+twist, press `[` / `]` to rotate, and Home to restore. Frame padding must be zero;
+content dimensions define a stable intrinsic coordinate system.
+See [interaction and gaze setup](docs/INTERACTION.md) for a complete integration,
+Python equivalents, bounds, clipping and 3D geometry.
 
 ## TypeScript integration
 
@@ -85,7 +110,7 @@ and `flush(time)`. See [the Python quick start](python/README.md).
 Attach browser input with `attachBrowserControls` from `gazesync/browser`; the
 [canvas integration](examples/canvas-integration.js) shows resize, hidden-tab
 boundaries, render snapshots and teardown. Native Python hosts can feed
-`ZoomController` from their GUI callbacks and record the resulting display state.
+`InteractionController` (also named `ZoomController`) from their GUI callbacks and record the resulting display state.
 The library does not hook the OS or record unrelated applications.
 
 ## Camera and screen geometry
@@ -93,7 +118,7 @@ The library does not hook the OS or record unrelated applications.
 Use [the coordinate-frame guide](docs/COORDINATES.md) to distinguish camera, eye,
 active display, viewport and content origins. It includes measured-extrinsic
 conversion, named rigid-transform helpers and the full-display/cropped-viewport
-contract. Ray hits retain their metric frame ID. Version 0.4.1 uses schema 2.1;
+contract. Ray hits retain their metric frame ID. Version 0.5.0 uses schema 2.1;
 older recordings require their original implementation.
 
 ## Adapt a source and investigate warnings
@@ -154,7 +179,7 @@ its geometry and its verification.
   title = {{GazeSync}: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking},
   author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
   year = {2026},
-  howpublished = {Implementation report draft, version 0.4.1},
+  howpublished = {Implementation report draft, version 0.5.0},
   url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
   note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
 }

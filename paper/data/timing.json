@@ -8,6 +8,7 @@
     "noisePx": 0.35,
     "seed": 41,
     "rotateMidway": false,
+    "contentMotion": false,
     "independentClocks": false,
     "name": "timing-figure",
     "width": 1280,

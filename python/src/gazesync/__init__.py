@@ -18,6 +18,8 @@ from .geometry import (
     reset_view,
     resize_view,
     zoom_at,
+    rotate_at,
+    transform_at,
     zoom_to_box,
     pan_by,
     zoom_level,
@@ -35,6 +37,8 @@ from .geometry import (
     invert_rigid_transform,
 )
 
+InteractionController = ZoomController
+
 __version__ = IMPLEMENTATION_VERSION
 __all__ = [
     "SCHEMA_VERSION",
@@ -50,6 +54,9 @@ __all__ = [
     "reset_view",
     "resize_view",
     "zoom_at",
+    "rotate_at",
+    "transform_at",
+    "InteractionController",
     "zoom_to_box",
     "pan_by",
     "zoom_level",

@@ -66,3 +66,6 @@ R8 优先级中：阈值和默认参数缺少选择依据
 2026-10-18 引用修订
 已按作者确认加入四篇直接相关文献：移动 gaze 端到端综述、DynamicRead、运动对 2D gaze 的影响研究，以及 FIUD。分别补充引言中的系统定位、动态交互背景、几何时效性动机及质量诊断讨论。运动研究明确标为预印本，综述采用 2023 年在线发表年。
 同时明确了估计/标定质量、时间关联和坐标重建的区别；FIUD 的误差排序信号不能直接等同于 0–1 概率或毫秒级时钟界；已收到记录数不等于可用率，数值残差的分母是具有已知目标的已映射观察。R1–R5 所建议的新增实验尚未执行，R6 的工具功能比较仍需独立核验，未因增加引用而标记完成。
+
+18 October 2026 - Content manipulation extension (0.5.0)
+Adds anchored 2D rotation, free movement, pinch/twist and DOM integration. The manuscript separates the eight additional synthetic content-motion cases from the 78-case baseline. It explicitly limits the convenience layer to fixed-layout content and makes no empirical developer-usability claim. Physical validation and developer-study review items remain open.

@@ -15,7 +15,7 @@
       <div class="top-actions">
         <span class="local-badge"><i></i> Local simulation</span
         ><a href="../README.md" target="_blank">Developer guide ↗</a>
-      </div>
+      <a href="../examples/content-surface.html">Image & text example ↗</a></div>
     </header>
     <main>
       <section class="intro">
@@ -23,7 +23,7 @@
           <p class="eyebrow">INTERACTION LAB <span>01 / GAZE & ZOOM</span></p>
           <h1>Gaze, in context.</h1>
           <p class="lede">
-            Follow attention through every zoom. Explore desktop and mobile
+            Follow attention through every move, zoom and rotation. Explore desktop and mobile
             interactions<br class="wide-only" />
             with 2D points of gaze, 3D rays, and one synchronized timeline.
           </p>
@@ -57,7 +57,7 @@
               <canvas
                 id="scene"
                 tabindex="0"
-                aria-label="Zoomable map. In Try it mode: wheel to zoom, drag to pan, Shift-drag for box zoom, Home to reset. On touchscreens pinch to zoom and double tap to reset."
+                aria-label="Interactive content. Wheel to zoom, drag to move, choose Rotate to drag around the frame centre, brackets to rotate, Shift-drag to select, Home to restore. On touchscreens pinch and twist."
               ></canvas>
               <div class="device-bottom">
                 <span id="interaction-label">Find a stable landmark</span
@@ -88,12 +88,15 @@
           <div class="interaction-tools">
             <div class="tool-group">
               <button id="pan" aria-pressed="true">↔ Pan</button
+              ><button id="rotate" aria-pressed="false">⟳ Rotate</button
               ><button id="box" aria-pressed="false">▧ Box zoom</button
               ><span></span><button id="minus" aria-label="Zoom out">−</button
               ><button id="plus" aria-label="Zoom in">+</button
+              ><button id="rotate-left" aria-label="Rotate counterclockwise 15 degrees">↶</button
+              ><button id="rotate-right" aria-label="Rotate clockwise 15 degrees">↷</button
               ><button id="reset">↺ Original</button>
             </div>
-            <p id="help">Wheel to zoom · Shift-drag a box · Home to reset</p>
+            <p id="help">Drag to move · [ / ] to rotate · Home to restore</p>
           </div>
         </section>
         <aside class="inspector">

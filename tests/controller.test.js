@@ -127,3 +127,146 @@ test("events have stable unique IDs and preserve original input timestamps", () 
   assert.equal(events[0].pointerId, 7);
   assert.equal(events[0].t, 12);
 });
+
+// Independent numeric fixtures: rotations are clockwise in the y-down viewport.
+import {
+  rotateAt,
+  transformAt,
+  panBy,
+  resetView,
+  resizeView,
+  viewMatrix,
+  InteractionController,
+} from "../dist/index.js";
+const free = () =>
+  createView({
+    width: 800,
+    height: 600,
+    contentWidth: 400,
+    contentHeight: 200,
+    panBounds: "none",
+  });
+test("quarter-turn, free movement at fit, zoom pivot, resize and restore have analytic coordinates", () => {
+  assert.equal(InteractionController, ZoomController);
+  const base = free(); // scale 2, translation (0,100)
+  const v = rotateAt(base, Math.PI / 2);
+  const p = contentToViewport(v, { x: 300, y: 100 });
+  near(p.x, 400);
+  near(p.y, 500);
+  const moved = panBy(v, -30, 50);
+  const q = viewportToContent(moved, { x: 370, y: 550 });
+  near(q.x, 300);
+  near(q.y, 100);
+  const anchor = { x: 100, y: 200 },
+    destination = { x: 140, y: 260 };
+  const old = viewportToContent(moved, anchor);
+  const transformed = transformAt(moved, 1.7, -0.2, anchor, destination);
+  const pivot = contentToViewport(transformed, old);
+  near(pivot.x, destination.x);
+  near(pivot.y, destination.y);
+  const resized = resizeView(transformed, 1200, 800);
+  const oldCenter = viewportToContent(transformed, { x: 400, y: 300 });
+  const newCenter = viewportToContent(resized, { x: 600, y: 400 });
+  near(oldCenter.x, newCenter.x);
+  near(oldCenter.y, newCenter.y);
+  assert.deepEqual(
+    resetView(resized),
+    createView({
+      width: 1200,
+      height: 800,
+      contentWidth: 400,
+      contentHeight: 200,
+      panBounds: "none",
+    }),
+  );
+});
+
+test("all four rotated corners determine bounds and legacy views still use zero rotation", () => {
+  const v = rotateAt({ ...free(), panBounds: "content" }, Math.PI / 2);
+  const corners = [
+    { x: 0, y: 0 },
+    { x: 400, y: 0 },
+    { x: 0, y: 200 },
+    { x: 400, y: 200 },
+  ].map((p) => contentToViewport(v, p));
+  near(Math.min(...corners.map((p) => p.x)), 200);
+  near(Math.max(...corners.map((p) => p.x)), 600);
+  const { rotation, panBounds, ...legacy } = free();
+  assert.deepEqual(viewMatrix(legacy), [2, 0, 0, 2, 0, 100]);
+  assert.deepEqual(panBy(legacy, 10, 10), legacy);
+});
+
+test("pinch, twist, midpoint translation and lift-to-pan keep the same intrinsic anchor", () => {
+  const c = new ZoomController(free());
+  down(c, 1, 350, 300, 0);
+  down(c, 2, 450, 300, 1);
+  // Initial midpoint content (200,100). Final midpoint (420,330), span 200, angle pi/2.
+  move(c, 1, 420, 230, 2);
+  move(c, 2, 420, 430, 3);
+  near(c.view.rotation, Math.PI / 2);
+  near(zoomLevel(c.view), 2);
+  const pivot = contentToViewport(c.view, { x: 200, y: 100 });
+  near(pivot.x, 420);
+  near(pivot.y, 330);
+  up(c, 2, 420, 430, 4);
+  const previous = { ...c.view };
+  move(c, 1, 430, 240, 5);
+  near(c.view.tx, previous.tx + 10);
+  near(c.view.ty, previous.ty + 10);
+  near(c.view.rotation, previous.rotation);
+  up(c, 1, 430, 240, 6);
+  assert.equal(c.lastTap, null);
+});
+
+test("rotate drag unwraps at pi and coincident fingers resume without an unstable jump", () => {
+  const c = new ZoomController(free());
+  c.setMode("rotate");
+  const pointAt = (a) => ({
+    x: 400 + 100 * Math.cos(a),
+    y: 300 + 100 * Math.sin(a),
+  });
+  c.pointerDown({ id: 1, ...pointAt((179 * Math.PI) / 180), t: 0 });
+  c.pointerMove({ id: 1, ...pointAt((-175 * Math.PI) / 180), t: 1 });
+  near(c.view.rotation, (6 * Math.PI) / 180);
+  c.cancel(2);
+  c.setMode("pan");
+  down(c, 1, 400, 300, 3);
+  down(c, 2, 400, 300, 4);
+  const before = { ...c.view };
+  move(c, 2, 440, 300, 5);
+  assert.deepEqual(c.view, before);
+  move(c, 2, 450, 300, 6);
+  near(zoomLevel(c.view), 1.25);
+  move(c, 2, 400, 300, 7);
+  const collapsed = { ...c.view };
+  move(c, 2, 400, 350, 8);
+  assert.deepEqual(c.view, collapsed);
+});
+
+test("API and keyboard changes interrupt gestures, validate atomically and can disable rotation", () => {
+  const events = [],
+    c = new ZoomController(free(), { onInput: (e) => events.push(e) });
+  c.move(30, 40, 1);
+  near(c.view.tx, 30);
+  near(c.view.ty, 140);
+  c.key({ key: "ArrowLeft", t: 2 });
+  near(c.view.tx, -18);
+  down(c, 1, 200, 200, 3);
+  c.rotate(Math.PI / 4, 4);
+  assert.equal(c.pointers.size, 0);
+  const before = { view: { ...c.view }, count: events.length };
+  assert.throws(() => c.rotate(Infinity, 5), /finite/);
+  assert.throws(() => c.setPanBounds("invalid", 5), /panBounds/);
+  assert.deepEqual(c.view, before.view);
+  assert.equal(events.length, before.count);
+  c.key({ key: "Home", t: 6 });
+  assert.deepEqual(c.view, free());
+  const fixed = new ZoomController(free(), { enableRotation: false });
+  down(fixed, 1, 350, 300, 0);
+  down(fixed, 2, 450, 300, 1);
+  move(fixed, 1, 400, 250, 2);
+  move(fixed, 2, 400, 350, 3);
+  near(fixed.view.rotation, 0);
+  assert.equal(fixed.key({ key: "]", t: 4 }), false);
+  assert.throws(() => fixed.setMode("rotate"), /disabled/);
+});
