@@ -25,6 +25,25 @@ currently private. Neither package has been published to a public registry.
   been validated with this release.** Hardware SDKs and inference models are not
   bundled. Measured calibration and timing remain host responsibilities.
 
+## Install the npm package locally
+
+The package is ESM and includes compiled JavaScript and TypeScript declarations.
+Use a tested tarball while registry publication is disabled:
+
+```sh
+npm install /absolute/path/to/gazesync-0.5.1.tgz
+```
+
+After an authorized npm release, the registry command will be `npm install gazesync`.
+Node consumers use `import` in an `.mjs` file or a project with `"type": "module"`.
+CommonJS callers can use `await import('gazesync')` inside an async function. Static
+`require('gazesync')` is not a supported entry point. TypeScript projects should
+use `moduleResolution: "NodeNext"` or `"Bundler"`; browser code also needs the DOM
+library. Core/model/simulation types can be used without DOM declarations.
+The package ships `docs/` integration guides and copyable `examples/`. Repository
+commands such as `npm start`, `npm test`, and figure generation belong to a source
+checkout; the installed library needs no build step or install-time script.
+
 ## Start from source
 
 Requires Node.js 22+ for development and Python 3.10+. The browser bundle uses
@@ -105,7 +124,7 @@ presentation, not measured light emission. See [the protocol](docs/PROTOCOL.md).
 
 For Python, the equivalent API is `GazeSession`, `create_view`,
 `register_source`, `present(t=..., view=..., surface=...)`, `gaze(sample, receipt)`
-and `flush(time)`. See [the Python quick start](python/README.md).
+and `flush(time)`. See [the Python quick start](https://github.com/GazeLei/GazeSync/blob/main/python/README.md).
 
 Attach browser input with `attachBrowserControls` from `gazesync/browser`; the
 [canvas integration](examples/canvas-integration.js) shows resize, hidden-tab
@@ -151,7 +170,7 @@ The recorded validation covers 78 configurations and 107,070 observations,
 including 30–240 Hz displays and 30–2,000 Hz gaze. All capture-frame selections
 match the synthetic reference. This measures software consistency, not human
 behavioral validity or hardware accuracy. Configuration, result data and figure
-sources are included in [the implementation paper](paper/README.md).
+sources are included in [the implementation paper](https://github.com/GazeLei/GazeSync/blob/main/paper/README.md).
 
 ## Citation, licensing and release
 
@@ -191,9 +210,9 @@ the repository URL. Both entries are also maintained in [CITATION.bib](CITATION.
 The code is **GPL-3.0-only**. [LICENSE](LICENSE) contains the terms;
 [NOTICE](NOTICE) distinguishes manuscript rights and separately licensed SDKs.
 Citation is a scholarly request, not an additional software-license restriction.
-See [release preparation](docs/RELEASE.md) for npm/PyPI artifacts, trusted
+See [release preparation](https://github.com/GazeLei/GazeSync/blob/main/docs/RELEASE.md) for npm/PyPI artifacts, trusted
 publishing, the initial npm bootstrap and the disabled publication gates.
 
 This is a standalone repository with no imports, datasets, checkpoints or Git
 history from the private parent project. Contributions start with
-[CONTRIBUTING.md](CONTRIBUTING.md); the audit record is in [docs/AUDIT.md](docs/AUDIT.md).
+[CONTRIBUTING.md](https://github.com/GazeLei/GazeSync/blob/main/CONTRIBUTING.md); the audit record is in [docs/AUDIT.md](https://github.com/GazeLei/GazeSync/blob/main/docs/AUDIT.md).

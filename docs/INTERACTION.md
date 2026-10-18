@@ -30,7 +30,11 @@ app.controller.reset(performance.now())
 After building from source, open `/examples/content-surface.html` on the local
 server for a complete runnable version with buttons, text, an image and export.
 During development import from `./dist/browser.js`; the package import above is
-for a locally installed package. Public registry publication is still disabled.
+for a locally installed package. When using the tarball example directly, serve
+its package folder over HTTP and open `examples/content-surface.html`; the example
+imports the packaged `dist/` modules by relative URL. Native browser imports using
+the bare `gazesync/browser` name require a bundler or import map. Public registry
+publication is still disabled.
 
 The helper owns pointer/keyboard input, CSS transforms, clipping, resize,
 hidden-tab boundaries, rendered-state records, flushing and teardown. It fixes

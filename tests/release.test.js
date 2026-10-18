@@ -20,7 +20,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 test("release: npm archive contains only reviewed package files", async () => {
   const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
   const [packed] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], {
+    execFileSync("npm", ["pack", "--dry-run", "--ignore-scripts", "--json"], {
       cwd: root,
       encoding: "utf8",
     }),
@@ -97,6 +97,28 @@ test("release: stale Python wire constants cannot pass the metadata gate", async
       checkRelease(temp, { publication: true, registry: "unknown" }),
       /Unknown publication registry/,
     );
+    const pkgPath = resolve(temp, "package.json"),
+      candidate = JSON.parse(await readFile(pkgPath, "utf8"));
+    await writeFile(
+      pkgPath,
+      JSON.stringify({
+        ...candidate,
+        publishConfig: {
+          registry: "https://example.invalid/",
+          access: "public",
+        },
+      }),
+    );
+    await assert.rejects(checkRelease(temp), /publication destination/);
+    await writeFile(
+      pkgPath,
+      JSON.stringify({
+        ...candidate,
+        scripts: { ...candidate.scripts, postinstall: "node unexpected.js" },
+      }),
+    );
+    await assert.rejects(checkRelease(temp), /installation hook/);
+    await writeFile(pkgPath, JSON.stringify(candidate));
     const name = resolve(temp, "python/src/gazesync/version.py");
     await writeFile(
       name,
@@ -145,9 +167,49 @@ test("release: demo server refuses non-allowlisted documents and symlink escapes
   }
 });
 
-test("release: Python wheels and sdists enforce the reviewed file inventory and bytes", () => {
+test("release: Python and npm archives enforce reviewed inventory and bytes", () => {
   execFileSync("python3", ["tools/test_package_smoke.py"], {
     cwd: root,
     encoding: "utf8",
   });
+});
+
+test("release: a tarball-installed consumer resolves ESM and TypeScript exports independently of the checkout", async () => {
+  const temp = await mkdtemp(resolve(tmpdir(), "gazesync-npm-consumer-"));
+  try {
+    const [packed] = JSON.parse(
+      execFileSync(
+        "npm",
+        ["pack", "--ignore-scripts", "--json", "--pack-destination", temp],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    await writeFile(
+      resolve(temp, "package.json"),
+      '{"private":true,"type":"module"}',
+    );
+    execFileSync(
+      "npm",
+      [
+        "install",
+        "--no-audit",
+        "--no-fund",
+        "--omit=dev",
+        resolve(temp, packed.filename),
+      ],
+      { cwd: temp, encoding: "utf8" },
+    );
+    const report = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [resolve(root, "tools/npm_consumer_check.mjs"), temp],
+        { cwd: temp, encoding: "utf8" },
+      ),
+    );
+    assert.equal(report.esmImports, 4);
+    assert.equal(report.installedTypeChecks.length, 3);
+    assert.equal(report.replayExact, true);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
 });

@@ -90,7 +90,12 @@
     "contracts/diagnostics.json",
     "docs/INTERACTION.md",
     "examples/content-surface.html",
-    "examples/content-surface.js"
+    "examples/content-surface.js",
+    "docs/ADAPTERS.md",
+    "docs/COORDINATES.md",
+    "docs/DIAGNOSTICS.md",
+    "docs/PROTOCOL.md",
+    "examples/canvas-integration.js"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",
@@ -127,5 +132,9 @@
   "homepage": "https://github.com/GazeLei/GazeSync",
   "bugs": {
     "url": "https://github.com/GazeLei/GazeSync/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   }
 }

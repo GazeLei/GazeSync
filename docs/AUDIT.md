@@ -229,3 +229,30 @@ Metadata should contain small measurement provenance, not camera frames or
 model tensors. Hardware SDK behavior and actual exposure/display calibration
 still need device measurements. These limits should be stated for an initial
 research release; they do not call for speculative core refactoring.
+
+
+## npm distribution audit: 18 October 2026
+
+This is a packaging audit of the unchanged 0.5.1 implementation. Source runtime
+modules and recording semantics are unchanged; no additional build format or
+runtime dependency was introduced.
+
+| Finding | Action and evidence |
+| --- | --- |
+| P2: installed README linked to ten absent files. | Ship the four missing integration guides and Canvas example, use GitHub links for repository-only material, and make the HTML example link to its packaged README. Every relative Markdown target is now checked in the actual tarball. |
+| Verification gap: source-tree type tests did not test installed resolution. | Add a real tarball consumer with four ESM imports, CommonJS dynamic import, NodeNext core without DOM, NodeNext browser and Bundler browser type checks. The runtime asserts that its resolved module is the isolated installed copy. |
+| Verification gap: npm contents were checked only through pack-list output. | Apply the same reviewed-byte inventory principle as the Python audit to actual npm tarballs. Validate export targets and source-map paths/content; reject extra files, changed payloads, duplicates and unresolved references. |
+| Release ambiguity: the destination depended on command/config defaults. | Declare public npm registry/access metadata, check it in the release gate, and publish exactly one approved tarball with explicit registry and lifecycle scripts disabled. Publication stays disabled. |
+| Test maintenance: pack checks rebuilt dist while other Node tests could read it. | Pack tests now reuse the pretest build with `--ignore-scripts`; the separate package build still tests the real prepack lifecycle. |
+| Setup gap: direct publishing needs an explicit Trusted Publisher permission. | Update the maintainer checklist with the `npm publish` action, first-upload prerequisite, CLI version requirements and verified account/environment status. |
+
+Local checks include 95 Node tests; three archive-boundary tests run inside the
+release suite. The isolated installed-package checks use TypeScript 7.0.2. npm
+11.21.0 pack and publish dry run succeed without uploading. The in-app browser
+loaded the installed tarball's example and verified rotation, zoom, keyboard
+movement and reset. Raw logs, package manifests, account-status summary and the
+UI screenshot are under ignored `artifacts/audit-npm-20261018/`.
+
+No public package, registry placeholder, trusted-publisher grant, login or
+repository visibility change was created. Authenticated upload and provenance
+remain external verification steps after the maintainer completes setup.

@@ -3,12 +3,15 @@
 from pathlib import Path
 import json
 import os
+import posixpath
+import re
 import subprocess
 import sys
 import tarfile
 import tempfile
 import venv
 import zipfile
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = json.loads((ROOT / "package.json").read_text())["version"]
@@ -52,16 +55,89 @@ def verify_python_archive(path: Path, *, root: Path = ROOT, version: str = VERSI
                 raise ValueError("Python archive contains a link or special file")
             names = [m.name for m in members]
             payloads = {m.name: archive.extractfile(m).read() for m in members}
+    return _verify_payloads("Python", names, payloads, expected, generated)
+
+
+def _verify_payloads(label, names, payloads, expected, generated=()):
     if len(names) != len(set(names)):
-        raise ValueError("Python archive contains duplicate paths")
-    if set(names) != set(expected) | generated:
+        raise ValueError(f"{label} archive contains duplicate paths")
+    allowed = set(expected) | set(generated)
+    if set(names) != allowed:
         raise ValueError(
-            f"Python archive file inventory differs: {sorted(set(names) ^ (set(expected) | generated))}"
+            f"{label} archive file inventory differs: {sorted(set(names) ^ allowed)}"
         )
     for name, source in expected.items():
         if payloads[name] != source.read_bytes():
-            raise ValueError(f"Python archive does not match reviewed source: {name}")
+            raise ValueError(f"{label} archive does not match reviewed source: {name}")
     return len(names)
+
+
+def verify_npm_archive(path: Path, *, root: Path = ROOT):
+    """Inspect the actual tarball, including exports, local docs and source-map targets."""
+    pkg = json.loads((root / "package.json").read_text())
+    inventory = json.loads((root / "public-files.json").read_text())
+    reviewed = set(inventory["repositoryFiles"]) | set(
+        inventory.get("generatedFiles", [])
+    )
+    if set(pkg["files"]) - reviewed:
+        raise ValueError("npm files include an unreviewed path")
+    expected = {
+        "package/" + name: root / name for name in [*pkg["files"], "package.json"]
+    }
+    with tarfile.open(path) as archive:
+        members = [m for m in archive.getmembers() if not m.isdir()]
+        if any(not m.isfile() for m in members):
+            raise ValueError("npm archive contains a link or special file")
+        names = [m.name for m in members]
+        payloads = {m.name: archive.extractfile(m).read() for m in members}
+    count = _verify_payloads("npm", names, payloads, expected)
+
+    def require_local(base, target):
+        parsed = urlsplit(target)
+        if parsed.scheme or parsed.netloc:
+            raise ValueError(f"npm local target is external: {target}")
+        name = posixpath.normpath(
+            posixpath.join(posixpath.dirname(base), unquote(parsed.path))
+        )
+        if name not in payloads:
+            raise ValueError(
+                f"npm archive has a missing local target: {base} -> {target}"
+            )
+        return name
+
+    def export_targets(value):
+        if isinstance(value, str):
+            if not value.startswith("./"):
+                raise ValueError("npm exports must target packaged local files")
+            require_local("package/package.json", value)
+        elif isinstance(value, dict):
+            for child in value.values():
+                export_targets(child)
+        else:
+            raise ValueError("Unsupported npm export mapping")
+
+    export_targets(pkg["exports"])
+    for name, content in payloads.items():
+        if name.endswith(".md"):
+            for ref in re.findall(r"\]\(([^)\s]+)\)", content.decode()):
+                if not ref.startswith("#") and not urlsplit(ref).scheme:
+                    require_local(name, ref)
+        if name.endswith(".js.map"):
+            source_map = json.loads(content)
+            if source_map.get("sourceRoot"):
+                raise ValueError("npm source maps must use local relative sources")
+            for i, source in enumerate(source_map["sources"]):
+                target = require_local(name, source)
+                embedded = source_map.get("sourcesContent", [])
+                if (
+                    i < len(embedded)
+                    and embedded[i] is not None
+                    and embedded[i].encode() != payloads[target]
+                ):
+                    raise ValueError(
+                        "npm source-map content does not match its reviewed source"
+                    )
+    return count
 
 
 def main():
@@ -80,6 +156,7 @@ def main():
     )
     info = json.loads(packed.stdout)[0]
     archive = OUT / "npm" / info["filename"]
+    verify_npm_archive(archive)
     wheel = OUT / "python" / f"gazesync-{VERSION}-py3-none-any.whl"
     sdist = OUT / "python" / f"gazesync-{VERSION}.tar.gz"
     with tempfile.TemporaryDirectory(prefix="gazesync-install-") as tmp:
@@ -129,15 +206,8 @@ def main():
             ["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund", archive],
             cwd=tmp,
         )
-        run(
-            [
-                "node",
-                "--input-type=module",
-                "-e",
-                "import {GazeSession} from 'gazesync'; import {ModelAdapter} from 'gazesync/adapters'; import {generateExperiment,executeExperiment,summarizeExperiment} from 'gazesync/simulation'; import {attachBrowserControls,createGazeSurface} from 'gazesync/browser'; const e=generateExperiment({width:390,height:844,displayHz:120,inputHz:1000,gazeHz:600,rightGazeHz:120,mode:'binocular-independent',contentMotion:true}); const s=summarizeExperiment(e,executeExperiment(e)); if(s.frameMismatches||!s.replayExact)throw Error('Installed npm smoke failed'); console.log(JSON.stringify(s))",
-            ],
-            cwd=tmp,
-        )
+        run(["node", ROOT / "tools/npm_consumer_check.mjs", tmp], cwd=tmp)
+
     print(
         json.dumps(
             {

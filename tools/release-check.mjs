@@ -68,6 +68,22 @@ export async function checkRelease(
     !py.includes("dependencies = []")
   )
     throw new Error("Unexpected runtime dependency");
+  if (
+    pkg.publishConfig?.registry !== "https://registry.npmjs.org/" ||
+    pkg.publishConfig?.access !== "public"
+  )
+    throw new Error(
+      "npm publication destination must be the explicit public npm registry",
+    );
+  for (const hook of [
+    "preinstall",
+    "install",
+    "postinstall",
+    "prepare",
+    "dependencies",
+  ])
+    if (pkg.scripts?.[hook] !== undefined)
+      throw new Error(`Unexpected npm installation hook: ${hook}`);
   if (!release.publicationEnabled && pkg.private !== true)
     throw new Error("Disabled release requires npm private:true");
   if (

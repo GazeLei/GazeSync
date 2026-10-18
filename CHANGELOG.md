@@ -1,5 +1,13 @@
 # Changelog
 
+### Unpublished 0.5.1 npm distribution preparation - 2026-10-18
+
+- Include the integration guides and Canvas example; repair installed documentation links.
+- Verify actual npm tarball bytes, exports, source maps and local documentation targets.
+- Add isolated installed-consumer ESM/CommonJS-dynamic-import and TypeScript resolution checks.
+- Declare the registry explicitly and constrain publishing to one tested tarball without lifecycle scripts.
+- Keep implementation/schema versions and all runtime modules unchanged; publication remains disabled.
+
 ## 0.5.1 - 2026-10-18 (development, not published)
 
 - Canonicalize Python integral buffer limits and reject malformed optional display/plane mappings before state mutation.

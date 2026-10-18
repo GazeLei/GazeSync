@@ -75,8 +75,11 @@ A new npm package must exist before a trusted publisher can be configured.
 Perform the initial upload only when publication is authorized, from a
 maintainer-authenticated npm session with the required 2FA. Inspect and publish
 the tested tarball, then configure its trusted publisher for **GazeLei/GazeSync**,
-workflow **release.yml**, environment **npm**. Later releases use OIDC; npm needs
-version 11.5.1+ and Node 22.14+. Provenance requires a public repository and
+workflow **release.yml**, environment **npm**, explicitly allowing `npm publish`.
+New website configurations default to stage publishing, so this permission must
+match our direct-publish workflow. Later releases use OIDC; npm needs
+version 11.5.1+ and Node 22.14+. The `npm trust` CLI configuration command itself
+requires npm 11.15.0+; the website can also configure a publisher. Provenance requires a public repository and
 package. Configure a publisher close to its first use because an unused new
 publisher expires after two days under the current policy.
 
@@ -123,7 +126,7 @@ First npm upload, only after the earlier gates and explicit publication approval
 
 ```sh
 npm login
-npm publish artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz --access public
+npm publish ./artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
 
 The local bootstrap upload does not claim CI provenance. Subsequent trusted
@@ -179,3 +182,53 @@ The official [PyPA workflow guide](https://packaging.python.org/en/latest/guides
 and [pending-publisher documentation](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
 were checked for this audit. A pending publisher can create a new project on its
 first successful upload and does not reserve the name before then.
+
+
+## npm-specific readiness: 18 October 2026
+
+The package remains the unpublished 0.5.1 implementation. This pass changes
+packaging, documentation and release verification; it does not change the gaze
+algorithm or recording schema. The preceding tarball is retained under ignored
+`artifacts/audit-npm-20261018/before/` for comparison.
+
+Verified locally:
+
+- Actual npm archives contain 73 reviewed files; every payload matches the
+  checkout, and exported targets, source-map sources and local Markdown links
+  resolve inside the archive. Runtime dependencies and installation hooks are absent.
+- An isolated normal installation imports all four ESM entry points and runs a
+  1,150-observation content-motion case with exact replay. It does not resolve
+  modules through the original checkout. CommonJS dynamic import works; static
+  `require()` is intentionally unsupported and is documented.
+- The installed declarations pass NodeNext core checking without DOM declarations,
+  NodeNext browser checking and Bundler browser checking with TypeScript 7.0.2.
+- The installed browser example loads its packaged modules and responds to rotate,
+  zoom, keyboard movement and Home restoration in the in-app browser. This is not
+  certification of every browser or physical phone.
+- npm 11.21.0, run in an isolated tool installation, builds a verified archive and
+  completes `npm publish --dry-run --ignore-scripts`. The dry run is not a login,
+  upload, ownership check or provenance attestation. The machine's default npm
+  remains 10.9.2. The advisory check reports zero known dependency vulnerabilities
+  at the time of this audit; it is not a blanket security guarantee.
+
+Current external state: registry lookup for `gazesync` returns 404, `npm whoami`
+returns `ENEEDAUTH`, the GitHub repository is private, and no GitHub environments
+are configured. A 404 does not reserve the name. `private:true` and
+`publicationEnabled:false` remain in effect. The explicit `publishConfig` names
+the public npm registry but does not override either release lock.
+
+The first upload therefore still needs maintainer login/2FA, a final name and
+metadata check, the existing source-publication/arXiv decisions, and explicit
+publication approval. Configure the `npm` GitHub environment with reviewer and tag
+rules. After the initial approved upload establishes the package, configure its
+Trusted Publisher for `GazeLei/GazeSync`, `release.yml`, environment `npm`, and
+**Allow npm publish**. The [npm trust command](https://docs.npmjs.com/cli/v11/commands/npm-trust/)
+requires an existing package; it is not PyPI's pending-publisher bootstrap.
+The [current trusted-publishing guide](https://docs.npmjs.com/trusted-publishers/)
+explains the permission choice and the two-day initial-validation window.
+
+Before the first public tag, update the README's unpublished/private status and
+registry installation wording along with the other release metadata. Rebuild the
+reviewed archive after enabling the locks deliberately. The publish job accepts
+exactly one built tarball, uses the explicit registry and disables lifecycle
+scripts during upload. It does not rebuild code in the publishing job.
