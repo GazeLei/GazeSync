@@ -338,5 +338,18 @@ Four new failures were reproduced on 0.5.2 and fixed:
 Local verification passes 105 Node tests, 74 Python tests, TypeScript declarations
 and the existing 86-case cross-language suite. New Windows/macOS jobs run the full
 Node/Python suites, consumer types and retention check on Node 24/Python 3.12;
-results will be recorded after those native runners complete. Physical mobile
-browsers and hardware trackers require separate testing.
+all nine [CI jobs](https://github.com/GazeLei/GazeSync/actions/runs/39155895140)
+passed, including both native OS jobs. The first Windows run exposed two tool
+failures (`spawnSync npm ENOENT`) after its core tests passed. The consumer tests
+now invoke npm's JavaScript CLI through Node, retaining literal path arguments
+without a command shell. The second Windows run passed all 105 Node and 74
+Python tests, declaration checks and the retention check. Linux still covers
+Node 22/24/26 and Python 3.10/3.12/3.14; hosted Windows/macOS cover Node 24/Python
+3.12. This establishes those tested runtime combinations, not every OS version.
+
+Browser adapter tests use DOM/event fixtures, covering pointer ownership,
+coordinate scaling/borders, wheel, keyboard, cancellation, lifecycle, repeated
+clock ticks, disposal, competing mounts and callback failures. Live browser
+interaction for 0.5.3 remains pending because a browser-control connection was
+unavailable for this pass. Physical phones, Safari/Firefox, and hardware eye
+trackers have not been certified by these automated results.

@@ -77,6 +77,11 @@ python3 -m venv .venv
 npm run test:conformance      # 78 baseline + 8 content-motion configurations
 ```
 
+CI runs the full functional suites on Linux (Node 22/24/26; Python
+3.10/3.12/3.14), Windows and macOS (Node 24; Python 3.12), including installed
+TypeScript consumers. Browser unit tests use DOM/event fixtures; this runtime
+matrix does not certify physical phones or every browser engine.
+
 The interaction lab includes deterministic desktop/mobile replay and a manual
 canvas. The full frequency/size/eye matrix runs through the CLI. Use
 `GAZESYNC_PORT=5195 npm start` if the default port is occupied.
