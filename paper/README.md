@@ -64,7 +64,7 @@ physical-device certification. Public registry publication remains disabled.
 Section 5 gives the audited origins, rigid-frame transformations, camera-centre
 inversion, screen/viewport equations, marker registration and the numerical
 (860,460) regression. See `docs/COORDINATES.md` for integration guidance.
-Implementation 0.5.0 uses schema 2.1; earlier recordings need their original code.
+Implementation 0.5.1 uses schema 2.1; earlier recordings need their original code.
 
 Manuscript and generated figure publication rights are reserved pending author
 approval (root NOTICE). The supplied original LaTeX archive is not redistributed
@@ -127,3 +127,9 @@ screen pose from content rotation, and documents clipping and stable-layout limi
 Eight additional synthetic cases are stored in `data/interaction-validation.json`;
 they supplement the established 78-case data and do not constitute a usability or
 physical-device study. The runnable image/text example is in `examples/`.
+
+
+The 0.5.1 release audit fixes adapter/configuration and recorder edge cases. The
+manuscript's implementation identifier and synthetic data are synchronized; its
+numerical conclusions and layout are unchanged. The detailed defects, regressions
+and remaining PyPI gates are recorded in `docs/AUDIT.md` and `docs/RELEASE.md`.

@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 import { diagnosticCatalog } from "./diagnostics.js";
 import { finite, positive } from "./geometry.js";
+import { jsonRecord } from "./records.js";
 
 type Raw = Record<string, unknown>;
 export interface AdapterWarning {
@@ -63,6 +64,11 @@ export interface ModelOptions extends AdapterOptions {
     confidence?: string;
     valid?: string;
   };
+}
+
+function choice(value: unknown, allowed: readonly unknown[], name: string) {
+  if (!allowed.includes(value))
+    throw new TypeError(`${name} must be one of ${allowed.join(", ")}`);
 }
 
 const object = (value: unknown): Raw =>
@@ -137,17 +143,21 @@ export function timestampToMilliseconds(
   return finite(value * scale, "converted timestamp");
 }
 
-abstract class Adapter {
-  readonly source: SourceDescriptor;
+abstract class Adapter<T extends AdapterOptions> {
+  protected readonly descriptor: SourceDescriptor;
+  get source(): SourceDescriptor {
+    return structuredClone(this.descriptor);
+  }
   protected sequence = 0;
   constructor(
-    protected options: AdapterOptions,
+    protected readonly options: T,
     adapter: string,
     kind: SourceDescriptor["kind"],
     eyes: Eye[],
     mode: TrackingMode,
     timestampKind: SourceDescriptor["timestampKind"],
   ) {
+    this.options = options = jsonRecord(options);
     for (const key of [
       "sourceId",
       "clockId",
@@ -157,16 +167,54 @@ abstract class Adapter {
     ] as const)
       if (typeof options[key] !== "string" || !options[key])
         throw new TypeError(`${key} is required`);
+    for (const key of ["frameId", "deviceModel", "calibrationId"] as const)
+      if (
+        options[key] !== undefined &&
+        (typeof options[key] !== "string" || !options[key])
+      )
+        throw new TypeError(`${key} must be a nonempty string`);
+    if (
+      options.eyeRatesHz !== undefined &&
+      (options.eyeRatesHz === null ||
+        typeof options.eyeRatesHz !== "object" ||
+        Array.isArray(options.eyeRatesHz))
+    )
+      throw new TypeError("eyeRatesHz must be a mapping");
     if (options.expectedHz !== undefined)
       positive(options.expectedHz, "expectedHz");
     if (
+      !Array.isArray(eyes) ||
       !eyes.length ||
+      new Set(eyes).size !== eyes.length ||
       eyes.some(
         (eye) => !["left", "right", "combined", "unknown"].includes(eye),
       )
     )
       throw new TypeError("Explicit eye selection is required");
-    this.source = {
+    choice(
+      options.trackingMode === undefined ? mode : options.trackingMode,
+      [
+        "monocular",
+        "binocular-independent",
+        "binocular-fused",
+        "mixed",
+        "unspecified",
+      ],
+      "trackingMode",
+    );
+    choice(
+      options.timestampKind === undefined
+        ? timestampKind
+        : options.timestampKind,
+      ["exposure", "vendor-estimate", "host-receipt"],
+      "timestampKind",
+    );
+    for (const [eye, hz] of Object.entries(options.eyeRatesHz ?? {})) {
+      if (!eyes.includes(eye as Eye))
+        throw new TypeError("eyeRatesHz must describe declared eyes");
+      positive(hz!, "eyeRatesHz");
+    }
+    this.descriptor = {
       id: options.sourceId,
       kind,
       adapter,
@@ -209,7 +257,7 @@ abstract class Adapter {
       confidence: score,
       valid,
       ...(c.calibrationId ? { calibrationId: c.calibrationId } : {}),
-      metadata: { adapter: this.source.adapter, ...metadata },
+      metadata: { adapter: this.descriptor.adapter, ...metadata },
     };
   }
   protected warning(code: string, eye?: Eye): AdapterWarning {
@@ -222,8 +270,8 @@ abstract class Adapter {
   }
   protected partial(samples: GazeSample[], warnings: AdapterWarning[]): void {
     if (
-      this.source.eyes.includes("left") &&
-      this.source.eyes.includes("right") &&
+      this.descriptor.eyes.includes("left") &&
+      this.descriptor.eyes.includes("right") &&
       ["left", "right"].some(
         (eye) => !samples.some((s) => s.eye === eye && s.valid),
       )
@@ -232,8 +280,8 @@ abstract class Adapter {
   }
 }
 
-export class ModelAdapter extends Adapter {
-  constructor(private model: ModelOptions) {
+export class ModelAdapter extends Adapter<ModelOptions> {
+  constructor(model: ModelOptions) {
     super(
       model,
       "generic-model-v1",
@@ -244,7 +292,58 @@ export class ModelAdapter extends Adapter {
         : "monocular",
       "vendor-estimate",
     );
-    if (model.type !== "pog2d" && !model.frameId)
+    model = this.options;
+    choice(model.type, ["pog2d", "ray3d", "direction3d"], "type");
+    choice(model.timestampUnit, ["s", "ms", "us", "ns"], "timestampUnit");
+    choice(
+      model.pointUnits === undefined ? "normalized-viewport" : model.pointUnits,
+      [
+        "viewport",
+        "normalized-viewport",
+        "normalized-display",
+        "display-pixels",
+      ],
+      "pointUnits",
+    );
+    choice(
+      model.originUnits === undefined ? "m" : model.originUnits,
+      ["m", "mm"],
+      "originUnits",
+    );
+    choice(
+      model.yOrigin === undefined ? "top" : model.yOrigin,
+      ["top", "bottom"],
+      "yOrigin",
+    );
+    if (!this.descriptor.eyes.includes(model.eye))
+      throw new TypeError("Model eye must be included in declared eyes");
+    if (
+      model.fields !== undefined &&
+      (model.fields === null ||
+        typeof model.fields !== "object" ||
+        Array.isArray(model.fields) ||
+        Object.entries(model.fields).some(
+          ([k, v]) =>
+            ![
+              "timestamp",
+              "id",
+              "point",
+              "origin",
+              "direction",
+              "confidence",
+              "valid",
+            ].includes(k) ||
+            typeof v !== "string" ||
+            !v.split(".").every(Boolean),
+        ))
+    )
+      throw new TypeError(
+        "fields must map known model fields to nonempty dot paths",
+      );
+    if (
+      model.type !== "pog2d" &&
+      (typeof model.frameId !== "string" || !model.frameId)
+    )
       throw new TypeError("frameId is required for a 3D model signal");
     if (model.pointUnits === "display-pixels") {
       positive(model.displayPixels?.width!, "displayPixels.width");
@@ -260,11 +359,11 @@ export class ModelAdapter extends Adapter {
       direction: "direction",
       confidence: "confidence",
       valid: "valid",
-      ...this.model.fields,
+      ...this.options.fields,
     };
     const t = timestampToMilliseconds(
         field(record, f.timestamp),
-        this.model.timestampUnit,
+        this.options.timestampUnit,
       ),
       rawId = field(record, f.id);
     const id = rawId == null ? `model-${++this.sequence}` : identifier(rawId),
@@ -273,17 +372,17 @@ export class ModelAdapter extends Adapter {
     if (status != null && typeof status !== "boolean")
       throw new TypeError("Model validity must be boolean");
     const warnings: AdapterWarning[] = [],
-      type = this.model.type;
+      type = this.options.type;
     let sample: GazeSample;
     if (type === "pog2d") {
       let p = coordinates(field(record, f.point));
-      const units = this.model.pointUnits ?? "normalized-viewport";
+      const units = this.options.pointUnits ?? "normalized-viewport";
       if (p && units === "display-pixels")
         p = {
-          x: p.x / this.model.displayPixels!.width,
-          y: p.y / this.model.displayPixels!.height,
+          x: p.x / this.options.displayPixels!.width,
+          y: p.y / this.options.displayPixels!.height,
         };
-      if (p && this.model.yOrigin === "bottom") {
+      if (p && this.options.yOrigin === "bottom") {
         if (units === "viewport")
           throw new TypeError(
             "Convert bottom-origin logical coordinates using the measured viewport height before ingestion",
@@ -294,7 +393,7 @@ export class ModelAdapter extends Adapter {
         ...this.base(
           id,
           t,
-          this.model.eye,
+          this.options.eye,
           type,
           score,
           status !== false && p !== null,
@@ -313,13 +412,13 @@ export class ModelAdapter extends Adapter {
           ...this.base(
             id,
             t,
-            this.model.eye,
+            this.options.eye,
             type,
             score,
             status !== false && direction !== null,
             context,
           ),
-          ...(direction ? { direction, frameId: this.model.frameId! } : {}),
+          ...(direction ? { direction, frameId: this.options.frameId! } : {}),
         } as GazeSample;
       else {
         const origin = numbers(field(record, f.origin), 3);
@@ -327,7 +426,7 @@ export class ModelAdapter extends Adapter {
           ...this.base(
             id,
             t,
-            this.model.eye,
+            this.options.eye,
             type,
             score,
             status !== false && origin !== null && direction !== null,
@@ -337,16 +436,16 @@ export class ModelAdapter extends Adapter {
             ? {
                 ray: {
                   origin: origin.map(
-                    (n) => n * (this.model.originUnits === "mm" ? 0.001 : 1),
+                    (n) => n * (this.options.originUnits === "mm" ? 0.001 : 1),
                   ) as Vector3,
                   direction,
-                  frameId: this.model.frameId!,
+                  frameId: this.options.frameId!,
                 },
               }
             : {}),
         } as GazeSample;
         if (!origin || !direction)
-          warnings.push(this.warning("GEOMETRY_UNAVAILABLE", this.model.eye));
+          warnings.push(this.warning("GEOMETRY_UNAVAILABLE", this.options.eye));
       }
     }
     return { samples: [sample], warnings };
@@ -357,8 +456,8 @@ export interface TobiiOptions extends AdapterOptions {
   timestamp?: "device" | "system";
   includeRay?: boolean;
 }
-export class TobiiProAdapter extends Adapter {
-  constructor(private tobii: TobiiOptions) {
+export class TobiiProAdapter extends Adapter<TobiiOptions> {
+  constructor(tobii: TobiiOptions) {
     const eyes = tobii.eyes ?? ["left", "right"];
     super(
       tobii,
@@ -376,7 +475,7 @@ export class TobiiProAdapter extends Adapter {
   adapt(record: Raw, context: Partial<AdapterContext> = {}): AdapterResult {
     const rawTime =
       record[
-        this.tobii.timestamp === "system"
+        this.options.timestamp === "system"
           ? "system_time_stamp"
           : "device_time_stamp"
       ];
@@ -385,7 +484,7 @@ export class TobiiProAdapter extends Adapter {
         record.id === undefined ? `tobii-${stamp(t)}` : identifier(record.id),
       samples: GazeSample[] = [],
       warnings: AdapterWarning[] = [];
-    for (const eye of this.source.eyes) {
+    for (const eye of this.descriptor.eyes) {
       const p = coordinates(record[`${eye}_gaze_point_on_display_area`]);
       const validity = record[`${eye}_gaze_point_validity`];
       const valid = (validity === true || validity === 1) && p !== null;
@@ -394,7 +493,7 @@ export class TobiiProAdapter extends Adapter {
         space: "normalized-display",
         ...(p ? { point: p } : {}),
       } as GazeSample);
-      if (this.tobii.includeRay) {
+      if (this.options.includeRay) {
         const origin = numbers(
             record[`${eye}_gaze_origin_in_user_coordinate_system`],
             3,
@@ -420,7 +519,7 @@ export class TobiiProAdapter extends Adapter {
                   direction: hit.map(
                     (n, i) => (n - origin[i]) / 1000,
                   ) as Vector3,
-                  frameId: this.tobii.frameId!,
+                  frameId: this.options.frameId!,
                 },
               }
             : {}),
@@ -437,8 +536,8 @@ export interface EyeLinkOptions extends AdapterOptions {
   displayPixels: { width: number; height: number };
   missingValue?: number;
 }
-export class EyeLinkAdapter extends Adapter {
-  constructor(private eyelink: EyeLinkOptions) {
+export class EyeLinkAdapter extends Adapter<EyeLinkOptions> {
+  constructor(eyelink: EyeLinkOptions) {
     const eyes = eyelink.eyes ?? ["left", "right"];
     super(
       eyelink,
@@ -462,10 +561,10 @@ export class EyeLinkAdapter extends Adapter {
           : identifier(record.id),
       samples: GazeSample[] = [],
       warnings: AdapterWarning[] = [];
-    for (const eye of this.source.eyes) {
+    for (const eye of this.descriptor.eyes) {
       const data = object(record[eye]),
         p = coordinates(data.gaze),
-        missing = this.eyelink.missingValue ?? -32768;
+        missing = this.options.missingValue ?? -32768;
       if (data.valid !== undefined && typeof data.valid !== "boolean")
         throw new TypeError("EyeLink bridge validity must be boolean");
       const valid =
@@ -490,8 +589,8 @@ export class EyeLinkAdapter extends Adapter {
         ...(p && p.x !== missing && p.y !== missing
           ? {
               point: {
-                x: p.x / this.eyelink.displayPixels.width,
-                y: p.y / this.eyelink.displayPixels.height,
+                x: p.x / this.options.displayPixels.width,
+                y: p.y / this.options.displayPixels.height,
               },
             }
           : {}),
@@ -520,9 +619,9 @@ export interface PupilOptions extends AdapterOptions {
   surfaceName?: string;
   maxMappingSkewMs?: number;
 }
-export class PupilCoreAdapter extends Adapter {
+export class PupilCoreAdapter extends Adapter<PupilOptions> {
   private seen = new Set<string>();
-  constructor(private pupil: PupilOptions) {
+  constructor(pupil: PupilOptions) {
     super(
       pupil,
       "pupil-core-datum-v1",
@@ -548,6 +647,7 @@ export class PupilCoreAdapter extends Adapter {
       topic = String(record.topic ?? ""),
       samples: GazeSample[] = [],
       warnings: AdapterWarning[] = [];
+    const stagedKeys: string[] = [];
     const bases = Array.isArray(record.base_data)
       ? record.base_data.map(object)
       : [];
@@ -561,10 +661,10 @@ export class PupilCoreAdapter extends Adapter {
             : [];
     for (const id of ids) {
       const eye: Eye = id === "0" ? "right" : "left";
-      if (!this.source.eyes.includes(eye)) continue;
+      if (!this.descriptor.eyes.includes(eye)) continue;
       const base = bases.find((b) => String(b.id) === id),
         eyeTime =
-          base?.timestamp === undefined
+          base?.timestamp === undefined || base.timestamp === null
             ? t
             : timestampToMilliseconds(base.timestamp, "s");
       const origin = numbers(
@@ -577,29 +677,35 @@ export class PupilCoreAdapter extends Adapter {
             : record.gaze_normal_3d,
           3,
         );
-      if (!origin || !direction || !this.pupil.frameId) {
+      if (!origin || !direction || !this.options.frameId) {
         warnings.push(this.warning("GEOMETRY_UNAVAILABLE", eye));
         continue;
       }
       const captureId = `pupil-${eye}-${stamp(eyeTime)}`,
         key = JSON.stringify([
-          context.clockEpoch ?? this.pupil.clockEpoch,
+          context.clockId ?? this.options.clockId,
+          context.clockEpoch ?? this.options.clockEpoch,
           captureId,
         ]);
-      if (this.pupil.deduplicateEyes !== false && this.seen.has(key)) {
+      if (
+        this.options.deduplicateEyes !== false &&
+        (this.seen.has(key) || stagedKeys.includes(key))
+      ) {
         warnings.push(this.warning("REUSED_EYE_SAMPLE", eye));
         continue;
       }
-      this.seen.add(key);
-      if (this.seen.size > 4096)
-        this.seen.delete(this.seen.values().next().value!);
+      stagedKeys.push(key);
       samples.push({
         ...this.base(
           captureId,
           eyeTime,
           eye,
           "ray3d",
-          confidence(base?.confidence ?? record.confidence),
+          confidence(
+            base && Object.hasOwn(base, "confidence")
+              ? base.confidence
+              : record.confidence,
+          ),
           true,
           context,
           { vendorTopic: topic, vendorGazeTimeMs: t },
@@ -607,7 +713,7 @@ export class PupilCoreAdapter extends Adapter {
         ray: {
           origin: origin.map((n) => n / 1000) as Vector3,
           direction: direction as Vector3,
-          frameId: this.pupil.frameId,
+          frameId: this.options.frameId,
         },
       } as GazeSample);
     }
@@ -619,14 +725,14 @@ export class PupilCoreAdapter extends Adapter {
           : ids[0] === "1"
             ? "left"
             : "unknown";
-    if (p && this.source.eyes.includes(eye)) {
-      if (!this.pupil.sceneToSurface)
+    if (p && this.descriptor.eyes.includes(eye)) {
+      if (!this.options.sceneToSurface)
         warnings.push(this.warning("SURFACE_REGISTRATION_REQUIRED", eye));
       else {
         // Pupil norm coordinates start bottom-left; the calibration maps top-left scene -> top-left surface.
         const x = p.x,
           y = 1 - p.y,
-          h = this.pupil.sceneToSurface,
+          h = this.options.sceneToSurface,
           w = h[6] * x + h[7] * y + h[8];
         const mapped = {
           x: (h[0] * x + h[1] * y + h[2]) / w,
@@ -646,7 +752,7 @@ export class PupilCoreAdapter extends Adapter {
             valid,
             context,
             {
-              mappingId: this.pupil.mappingId!,
+              mappingId: this.options.mappingId!,
               vendorTopic: topic,
               sceneToSurface: [...h],
               scenePoint: [p.x, p.y],
@@ -657,6 +763,11 @@ export class PupilCoreAdapter extends Adapter {
         } as GazeSample);
       }
     }
+    for (const key of stagedKeys) {
+      this.seen.add(key);
+      if (this.seen.size > 4096)
+        this.seen.delete(this.seen.values().next().value!);
+    }
     return { samples, warnings };
   }
   /** Preferred 2D path for moving headsets: consume a named vendor-registered surface. */
@@ -664,11 +775,11 @@ export class PupilCoreAdapter extends Adapter {
     record: Raw,
     context: Partial<AdapterContext> = {},
   ): AdapterResult {
-    if (!this.pupil.surfaceName)
+    if (!this.options.surfaceName)
       throw new TypeError(
         "Declare surfaceName before consuming Pupil surface data",
       );
-    if (record.name !== this.pupil.surfaceName)
+    if (record.name !== this.options.surfaceName)
       return {
         samples: [],
         warnings: [this.warning("SURFACE_REGISTRATION_REQUIRED")],
@@ -691,9 +802,9 @@ export class PupilCoreAdapter extends Adapter {
           : topic.includes(".1.")
             ? "left"
             : "unknown";
-      if (!this.source.eyes.includes(eye)) continue;
+      if (!this.descriptor.eyes.includes(eye)) continue;
       const skew = Math.abs(t - mappingTimeMs),
-        valid = p !== null && skew <= (this.pupil.maxMappingSkewMs ?? 50);
+        valid = p !== null && skew <= (this.options.maxMappingSkewMs ?? 50);
       samples.push({
         ...this.base(
           `pupil-surface-${topic}-${stamp(t)}`,
@@ -704,7 +815,7 @@ export class PupilCoreAdapter extends Adapter {
           valid,
           context,
           {
-            surfaceName: this.pupil.surfaceName,
+            surfaceName: this.options.surfaceName,
             mappingTimeMs,
             mappingSkewMs: skew,
             vendorTopic: topic,
@@ -713,7 +824,7 @@ export class PupilCoreAdapter extends Adapter {
         space: "normalized-viewport",
         ...(p ? { point: { x: p.x, y: 1 - p.y } } : {}),
       } as GazeSample);
-      if (skew > (this.pupil.maxMappingSkewMs ?? 50))
+      if (skew > (this.options.maxMappingSkewMs ?? 50))
         warnings.push(this.warning("GEOMETRY_UNAVAILABLE", eye));
     }
     return { samples, warnings };

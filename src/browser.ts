@@ -188,6 +188,8 @@ export function attachBrowserControls(
   };
 }
 
+const ownedSessions = new WeakSet<GazeSession>();
+
 export interface GazeSurfaceOptions {
   contentWidth: number;
   contentHeight: number;
@@ -234,6 +236,10 @@ export function createGazeSurface(
   const width = viewport.clientWidth,
     height = viewport.clientHeight;
   const session = options.session ?? new GazeSession();
+  if (ownedSessions.has(session))
+    throw new Error(
+      "Session is already owned by a GazeSync DOM surface; coordinate multiple surfaces through the core API",
+    );
   const contentId = options.contentId ?? "content",
     surfaceId = options.surfaceId ?? "surface";
   if (!contentId || !surfaceId)
@@ -278,6 +284,7 @@ export function createGazeSurface(
     margin: content.style.margin,
     boxSizing: content.style.boxSizing,
   };
+  ownedSessions.add(session);
   if (style.position === "static") viewport.style.position = "relative";
   viewport.style.overflow = "hidden";
   Object.assign(content.style, {
@@ -295,6 +302,8 @@ export function createGazeSurface(
   const aligned = (rows: AlignedGaze[]) => {
     if (rows.length) options.onAligned?.(rows);
   };
+  const beforeTick = (t: number) =>
+    t - Math.max(1, Math.abs(t)) * Number.EPSILON;
   let presentedView = { ...controller.view };
   function commit(t: number) {
     session.present({
@@ -310,7 +319,8 @@ export function createGazeSurface(
       causeIds: causes.splice(0),
       timing: "render-callback",
     });
-    aligned(session.flush(t));
+    // Keep the current clock tick open: performance.now() may return the same value again.
+    aligned(session.flush(beforeTick(t)));
   }
   function render() {
     if (disposed) return;
@@ -347,7 +357,21 @@ export function createGazeSurface(
   // Images must drag the content layer, not start the browser's native image-drag session.
   const preventDrag = (event: DragEvent) => event.preventDefault();
   viewport.addEventListener("dragstart", preventDrag);
-  render();
+  function cleanup() {
+    disposed = true;
+    win.cancelAnimationFrame(animation);
+    controls.dispose();
+    viewport.removeEventListener("dragstart", preventDrag);
+    Object.assign(viewport.style, previousViewport);
+    Object.assign(content.style, previousContent);
+    ownedSessions.delete(session);
+  }
+  try {
+    render();
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
   return {
     session,
     controller,
@@ -358,17 +382,15 @@ export function createGazeSurface(
     pushGaze(sample: GazeSample, receivedTimeMs = now()) {
       if (disposed) throw new Error("Gaze surface is disposed");
       session.gaze(sample, receivedTimeMs);
-      if (!active) aligned(session.flush(receivedTimeMs));
+      if (!active) aligned(session.flush(beforeTick(receivedTimeMs)));
     },
     dispose() {
       if (disposed) return session.export();
-      disposed = true;
-      win.cancelAnimationFrame(animation);
-      controls.dispose();
-      viewport.removeEventListener("dragstart", preventDrag);
-      aligned(session.flush(now(), { final: true }));
-      Object.assign(viewport.style, previousViewport);
-      Object.assign(content.style, previousContent);
+      try {
+        aligned(session.flush(now(), { final: true }));
+      } finally {
+        cleanup();
+      }
       return session.export();
     },
   };

@@ -149,3 +149,17 @@ test("audit: replay rejects missing records even when the caller claims the log 
   recording.records.splice(1, 1);
   assert.throws(() => replay(recording), /sequence|complete/);
 });
+
+test("audit: overflowed latency is rejected before mutation and cadence remains finite JSON", () => {
+  const s = new GazeSession();
+  present(s);
+  const before = s.export();
+  assert.throws(() => s.gaze(gaze(-1e308), 1e308), /latency/);
+  assert.deepEqual(s.export(), before);
+  s.gaze(gaze(0), 10);
+  s.gaze(gaze(1e-320), 10);
+  assert.equal(s.diagnostics.report().streams[0].observedHz, null);
+  s.flush(100);
+  const recording = s.export();
+  assert.deepEqual(JSON.parse(JSON.stringify(recording)), recording);
+});

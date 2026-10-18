@@ -5,7 +5,12 @@ import { publicManifest, reviewedFile } from "./files.mjs";
 import { IMPLEMENTATION_VERSION, SCHEMA_VERSION } from "../dist/version.js";
 
 /** Verify the explicit source boundary and release metadata; never publish. */
-export async function checkRelease(root, { publication = false } = {}) {
+export async function checkRelease(
+  root,
+  { publication = false, registry = "npm" } = {},
+) {
+  if (!["npm", "pypi", "testpypi"].includes(registry))
+    throw new Error("Unknown publication registry");
   const manifest = await publicManifest(root);
   const names = new Set([
     ...manifest.repositoryFiles,
@@ -68,12 +73,12 @@ export async function checkRelease(root, { publication = false } = {}) {
   if (
     publication &&
     (!release.publicationEnabled ||
-      pkg.private !== false ||
+      (registry === "npm" && pkg.private !== false) ||
       !paper.authorsFinalized ||
       !/^\d{4}\.\d{4,5}(v\d+)?$/.test(paper.arxivId ?? ""))
   )
     throw new Error(
-      "Public release is disabled: finalize author/arXiv metadata and deliberately enable release.json and npm publication",
+      "Public release is disabled: finalize author/arXiv metadata and enable release.json; npm also requires private:false",
     );
   for (const name of pkg.files)
     if (!names.has(name)) throw new Error(`Unreviewed npm file: ${name}`);
@@ -149,7 +154,12 @@ if (
     JSON.stringify(
       await checkRelease(
         resolve(dirname(fileURLToPath(import.meta.url)), ".."),
-        { publication: process.argv.includes("--public") },
+        {
+          publication: process.argv.includes("--public"),
+          registry: process.argv.includes("--registry")
+            ? (process.argv[process.argv.indexOf("--registry") + 1] ?? "")
+            : "npm",
+        },
       ),
       null,
       2,

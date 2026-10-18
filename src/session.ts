@@ -107,7 +107,7 @@ function validateSurface(s: Surface, view: View) {
     !["per-frame", "change-only"].includes(s.presentationMode)
   )
     throw new TypeError("Unknown presentationMode");
-  if (s.display) {
+  if (s.display !== undefined && s.display !== null) {
     positive(s.display.width, "display.width");
     positive(s.display.height, "display.height");
     finite(s.display.left, "display.left");
@@ -120,7 +120,7 @@ function validateSurface(s: Surface, view: View) {
     throw new TypeError("planeSpace must be viewport or display");
   if (s.planeSpace === "display" && !s.display)
     throw new TypeError("planeSpace display requires the full display layout");
-  if (s.plane) {
+  if (s.plane !== undefined && s.plane !== null) {
     if (
       s.planeSpace === undefined &&
       s.display &&
@@ -436,6 +436,7 @@ export class GazeSession {
       sample.clockEpoch,
       sample.timeMs,
     );
+    finite(receivedTimeMs - mapped.timeMs, "latency");
     const key = observationKey(sample);
     if (this.seenSamples.has(key) || this.pendingKeys.has(key))
       throw new Error(`Duplicate gaze sample: ${sample.id}`);

@@ -5,11 +5,18 @@ No vendor SDK is imported here. These adapters are fixture-tested, not hardware-
 
 from __future__ import annotations
 import math
+import copy
 import struct
 from collections import OrderedDict
 from typing import Any, Mapping
 from .diagnostics import DIAGNOSTIC_CATALOG
 from .geometry import finite, positive
+from .records import json_record
+
+
+def _choice(value: Any, allowed: tuple[str, ...], name: str) -> None:
+    if value not in allowed:
+        raise ValueError(f"{name} must be one of {', '.join(allowed)}")
 
 
 def _object(value: Any) -> Mapping[str, Any]:
@@ -88,18 +95,49 @@ class _Adapter:
         mode: str,
         timestamp_kind: str,
     ) -> None:
-        self.options = dict(options)
+        self._options = json_record(dict(options))
+        options = self._options
         self.sequence = 0
         for key in ("sourceId", "clockId", "clockEpoch", "surfaceId", "surfaceEpoch"):
             if not isinstance(options.get(key), str) or not options[key]:
                 raise ValueError(f"{key} is required")
-        if options.get("expectedHz") is not None:
+        for key in ("frameId", "deviceModel", "calibrationId"):
+            if key in options and (
+                not isinstance(options[key], str) or not options[key]
+            ):
+                raise ValueError(f"{key} must be a nonempty string")
+        if not isinstance(options.get("eyeRatesHz", {}), Mapping):
+            raise ValueError("eyeRatesHz must be a mapping")
+        if "expectedHz" in options:
             positive(options["expectedHz"], "expectedHz")
-        if not eyes or any(
-            eye not in ("left", "right", "combined", "unknown") for eye in eyes
+        if (
+            not isinstance(eyes, (list, tuple))
+            or not eyes
+            or len(set(eyes)) != len(eyes)
+            or any(eye not in ("left", "right", "combined", "unknown") for eye in eyes)
         ):
             raise ValueError("Explicit eye selection is required")
-        self.source = {
+        _choice(
+            options.get("trackingMode", mode),
+            (
+                "monocular",
+                "binocular-independent",
+                "binocular-fused",
+                "mixed",
+                "unspecified",
+            ),
+            "trackingMode",
+        )
+        _choice(
+            options.get("timestampKind", timestamp_kind),
+            ("exposure", "vendor-estimate", "host-receipt"),
+            "timestampKind",
+        )
+        for eye, hz in options.get("eyeRatesHz", {}).items():
+            if eye not in eyes:
+                raise ValueError("eyeRatesHz must describe declared eyes")
+            positive(hz, "eyeRatesHz")
+        self._source = {
             "id": options["sourceId"],
             "kind": kind,
             "adapter": adapter,
@@ -114,6 +152,11 @@ class _Adapter:
             },
         }
 
+    @property
+    def source(self) -> dict[str, Any]:
+        """Detached registration metadata; adapter configuration is a construction-time snapshot."""
+        return copy.deepcopy(self._source)
+
     def _base(
         self,
         sample_id: str,
@@ -125,11 +168,11 @@ class _Adapter:
         context: Mapping[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        c = {**self.options, **(context or {})}
+        c = {**self._options, **(context or {})}
         return {
             "id": sample_id,
             "captureId": sample_id,
-            "sourceId": self.options["sourceId"],
+            "sourceId": self._options["sourceId"],
             "eye": eye,
             "type": kind,
             "clockId": c["clockId"],
@@ -140,21 +183,21 @@ class _Adapter:
             "confidence": score,
             "valid": valid,
             **({"calibrationId": c["calibrationId"]} if c.get("calibrationId") else {}),
-            "metadata": {"adapter": self.source["adapter"], **(metadata or {})},
+            "metadata": {"adapter": self._source["adapter"], **(metadata or {})},
         }
 
     def _warning(self, code: str, eye: str | None = None) -> dict[str, Any]:
         return {
             "code": code,
             **DIAGNOSTIC_CATALOG[code],
-            "sourceId": self.options["sourceId"],
+            "sourceId": self._options["sourceId"],
             **({"eye": eye} if eye else {}),
         }
 
     def _partial(
         self, samples: list[dict[str, Any]], warnings: list[dict[str, Any]]
     ) -> None:
-        if all(eye in self.source["eyes"] for eye in ("left", "right")) and any(
+        if all(eye in self._source["eyes"] for eye in ("left", "right")) and any(
             not any(s["eye"] == eye and s["valid"] for s in samples)
             for eye in ("left", "right")
         ):
@@ -172,7 +215,38 @@ class ModelAdapter(_Adapter):
             "unspecified" if eye in ("combined", "unknown") else "monocular",
             "vendor-estimate",
         )
-        if options["type"] != "pog2d" and not options.get("frameId"):
+        options = self._options
+        _choice(options.get("type"), ("pog2d", "ray3d", "direction3d"), "type")
+        _choice(options.get("timestampUnit"), ("s", "ms", "us", "ns"), "timestampUnit")
+        _choice(
+            options.get("pointUnits", "normalized-viewport"),
+            ("viewport", "normalized-viewport", "normalized-display", "display-pixels"),
+            "pointUnits",
+        )
+        _choice(options.get("originUnits", "m"), ("m", "mm"), "originUnits")
+        _choice(options.get("yOrigin", "top"), ("top", "bottom"), "yOrigin")
+        if eye not in self._source["eyes"]:
+            raise ValueError("Model eye must be included in declared eyes")
+        fields = options.get("fields", {})
+        if not isinstance(fields, Mapping) or any(
+            k
+            not in (
+                "timestamp",
+                "id",
+                "point",
+                "origin",
+                "direction",
+                "confidence",
+                "valid",
+            )
+            or not isinstance(v, str)
+            or not all(v.split("."))
+            for k, v in fields.items()
+        ):
+            raise ValueError("fields must map known model fields to nonempty dot paths")
+        if options["type"] != "pog2d" and (
+            not isinstance(options.get("frameId"), str) or not options["frameId"]
+        ):
             raise ValueError("frameId is required for a 3D model signal")
         if options.get("pointUnits") == "display-pixels":
             positive(
@@ -185,7 +259,7 @@ class ModelAdapter(_Adapter):
     def adapt(
         self, record: Mapping[str, Any], context: Mapping[str, Any] | None = None
     ) -> dict[str, Any]:
-        o = self.options
+        o = self._options
         fields = {
             "timestamp": "timestamp",
             "id": "id",
@@ -310,7 +384,7 @@ class TobiiProAdapter(_Adapter):
     def adapt(
         self, record: Mapping[str, Any], context: Mapping[str, Any] | None = None
     ) -> dict[str, Any]:
-        o = self.options
+        o = self._options
         raw_time = record.get(
             "system_time_stamp"
             if o.get("timestamp") == "system"
@@ -321,7 +395,7 @@ class TobiiProAdapter(_Adapter):
             _identifier(record["id"]) if "id" in record else f"tobii-{_stamp(t)}"
         )
         samples, warnings = [], []
-        for eye in self.source["eyes"]:
+        for eye in self._source["eyes"]:
             p = _coordinates(record.get(f"{eye}_gaze_point_on_display_area"))
             valid = (
                 record.get(f"{eye}_gaze_point_validity") in (True, 1) and p is not None
@@ -401,7 +475,7 @@ class EyeLinkAdapter(_Adapter):
     def adapt(
         self, record: Mapping[str, Any], context: Mapping[str, Any] | None = None
     ) -> dict[str, Any]:
-        o = self.options
+        o = self._options
         t = timestamp_to_milliseconds(record.get("timeMs"), "ms")
         if "id" not in record:
             self.sequence += 1
@@ -409,7 +483,7 @@ class EyeLinkAdapter(_Adapter):
             _identifier(record["id"]) if "id" in record else f"eyelink-{self.sequence}"
         )
         samples, warnings = [], []
-        for eye in self.source["eyes"]:
+        for eye in self._source["eyes"]:
             data = _object(record.get(eye))
             p = _coordinates(data.get("gaze"))
             missing = o.get("missingValue", -32768)
@@ -489,11 +563,12 @@ class PupilCoreAdapter(_Adapter):
     def adapt(
         self, record: Mapping[str, Any], context: Mapping[str, Any] | None = None
     ) -> dict[str, Any]:
-        o = self.options
+        o = self._options
         context = {} if context is None else context
         t = timestamp_to_milliseconds(record.get("timestamp"), "s")
         topic = str(record.get("topic", ""))
         samples, warnings = [], []
+        staged_keys = []
         bases = [_object(b) for b in record.get("base_data", [])]
         binocular = ".01." in topic
         ids = (
@@ -507,7 +582,7 @@ class PupilCoreAdapter(_Adapter):
         )
         for eye_id in ids:
             eye = "right" if eye_id == "0" else "left"
-            if eye not in self.source["eyes"]:
+            if eye not in self._source["eyes"]:
                 continue
             base = next((b for b in bases if str(b.get("id")) == eye_id), {})
             eye_time = (
@@ -532,13 +607,17 @@ class PupilCoreAdapter(_Adapter):
                 continue
             label = _stamp(eye_time)
             capture_id = f"pupil-{eye}-{label}"
-            key = (context.get("clockEpoch", o["clockEpoch"]), capture_id)
-            if o.get("deduplicateEyes") is not False and key in self._seen:
+            key = (
+                context.get("clockId", o["clockId"]),
+                context.get("clockEpoch", o["clockEpoch"]),
+                capture_id,
+            )
+            if o.get("deduplicateEyes") is not False and (
+                key in self._seen or key in staged_keys
+            ):
                 warnings.append(self._warning("REUSED_EYE_SAMPLE", eye))
                 continue
-            self._seen[key] = True
-            if len(self._seen) > 4096:
-                self._seen.popitem(last=False)
+            staged_keys.append(key)
             score = base.get("confidence", record.get("confidence"))
             samples.append(
                 {
@@ -569,7 +648,7 @@ class PupilCoreAdapter(_Adapter):
             if ids == ["1"]
             else "unknown"
         )
-        if p is not None and eye in self.source["eyes"]:
+        if p is not None and eye in self._source["eyes"]:
             h = o.get("sceneToSurface")
             if h is None:
                 warnings.append(self._warning("SURFACE_REGISTRATION_REQUIRED", eye))
@@ -611,12 +690,16 @@ class PupilCoreAdapter(_Adapter):
                         **({"point": mapped} if valid else {}),
                     }
                 )
+        for key in staged_keys:
+            self._seen[key] = True
+            if len(self._seen) > 4096:
+                self._seen.popitem(last=False)
         return {"samples": samples, "warnings": warnings}
 
     def adapt_surface(
         self, record: Mapping[str, Any], context: Mapping[str, Any] | None = None
     ) -> dict[str, Any]:
-        o = self.options
+        o = self._options
         if not o.get("surfaceName"):
             raise ValueError("Declare surfaceName before consuming Pupil surface data")
         if record.get("name") != o["surfaceName"]:
@@ -639,7 +722,7 @@ class PupilCoreAdapter(_Adapter):
                 if ".1." in topic
                 else "unknown"
             )
-            if eye not in self.source["eyes"]:
+            if eye not in self._source["eyes"]:
                 continue
             skew = abs(t - mapping_time)
             valid = p is not None and skew <= o.get("maxMappingSkewMs", 50)

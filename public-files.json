@@ -155,7 +155,8 @@
     "examples/content-surface.html",
     "examples/content-surface.js",
     "docs/INTERACTION.md",
-    "paper/data/interaction-validation.json"
+    "paper/data/interaction-validation.json",
+    "tools/test_package_smoke.py"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

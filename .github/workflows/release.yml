@@ -29,7 +29,10 @@ jobs:
       - run: python -m pip install './python[test]' build "twine>=7,<8"
       - run: npm test && npm run test:types && python -m pytest python/tests -q
       - run: npm run test:conformance
-      - run: node tools/release-check.mjs --public
+      - name: Check only the requested registry publication gate
+        env:
+          RELEASE_DESTINATION: ${{ inputs.destination }}
+        run: node tools/release-check.mjs --public --registry "$RELEASE_DESTINATION"
       - name: Match the tag to package metadata
         id: metadata
         env:

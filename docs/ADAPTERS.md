@@ -84,3 +84,18 @@ clock reset, malformed input and layout transitions. Run the same serialized
 fixtures through Python and TypeScript. Validate SDK behavior on actual hardware
 before changing `hardwareValidated`; record SDK/firmware, clock measurements,
 geometry procedure and held-out targets in the integration's own evidence.
+
+
+## Configuration lifetime and failed packets
+
+From 0.5.1, each adapter snapshots its finite-JSON configuration at construction.
+`adapter.source` returns detached registration metadata. To change calibration,
+units or intrinsic display resolution, construct a new adapter with the appropriate
+source/epoch identity; changing the original options dictionary no longer changes
+active normalization. Per-capture clock/surface context remains an explicit argument.
+
+Model units, eye selections and field paths are checked before acquisition. Unknown
+units such as `originUnits: "cm"` raise an error rather than being treated as metres;
+convert to supported `m` or `mm` explicitly. Pupil deduplication commits only after
+all outputs in a packet validate, so a malformed packet does not consume either
+eye's timestamp. A repaired retry can then be normalized normally.

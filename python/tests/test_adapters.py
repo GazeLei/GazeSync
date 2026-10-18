@@ -75,3 +75,79 @@ def test_pylink_bridge_uses_each_eye_and_source_time():
         "timeMs": 42,
         "left": {"gaze": [120, 240], "pupilSize": 30},
     }
+
+
+def test_model_configuration_is_validated_and_detached_from_caller():
+    import pytest
+    from gazesync import ModelAdapter
+
+    opts = dict(
+        sourceId="model",
+        clockId="session",
+        clockEpoch="0",
+        surfaceId="screen",
+        surfaceEpoch="1",
+        type="pog2d",
+        eye="left",
+        timestampUnit="ms",
+        pointUnits="display-pixels",
+        displayPixels={"width": 1000, "height": 1000},
+    )
+    for changes in (
+        {"originUnits": "cm"},
+        {"yOrigin": "sideways"},
+        {"type": "3d"},
+        {"pointUnits": "pixels"},
+        {"timestampUnit": "seconds"},
+        {"fields": {"point": ""}},
+        {"eyes": ["left", "left"]},
+    ):
+        with pytest.raises((ValueError, TypeError)):
+            ModelAdapter({**opts, **changes})
+    a = ModelAdapter(opts)
+    opts["displayPixels"]["width"] = 1
+    opts["sourceId"] = "changed"
+    descriptor = a.source
+    descriptor["eyes"].clear()
+    row = a.adapt({"timestamp": 1, "point": [500, 500]})["samples"][0]
+    assert row["point"] == {"x": 0.5, "y": 0.5} and row["sourceId"] == "model"
+    assert a.source["eyes"] == ["left"]
+
+
+def test_pupil_rejected_packet_does_not_consume_either_eye_and_clocks_are_distinct():
+    import pytest
+    from gazesync import PupilCoreAdapter
+
+    opts = dict(
+        sourceId="pupil",
+        clockId="eye-clock",
+        clockEpoch="0",
+        surfaceId="screen",
+        surfaceEpoch="1",
+        frameId="camera",
+    )
+    a = PupilCoreAdapter(opts)
+    packet = dict(
+        topic="gaze.3d.01.",
+        timestamp=1,
+        confidence=0.9,
+        eye_centers_3d={"0": [30, 0, 600], "1": [-30, 0, 600]},
+        gaze_normals_3d={"0": [0, 0, -1], "1": [0, 0, -1]},
+        base_data=[
+            {"id": 0, "timestamp": 1, "confidence": 0.9},
+            {"id": 1, "timestamp": 1, "confidence": 2},
+        ],
+    )
+    with pytest.raises(ValueError):
+        a.adapt(packet)
+    packet["base_data"][1]["confidence"] = 0.9
+    assert len(a.adapt(packet)["samples"]) == 2
+    assert len(a.adapt(packet)["samples"]) == 0
+    assert len(a.adapt(packet, {"clockId": "other-clock"})["samples"]) == 2
+    packet["base_data"][0].update(confidence=None, timestamp=None)
+    unknown = next(
+        s
+        for s in a.adapt(packet, {"clockId": "third-clock"})["samples"]
+        if s["eye"] == "right"
+    )
+    assert unknown["confidence"] is None and unknown["timeMs"] == 1000

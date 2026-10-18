@@ -39,7 +39,8 @@ are copied. Re-review the inventory when adding a source file.
 The workflow runs only by manual dispatch on a version tag in a **public**
 repository. `release.json` currently has `publicationEnabled:false` and npm has
 `private:true`. The public release check also requires finalized author metadata
-and a real implementation arXiv identifier. TestPyPI is public too.
+and a real implementation arXiv identifier. The arXiv requirement and public-repository
+requirement are this project's chosen release gates, not PyPI package-format requirements. TestPyPI is public too.
 
 1. Finalize authors, manuscript rights and the arXiv submission; update
    `paper/metadata.json`, `CITATION.cff`, `CITATION.bib` and manuscript metadata.
@@ -49,8 +50,8 @@ and a real implementation arXiv identifier. TestPyPI is public too.
    The maintainer changes GitHub visibility when ready. Recheck package name
    availability; `gazesync` was unclaimed at the 15 October 2026 preparation check,
    which does not reserve either registry name.
-3. Set `publicationEnabled:true`, change npm `private` to false, synchronize
-   versions in both packages, release.json and implementation constants, and
+3. Set `publicationEnabled:true`; change npm `private` to false only for an npm
+   release. Python-only publication can keep npm private. Synchronize versions in both packages, release.json and implementation constants, and
    regenerate package-lock.json. Rebuild and run the complete verification.
 4. Configure GitHub environments `testpypi`, `pypi`, and `npm` with required
    maintainer review and tag restrictions. Protect the default branch and release
@@ -122,7 +123,7 @@ First npm upload, only after the earlier gates and explicit publication approval
 
 ```sh
 npm login
-npm publish artifacts/release/0.4.1/npm/gazesync-0.4.1.tgz --access public
+npm publish artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz --access public
 ```
 
 The local bootstrap upload does not claim CI provenance. Subsequent trusted
@@ -142,3 +143,39 @@ local npm tarball and Python wheel/sdist after `tools/package_smoke.py` passes.
 Install these local artifacts to try the package before the public release.
 Publication remains disabled; the existing author/arXiv and registry checklist
 still applies. No tag or public package is created by the local build.
+
+
+## Current PyPI readiness: 18 October 2026, 0.5.1
+
+The release audit fixes input/state defects and adds actual wheel/sdist inventory
+and byte checks against `public-files.json`. The same check covers a wheel rebuilt
+from the sdist. Local artifacts use `artifacts/release/0.5.1/` and remain unpublished.
+The Python publication gate now leaves npm's `private:true` setting independent:
+`node tools/release-check.mjs --public --registry pypi` checks the Python route.
+
+Read-only verification on this date found the GitHub repository still private,
+zero configured GitHub environments, `publicationEnabled:false`, finalized author
+metadata, and no implementation arXiv ID. Both PyPI and TestPyPI JSON endpoints
+returned 404 for `gazesync`; a missing public project is not a name reservation or
+a guarantee that PyPI will allow the name. No maintainer account or publisher
+settings were inspected.
+
+Remaining steps for the first Python release:
+
+1. Confirm the intended PyPI/TestPyPI maintainer accounts and their 2FA; configure
+   pending publishers with owner `GazeLei`, repository `GazeSync`, workflow
+   `release.yml`, and environment `pypi` / `testpypi` respectively.
+2. Configure those GitHub environments with maintainer review and tag restrictions.
+   Make the repository public when the maintainer is ready, as required by the
+   existing workflow. This audit does not change visibility or permissions.
+3. Resolve the implementation preprint gate. It can remain until a real arXiv ID
+   exists, or be deliberately decoupled in a future release decision; PyPI itself
+   does not require a paper. Keep citation metadata accurate in either case.
+4. Enable publication, create the matching version tag from the verified commit,
+   run a maintainer-approved TestPyPI upload and install test, then approve the
+   PyPI upload. TestPyPI is a public service, so this is an actual publication step.
+
+The official [PyPA workflow guide](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
+and [pending-publisher documentation](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
+were checked for this audit. A pending publisher can create a new project on its
+first successful upload and does not reserve the name before then.

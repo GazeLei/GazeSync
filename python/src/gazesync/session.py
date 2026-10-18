@@ -87,7 +87,9 @@ def _validate_surface(surface: Mapping[str, Any], view: Mapping[str, Any]) -> No
         "change-only",
     ):
         raise ValueError("Unknown presentationMode")
-    if surface.get("display"):
+    if "display" in surface and surface["display"] is not None:
+        if not isinstance(surface["display"], Mapping):
+            raise ValueError("surface.display must be a mapping")
         for key in ("width", "height"):
             positive(surface["display"].get(key), "display." + key)
         for key in ("left", "top"):
@@ -96,7 +98,9 @@ def _validate_surface(surface: Mapping[str, Any], view: Mapping[str, Any]) -> No
         raise ValueError("planeSpace must be viewport or display")
     if surface.get("planeSpace") == "display" and not surface.get("display"):
         raise ValueError("planeSpace display requires the full display layout")
-    if surface.get("plane"):
+    if "plane" in surface and surface["plane"] is not None:
+        if not isinstance(surface["plane"], Mapping):
+            raise ValueError("surface.plane must be a mapping")
         d = surface.get("display")
         if (
             "planeSpace" not in surface
@@ -204,6 +208,7 @@ class GazeSession:
         for key in ("maxFrames", "maxRecords", "maxPending"):
             if not float(settings[key]).is_integer() or settings[key] < 2:
                 raise ValueError(f"{key} must be an integer >= 2")
+            settings[key] = int(settings[key])
         self.config = MappingProxyType(settings)
         self.clocks = ClockRegistry()
         self.diagnostics = Diagnostics(on_diagnostic)
@@ -390,6 +395,7 @@ class GazeSession:
         mapped = self.clocks.map(
             sample["clockId"], sample["clockEpoch"], sample["timeMs"]
         )
+        finite(received_time_ms - mapped["timeMs"], "latency")
         key = _observation_key(sample)
         if key in self._seen_samples or key in self._pending_keys:
             raise ValueError(f"Duplicate gaze sample: {sample['id']}")

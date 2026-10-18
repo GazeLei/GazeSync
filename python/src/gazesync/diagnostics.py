@@ -5,6 +5,7 @@ import bisect
 import copy
 import json
 import logging
+import math
 from importlib.resources import files
 from typing import Any, Callable
 
@@ -130,14 +131,16 @@ class Diagnostics:
         ):
             times.pop(0)
         span = times[-1] - times[0]
+        rate = (len(times) - 1) * 1000 / span if span > 0 else 0
         stream["rate"]["observedHz"] = (
-            (len(times) - 1) * 1000 / span if span > 0 else None
+            rate if rate > 0 and math.isfinite(rate) else None
         )
         min_span = (
             min(1000, 1800 * 1000 / stream["expected"]) if stream["expected"] else 1000
         )
         if (
             stream["expected"]
+            and stream["rate"]["observedHz"] is not None
             and len(times) >= 5
             and span >= min_span
             and capture_time_ms - stream["lastRateNotice"] >= 1000

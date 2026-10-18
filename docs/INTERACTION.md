@@ -78,7 +78,10 @@ against the original unrotated fit, so rotating does not redefine 1× zoom.
 
 ## Gaze input
 
-Use a distinct `surfaceId` for each helper when sharing a session.
+Each helper owns its session and its flush watermark. A session supplied in
+`options.session` must be dedicated to that helper; a second helper using it is
+rejected. For multiple synchronized surfaces, use the core `GazeSession` API and
+let one host owner flush after all rendered states have been submitted.
 The helper never invents eye samples. Register sources and measured external
 clock mappings through `app.session`. Save `app.captureContext` **at exposure**,
 and keep it with the eventual inference or hardware record:

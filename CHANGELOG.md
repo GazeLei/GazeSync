@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 - 2026-10-18 (development, not published)
+
+- Canonicalize Python integral buffer limits and reject malformed optional display/plane mappings before state mutation.
+- Validate model units and field paths at construction; snapshot adapter configuration and expose detached source descriptors.
+- Commit Pupil per-eye deduplication only after the complete packet validates; include clock ID in its identity.
+- Reject overflowing latency before ingestion and keep unresolved cadence estimates null rather than non-finite.
+- Keep the browser helper's current clock tick open, enforce one helper owner per session and restore styles/listeners after failed setup or teardown.
+- Verify wheel/sdist inventories and payload bytes against the reviewed sources, including the rebuilt wheel.
+- Check PyPI and npm publication gates independently while leaving publication disabled.
+
 ## 0.5.0 - 2026-10-18 (development, not published)
 
 - Add anchored clockwise content rotation and combined pinch/twist/midpoint transforms in Python and TypeScript.

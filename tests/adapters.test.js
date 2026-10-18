@@ -66,3 +66,70 @@ test("Pupil scene gaze never silently becomes a screen point", () => {
     result.warnings.some((w) => w.code === "SURFACE_REGISTRATION_REQUIRED"),
   );
 });
+
+test("model options reject unknown units and remain detached from caller mutations", () => {
+  const options = {
+    sourceId: "model",
+    clockId: "session",
+    clockEpoch: "0",
+    surfaceId: "screen",
+    surfaceEpoch: "1",
+    type: "pog2d",
+    eye: "left",
+    timestampUnit: "ms",
+    pointUnits: "display-pixels",
+    displayPixels: { width: 1000, height: 1000 },
+  };
+  for (const changes of [
+    { originUnits: "cm" },
+    { yOrigin: "sideways" },
+    { type: "3d" },
+    { pointUnits: "pixels" },
+    { timestampUnit: "seconds" },
+    { fields: { point: "" } },
+    { eyes: ["left", "left"] },
+  ])
+    assert.throws(() => new ModelAdapter({ ...options, ...changes }));
+  const adapter = new ModelAdapter(options);
+  options.displayPixels.width = 1;
+  options.sourceId = "changed";
+  adapter.source.eyes.length = 0;
+  const row = adapter.adapt({ timestamp: 1, point: [500, 500] }).samples[0];
+  assert.deepEqual(row.point, { x: 0.5, y: 0.5 });
+  assert.equal(row.sourceId, "model");
+  assert.deepEqual(adapter.source.eyes, ["left"]);
+});
+
+test("Pupil validates a complete packet before committing per-eye deduplication", () => {
+  const a = new PupilCoreAdapter({
+    sourceId: "pupil",
+    clockId: "eye-clock",
+    clockEpoch: "0",
+    surfaceId: "screen",
+    surfaceEpoch: "1",
+    frameId: "camera",
+  });
+  const packet = {
+    topic: "gaze.3d.01.",
+    timestamp: 1,
+    confidence: 0.9,
+    eye_centers_3d: { 0: [30, 0, 600], 1: [-30, 0, 600] },
+    gaze_normals_3d: { 0: [0, 0, -1], 1: [0, 0, -1] },
+    base_data: [
+      { id: 0, timestamp: 1, confidence: 0.9 },
+      { id: 1, timestamp: 1, confidence: 2 },
+    ],
+  };
+  assert.throws(() => a.adapt(packet), /Confidence/);
+  packet.base_data[1].confidence = 0.9;
+  assert.equal(a.adapt(packet).samples.length, 2);
+  assert.equal(a.adapt(packet).samples.length, 0);
+  assert.equal(a.adapt(packet, { clockId: "other-clock" }).samples.length, 2);
+  packet.base_data[0].confidence = null;
+  packet.base_data[0].timestamp = null;
+  const unknown = a
+    .adapt(packet, { clockId: "third-clock" })
+    .samples.find((s) => s.eye === "right");
+  assert.equal(unknown.confidence, null); // Never borrow the fused packet's confidence for this eye.
+  assert.equal(unknown.timeMs, 1000);
+});

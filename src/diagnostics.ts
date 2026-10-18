@@ -250,13 +250,14 @@ export class Diagnostics {
     )
       times.shift();
     const span = times.at(-1)! - times[0];
-    stream.rate.observedHz =
-      span > 0 ? ((times.length - 1) * 1000) / span : null;
+    const rate = span > 0 ? ((times.length - 1) * 1000) / span : 0;
+    stream.rate.observedHz = rate > 0 && Number.isFinite(rate) ? rate : null;
     const minSpan = stream.expected
       ? Math.min(1000, (1800 * 1000) / stream.expected)
       : 1000;
     if (
       stream.expected &&
+      stream.rate.observedHz !== null &&
       times.length >= 5 &&
       span >= minSpan &&
       captureTimeMs - stream.lastRateNotice >= 1000

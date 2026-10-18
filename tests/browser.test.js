@@ -312,3 +312,73 @@ test("browser coordinates exclude borders, including when the frame is CSS-scale
   assert.equal(controller.pointers.get(1).y, 300);
   adapter.dispose();
 });
+
+test("DOM helper tolerates repeated clock ticks, rejects competing ownership, and cleans failed setup", () => {
+  const doc = new EventTarget(),
+    win = new EventTarget(),
+    callbacks = new Map();
+  let id = 0;
+  Object.assign(win, {
+    performance: { now: () => 1000 },
+    getComputedStyle: () => ({
+      position: "static",
+      paddingLeft: "0px",
+      paddingRight: "0px",
+      paddingTop: "0px",
+      paddingBottom: "0px",
+    }),
+    requestAnimationFrame: (cb) => {
+      callbacks.set(++id, cb);
+      return id;
+    },
+    cancelAnimationFrame: (key) => callbacks.delete(key),
+  });
+  Object.assign(doc, { defaultView: win, hidden: false });
+  const makeSurface = () => {
+    const viewport = new SurfaceElement();
+    Object.assign(viewport, {
+      ownerDocument: doc,
+      clientWidth: 400,
+      clientHeight: 600,
+    });
+    return [
+      viewport,
+      { parentElement: viewport, style: { transform: "original" } },
+    ];
+  };
+  const [viewport, content] = makeSurface();
+  const app = createGazeSurface(viewport, content, {
+    contentWidth: 400,
+    contentHeight: 600,
+  });
+  const [key, cb] = callbacks.entries().next().value;
+  callbacks.delete(key);
+  cb(); // performance.now can repeat within its resolution; this must not finalize away the current tick.
+  assert.equal(app.session.frames.length, 2);
+  const [other, otherContent] = makeSurface();
+  assert.throws(
+    () =>
+      createGazeSurface(other, otherContent, {
+        contentWidth: 400,
+        contentHeight: 600,
+        session: app.session,
+      }),
+    /already owned/,
+  );
+  assert.equal(other.style.touchAction, "pan-y");
+  app.dispose();
+  assert.equal(callbacks.size, 0);
+  assert.equal(content.style.transform, "original");
+  assert.throws(
+    () =>
+      createGazeSurface(other, otherContent, {
+        contentWidth: 400,
+        contentHeight: 600,
+        getGeometry: () => ({ plane: {} }),
+      }),
+    /Plane/,
+  );
+  assert.equal(other.style.touchAction, "pan-y");
+  assert.equal(otherContent.style.transform, "original");
+  assert.equal(callbacks.size, 0);
+});

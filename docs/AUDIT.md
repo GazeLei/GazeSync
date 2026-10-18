@@ -189,3 +189,43 @@ cross-language alignment, diagnostic comparison and replay, with zero capture-fr
 mismatches and maximum reconstruction residual 8.4934e-13 logical pixels. Separate
 Python-native tests exercise the same eight combinations with its own generator.
 The source geometry is synthetic; no empirical usability claim is made.
+
+
+## PyPI release audit: 0.5.1, 18 October 2026
+
+The audit examined Python ingestion and alignment, adapter state, clock/numeric
+boundaries, the matching TypeScript paths, DOM lifecycle ownership and actual
+distribution contents. Seven Python regressions failed before the fixes; the
+browser repeated-clock regression also failed on 0.5.0. Reproductions and logs
+are kept in ignored `artifacts/audit-pypi-20261018/`.
+
+| Finding | Concrete trigger and repair |
+| --- | --- |
+| P1: Python buffer limits could fail after partial flush mutation. | `maxRecords=2.0` passed validation but became a floating-point slice bound after three alignments. Integral capacities are normalized once at construction. |
+| P1: malformed optional geometry could poison a session. | `plane={}` was accepted and failed later during ray alignment. Presentations now reject empty/incorrect plane/display mappings before adding history. |
+| P1: model-unit typos and externally mutated options could change coordinates. | `originUnits="cm"` was silently treated as metres; changing `displayPixels.width` after construction changed normalization. Units/field paths are validated and configuration is snapshotted once. Source descriptors are detached snapshots. |
+| P1: failed Pupil packets consumed eye observations. | A bad confidence on the second eye left both dedup keys committed; a repaired retry returned no rays. At most two keys are staged and committed after the complete packet validates. Keys include clock ID and epoch. Explicit null per-eye confidence is preserved rather than replaced with a fused packet score. |
+| P2: derived temporal numbers could escape finite JSON. | Extreme finite times could overflow latency or cadence. Latency is checked before ingestion; unresolved rate estimates are null. |
+| P2: DOM lifecycle and clock ownership could stop recording. | A repeated `performance.now()` tick caused a presentation-after-flush exception. The helper now keeps the current tick open, rejects a competing helper owner on the same session, and restores styles/listeners after setup or teardown errors. |
+| Release gap: Python archive contents were not allowlisted like npm contents. | The build checks now compare every actual wheel/sdist file and source byte against the reviewed inventory, including the rebuilt wheel. Synthetic unreviewed-file/link and changed-byte cases are rejected. |
+
+The patch reuses the existing adapter base with one typed configuration snapshot
+per adapter. It avoids copying the 4,096-entry Pupil dedup cache per packet;
+only the current packet's eye keys are staged. No runtime dependency, storage
+subsystem, generic validation framework or new synchronization abstraction was
+added. PyPI's publication gate is checked independently of npm's private flag.
+
+Validation: 94 Node tests, 63 Python tests, two isolated archive-boundary tests
+(invoked by the Node release suite), strict consumer types and the 78 baseline
+plus eight content-motion conformance cases. Clean wheel/sdist/npm installations
+and the new byte-level package checks also pass.
+The ordinary synthetic fixtures retain their numerical results; these checks do
+not establish physical tracker accuracy or provide a proof that all bugs are absent.
+
+Remaining scoped limitations: the recorder is bounded and in-memory; the host
+must persist long trials before raw-record rollover. Source/clock/diagnostic
+contexts assume stable IDs rather than a new source ID for every sample.
+Metadata should contain small measurement provenance, not camera frames or
+model tensors. Hardware SDK behavior and actual exposure/display calibration
+still need device measurements. These limits should be stated for an initial
+research release; they do not call for speculative core refactoring.

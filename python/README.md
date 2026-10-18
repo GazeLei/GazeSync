@@ -4,6 +4,8 @@ Capture-time synchronization of desktop/mobile view events and independent or
 combined eye-tracking measurements. The core uses only the Python standard
 library and has the same schema 2.1 contract as the TypeScript implementation.
 
+Install from this checkout during development:
+
 ```sh
 pip install -e ./python
 gazesync simulate --width 390 --height 844 --display-hz 120 --gaze-hz 600 --right-gaze-hz 120 --mode binocular-independent
@@ -40,7 +42,16 @@ SDK callbacks and rendering run in different threads.
 
 Code license: **GPL-3.0-only**. See https://github.com/GazeLei/GazeSync for both citations, diagnostic
 codes, package-release instructions and the academic implementation manuscript.
-This development version has not yet been published to PyPI.
+This development version has not yet been published to PyPI. The tested wheel can
+be installed directly with `pip install /path/to/gazesync-0.5.1-py3-none-any.whl`.
+After the first authorized public release, the ordinary route will be
+`pip install gazesync`.
+
+The default recorder retains 100,000 raw records. At high rates this is a short
+buffer, not a complete long-session archive. Keep `logging_observer()` enabled,
+check `recordsDropped` when exporting, and arrange host persistence before
+rollover. Exact replay refuses truncated logs. Hardware callbacks and presentation
+logging must use a single session owner; the package is synchronous.
 
 ## Rotate and move arbitrary content
 

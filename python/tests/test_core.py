@@ -333,3 +333,47 @@ def test_native_rotating_content_multirate_simulation(size, mode):
     assert r["frameMismatches"] == 0 and r["replayExact"]
     assert r["mappedSamples"] > 0 and r["maxReconstructionErrorPx"] < 1e-8
     assert r["samples"] == r["expectedSamples"]
+
+
+def test_integral_float_limits_are_canonical_and_flush_is_safe():
+    s = GazeSession({"maxRecords": 2.0, "maxFrames": 2.0, "maxPending": 8.0})
+    s.present(
+        t=0,
+        view=create_view(100, 100, 100, 100),
+        surface={"id": "screen", "epoch": "1"},
+    )
+    for t in (1, 2, 3):
+        s.gaze(sample("left", t), 10)
+    assert len(s.flush(100)) == 3
+    assert len(s.aligned) == 2 and not s.pending and s.aligned_dropped == 1
+    assert all(
+        type(s.config[k]) is int for k in ("maxRecords", "maxFrames", "maxPending")
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value", [("plane", {}), ("plane", []), ("display", {}), ("display", [])]
+)
+def test_malformed_optional_surface_metadata_is_rejected_atomically(field, value):
+    s = setup()
+    before = s.export()
+    with pytest.raises((ValueError, TypeError)):
+        s.present(
+            t=1,
+            view=create_view(100, 100, 100, 100),
+            surface={"id": "screen", "epoch": "1", field: value},
+        )
+    assert s.export() == before
+
+
+def test_extreme_time_arithmetic_cannot_make_nonfinite_recordings():
+    s = setup()
+    before = s.export()
+    with pytest.raises(ValueError, match="latency"):
+        s.gaze(sample("left", -1e308), 1e308)
+    assert s.export() == before
+    s.gaze(sample("left", 0), 10)
+    s.gaze(sample("left", 1e-320), 10)
+    assert s.diagnostics.report()["streams"][0]["observedHz"] is None
+    s.flush(100)
+    json.dumps(s.export(), allow_nan=False)

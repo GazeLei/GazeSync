@@ -32,11 +32,11 @@ test("release: npm archive contains only reviewed package files", async () => {
       packed.files.some((file) => file.path === name),
       name,
     );
-  assert.equal(
-    pkg.private,
+  if (
     !JSON.parse(await readFile(resolve(root, "release.json"), "utf8"))
-      .publicationEnabled,
-  );
+      .publicationEnabled
+  )
+    assert.equal(pkg.private, true);
   assert.equal(pkg.license, "GPL-3.0-only");
 });
 
@@ -63,6 +63,40 @@ test("release: stale Python wire constants cannot pass the metadata gate", async
       await mkdir(dirname(resolve(temp, name)), { recursive: true });
       await copyFile(resolve(root, name), resolve(temp, name));
     }
+    const releasePath = resolve(temp, "release.json"),
+      paperPath = resolve(temp, "paper/metadata.json");
+    const release = JSON.parse(await readFile(releasePath, "utf8"));
+    const paper = JSON.parse(await readFile(paperPath, "utf8"));
+    await assert.rejects(
+      checkRelease(temp, { publication: true, registry: "pypi" }),
+      /Public release is disabled/,
+    );
+    await writeFile(
+      releasePath,
+      JSON.stringify({ ...release, publicationEnabled: true }),
+    );
+    // Synthetic format-only fixture; never a claim about an actual preprint.
+    await writeFile(
+      paperPath,
+      JSON.stringify({
+        ...paper,
+        authorsFinalized: true,
+        arxivId: "2601.00001",
+      }),
+    );
+    assert.equal(
+      (await checkRelease(temp, { publication: true, registry: "pypi" }))
+        .publicationEnabled,
+      true,
+    );
+    await assert.rejects(
+      checkRelease(temp, { publication: true, registry: "npm" }),
+      /Public release is disabled/,
+    );
+    await assert.rejects(
+      checkRelease(temp, { publication: true, registry: "unknown" }),
+      /Unknown publication registry/,
+    );
     const name = resolve(temp, "python/src/gazesync/version.py");
     await writeFile(
       name,
@@ -109,4 +143,11 @@ test("release: demo server refuses non-allowlisted documents and symlink escapes
     await new Promise((done) => server.close(done));
     await rm(temp, { recursive: true, force: true });
   }
+});
+
+test("release: Python wheels and sdists enforce the reviewed file inventory and bytes", () => {
+  execFileSync("python3", ["tools/test_package_smoke.py"], {
+    cwd: root,
+    encoding: "utf8",
+  });
 });

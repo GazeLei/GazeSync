@@ -4,7 +4,7 @@ Synchronize eye-tracking measurements with the screen state a person was viewing
 while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.5.0 · schema 2.1 · GPL-3.0-only.** This repository is
+**Development release 0.5.1 · schema 2.1 · GPL-3.0-only.** This repository is
 currently private. Neither package has been published to a public registry.
 
 ## What is implemented
@@ -118,7 +118,7 @@ The library does not hook the OS or record unrelated applications.
 Use [the coordinate-frame guide](docs/COORDINATES.md) to distinguish camera, eye,
 active display, viewport and content origins. It includes measured-extrinsic
 conversion, named rigid-transform helpers and the full-display/cropped-viewport
-contract. Ray hits retain their metric frame ID. Version 0.5.0 uses schema 2.1;
+contract. Ray hits retain their metric frame ID. Version 0.5.1 uses schema 2.1;
 older recordings require their original implementation.
 
 ## Adapt a source and investigate warnings
@@ -179,7 +179,7 @@ its geometry and its verification.
   title = {{GazeSync}: Reproducible Synchronization of Screen Interaction and Multi-Source Eye Tracking},
   author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
   year = {2026},
-  howpublished = {Implementation report draft, version 0.5.0},
+  howpublished = {Implementation report draft, version 0.5.1},
   url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
   note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
 }
