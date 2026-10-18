@@ -1,9 +1,10 @@
 GazeSync software
 Copyright (C) 2026 GazeSync contributors
 
-The software, examples, tests and figure-generation scripts are licensed under
-GPL-3.0-only. The complete license is in LICENSE. No vendor SDK or binary is
-included. Those SDKs remain subject to their respective licenses.
+The software, documentation, README assets, examples, tests and figure-generation
+scripts are licensed under GPL-3.0-only. The complete license is in LICENSE. No
+vendor SDK or binary is included. Those SDKs remain subject to their respective
+licenses.
 
 The manuscript and generated manuscript figures in paper/ are research draft
 material; their publication rights are reserved pending author approval. The

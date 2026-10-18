@@ -87,14 +87,21 @@ export async function checkRelease(
   if (!release.publicationEnabled && pkg.private !== true)
     throw new Error("Disabled release requires npm private:true");
   if (
+    paper.arxivId != null &&
+    (typeof paper.arxivId !== "string" ||
+      !/^\d{4}\.\d{4,5}(v\d+)?$/.test(paper.arxivId))
+  )
+    throw new Error(
+      "An optional arXiv identifier must use the arXiv ID format",
+    );
+  if (
     publication &&
     (!release.publicationEnabled ||
       (registry === "npm" && pkg.private !== false) ||
-      !paper.authorsFinalized ||
-      !/^\d{4}\.\d{4,5}(v\d+)?$/.test(paper.arxivId ?? ""))
+      !paper.authorsFinalized)
   )
     throw new Error(
-      "Public release is disabled: finalize author/arXiv metadata and enable release.json; npm also requires private:false",
+      "Public release is disabled: finalize author metadata and enable release.json; npm also requires private:false",
     );
   for (const name of pkg.files)
     if (!names.has(name)) throw new Error(`Unreviewed npm file: ${name}`);

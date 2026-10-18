@@ -1,5 +1,12 @@
 # Changelog
 
+### First-release setup - 2026-10-18
+
+- Allow software publication before the implementation preprint receives an arXiv ID; retain author and registry gates.
+- Add an accessible README overview and content-surface screenshot, with both assets included in the npm archive.
+- Document verified GitHub environment protection and the separate PyPI, TestPyPI and npm bootstrap routes.
+- Keep registry publication disabled while account configuration and upload approval are pending.
+
 ### Unpublished 0.5.1 npm distribution preparation - 2026-10-18
 
 - Include the integration guides and Canvas example; repair installed documentation links.

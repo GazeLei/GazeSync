@@ -95,7 +95,9 @@
     "docs/COORDINATES.md",
     "docs/DIAGNOSTICS.md",
     "docs/PROTOCOL.md",
-    "examples/canvas-integration.js"
+    "examples/canvas-integration.js",
+    "docs/assets/overview.svg",
+    "docs/assets/content-surface.png"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",

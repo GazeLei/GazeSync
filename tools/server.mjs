@@ -7,11 +7,13 @@ import { publicManifest, reviewedFile } from "./files.mjs";
 export async function createDemoServer(root) {
   const allowed = new Set((await publicManifest(root)).webFiles);
   const mime = {
-    ".html": "text/html",
-    ".js": "text/javascript",
-    ".css": "text/css",
-    ".json": "application/json",
-    ".md": "text/plain",
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".md": "text/plain; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
   };
   return createServer(async (request, response) => {
     if (!["GET", "HEAD"].includes(request.method)) {
@@ -32,7 +34,7 @@ export async function createDemoServer(root) {
       }
       const body = await readFile(await reviewedFile(root, name));
       response.writeHead(200, {
-        "Content-Type": `${mime[extname(name)]}; charset=utf-8`,
+        "Content-Type": mime[extname(name)] ?? "application/octet-stream",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "no-referrer",

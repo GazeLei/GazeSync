@@ -4,8 +4,15 @@ Synchronize eye-tracking measurements with the screen state a person was viewing
 while moving, zooming, rotating or selecting content. The Python and TypeScript packages
 share a versioned recording contract and reproducible conformance tests.
 
-**Development release 0.5.1 · schema 2.1 · GPL-3.0-only.** This repository is
-currently private. Neither package has been published to a public registry.
+**Development release 0.5.1 · schema 2.1 · GPL-3.0-only.** The source repository is
+public; the first PyPI and npm uploads are being prepared. Neither package has
+been published to a registry yet.
+
+![Screen changes enter a session timeline; gaze retains its capture time, selects the captured view and maps independent eyes into content coordinates.](docs/assets/overview.svg)
+
+Start with the [browser surface](docs/INTERACTION.md),
+[Python quick start](https://github.com/GazeLei/GazeSync/blob/main/python/README.md),
+or [tracker adapter guide](docs/ADAPTERS.md).
 
 ## What is implemented
 
@@ -25,16 +32,20 @@ currently private. Neither package has been published to a public registry.
   been validated with this release.** Hardware SDKs and inference models are not
   bundled. Measured calibration and timing remain host responsibilities.
 
-## Install the npm package locally
+## Install a development build
 
-The package is ESM and includes compiled JavaScript and TypeScript declarations.
-Use a tested tarball while registry publication is disabled:
+Use the verified wheel or npm tarball while the first registry release is being
+prepared:
 
 ```sh
+python -m pip install /absolute/path/to/gazesync-0.5.1-py3-none-any.whl
 npm install /absolute/path/to/gazesync-0.5.1.tgz
 ```
 
-After an authorized npm release, the registry command will be `npm install gazesync`.
+For a source checkout, follow the next section. After the first public uploads,
+the registry commands will be `pip install gazesync` and `npm install gazesync`.
+
+The package is ESM and includes compiled JavaScript and TypeScript declarations.
 Node consumers use `import` in an `.mjs` file or a project with `"type": "module"`.
 CommonJS callers can use `await import('gazesync')` inside an async function. Static
 `require('gazesync')` is not a supported entry point. TypeScript projects should
@@ -68,6 +79,11 @@ canvas. The full frequency/size/eye matrix runs through the CLI. Use
 
 The [content surface example](examples/content-surface.html) is runnable after
 `npm start`. It works with ordinary HTML text, images, SVG and grouped content.
+
+![GazeSync content surface showing an image and HTML text rotated together within a fixed frame, with movement, rotation, zoom and restore controls.](docs/assets/content-surface.png)
+
+*The included browser example. It records content transforms; connect a tracker
+to supply eye measurements.*
 
 ```ts
 import { createGazeSurface } from 'gazesync/browser'
@@ -205,7 +221,8 @@ its geometry and its verification.
 ```
 
 The implementation preprint's arXiv identifier is pending; the draft entry uses
-the repository URL. Both entries are also maintained in [CITATION.bib](CITATION.bib).
+the repository URL. It can be added after software release. Both entries are
+also maintained in [CITATION.bib](CITATION.bib).
 
 The code is **GPL-3.0-only**. [LICENSE](LICENSE) contains the terms;
 [NOTICE](NOTICE) distinguishes manuscript rights and separately licensed SDKs.

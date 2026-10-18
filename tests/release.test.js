@@ -50,7 +50,7 @@ test("release: every declared import stays within the standalone package", async
   );
 });
 
-test("release: stale Python wire constants cannot pass the metadata gate", async () => {
+test("release: publication gates allow a pending preprint and reject inconsistent metadata", async () => {
   const temp = await mkdtemp(resolve(tmpdir(), "gazesync-versions-"));
   try {
     const manifest = JSON.parse(
@@ -75,19 +75,40 @@ test("release: stale Python wire constants cannot pass the metadata gate", async
       releasePath,
       JSON.stringify({ ...release, publicationEnabled: true }),
     );
-    // Synthetic format-only fixture; never a claim about an actual preprint.
     await writeFile(
       paperPath,
       JSON.stringify({
         ...paper,
         authorsFinalized: true,
-        arxivId: "2601.00001",
+        arxivId: null,
       }),
     );
     assert.equal(
       (await checkRelease(temp, { publication: true, registry: "pypi" }))
         .publicationEnabled,
       true,
+    );
+    assert.equal(
+      (await checkRelease(temp, { publication: true, registry: "testpypi" }))
+        .publicationEnabled,
+      true,
+    );
+    await writeFile(
+      paperPath,
+      JSON.stringify({ ...paper, authorsFinalized: false, arxivId: null }),
+    );
+    await assert.rejects(
+      checkRelease(temp, { publication: true, registry: "pypi" }),
+      /Public release is disabled/,
+    );
+    await writeFile(
+      paperPath,
+      JSON.stringify({ ...paper, authorsFinalized: true, arxivId: "pending" }),
+    );
+    await assert.rejects(checkRelease(temp), /optional arXiv identifier/);
+    await writeFile(
+      paperPath,
+      JSON.stringify({ ...paper, authorsFinalized: true, arxivId: null }),
     );
     await assert.rejects(
       checkRelease(temp, { publication: true, registry: "npm" }),
@@ -99,6 +120,12 @@ test("release: stale Python wire constants cannot pass the metadata gate", async
     );
     const pkgPath = resolve(temp, "package.json"),
       candidate = JSON.parse(await readFile(pkgPath, "utf8"));
+    await writeFile(pkgPath, JSON.stringify({ ...candidate, private: false }));
+    assert.equal(
+      (await checkRelease(temp, { publication: true, registry: "npm" }))
+        .publicationEnabled,
+      true,
+    );
     await writeFile(
       pkgPath,
       JSON.stringify({

@@ -21,7 +21,9 @@
     "dist/types.js",
     "dist/version.js",
     "examples/content-surface.html",
-    "examples/content-surface.js"
+    "examples/content-surface.js",
+    "docs/assets/overview.svg",
+    "docs/assets/content-surface.png"
   ],
   "repositoryFiles": [
     ".github/workflows/ci.yml",
@@ -157,7 +159,9 @@
     "docs/INTERACTION.md",
     "paper/data/interaction-validation.json",
     "tools/test_package_smoke.py",
-    "tools/npm_consumer_check.mjs"
+    "tools/npm_consumer_check.mjs",
+    "docs/assets/overview.svg",
+    "docs/assets/content-surface.png"
   ],
   "generatedFiles": [
     "dist/adapters.d.ts",

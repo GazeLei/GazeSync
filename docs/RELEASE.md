@@ -1,6 +1,6 @@
 # Release preparation
 
-The independent repository is `GazeLei/GazeSync`. The code license is
+The independent public repository is `GazeLei/GazeSync`. The code license is
 **GPL-3.0-only**, selected by the maintainer. Covered distributed modifications
 must comply with GPL source-sharing obligations; the license does not require
 upstream patch submission or academic citation. Citation is requested separately.
@@ -34,38 +34,72 @@ including paper source/figures and SHA-256 hashes. Build outputs are reconstruct
 from source. No parent checkout, Git history, credentials or raw participant data
 are copied. Re-review the inventory when adding a source file.
 
-## Gates before any public upload
+## Gates before any registry upload
 
-The workflow runs only by manual dispatch on a version tag in a **public**
-repository. `release.json` currently has `publicationEnabled:false` and npm has
-`private:true`. The public release check also requires finalized author metadata
-and a real implementation arXiv identifier. The arXiv requirement and public-repository
-requirement are this project's chosen release gates, not PyPI package-format requirements. TestPyPI is public too.
+Software publication does **not** require an arXiv identifier. The maintainer
+explicitly chose to add it after submission. Keep `paper/metadata.json.arxivId`
+null and the implementation citation labelled as a draft until a real identifier
+exists; then update the paper and citation files together. A supplied identifier
+is checked for format, not independently authenticated by the release tool.
 
-1. Finalize authors, manuscript rights and the arXiv submission; update
-   `paper/metadata.json`, `CITATION.cff`, `CITATION.bib` and manuscript metadata.
-   Citation metadata must be reviewed together; the gate checks existence and
-   format, not the correctness of a newly supplied identifier.
-2. Review contributor copyright, generated assets and all source/export files.
-   The maintainer changes GitHub visibility when ready. Recheck package name
-   availability; `gazesync` was unclaimed at the 15 October 2026 preparation check,
-   which does not reserve either registry name.
-3. Set `publicationEnabled:true`; change npm `private` to false only for an npm
-   release. Python-only publication can keep npm private. Synchronize versions in both packages, release.json and implementation constants, and
-   regenerate package-lock.json. Rebuild and run the complete verification.
-4. Configure GitHub environments `testpypi`, `pypi`, and `npm` with required
-   maintainer review and tag restrictions. Protect the default branch and release
-   tags. Configure the corresponding registry publisher identities below.
-5. Commit reviewed metadata, push a matching `vX.Y.Z` tag and manually dispatch
-   `release.yml` for the intended destination. Uploads and GitHub visibility changes
-   have not been performed during package preparation.
+The release workflow runs only by manual dispatch on a version tag in a public
+repository. `release.json` still has `publicationEnabled:false`, and npm still has
+`private:true`. Author metadata must be finalized. TestPyPI uploads are public too.
+
+1. Review the exact release commit, package contents, copyright and name
+   availability. The four implementation authors are finalized. Manuscript and
+   figure rights remain described separately in `NOTICE`.
+2. Complete the registry account/publisher setup below. Confirm that all three
+   GitHub environments have the maintainer reviewer and `v*` **tag** restriction.
+3. After upload approval, set `publicationEnabled:true`; set npm `private:false`
+   only when preparing the npm release. Python publication can keep npm private.
+   Keep versions consistent, rebuild and rerun verification. Update README status
+   to reflect only the registries actually published.
+4. Commit the verified metadata and create the matching `v0.5.1` tag. Dispatch
+   `release.yml` for `testpypi` first, approve its environment deployment, then
+   install from that index in a clean environment. Approve `pypi` separately.
+   Use the npm bootstrap below for its first upload.
+5. Verify registry metadata and a clean installation after each upload. Record
+   the released commit, artifact hashes and URLs; do not replace a published
+   version with different contents.
+
+## GitHub release environments
+
+`testpypi`, `pypi` and `npm` each require review by `GazeLei` and accept tags
+matching `v*`. The workflow additionally requires the exact tag `v${version}`.
+Self-review is allowed so the sole maintainer can approve a manually dispatched
+release. This is a deliberate approval step, not independent two-person review;
+GitHub's administrator bypass remains available.
+
+The repository was made public by the maintainer on 18 October 2026. Required
+reviewers could not be configured under the previous private-repository plan;
+they were successfully added after the visibility change. See
+[GitHub environment availability](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+
+The workflow requests `id-token:write` only in the publishing jobs. It consumes
+already-built artifacts, pins third-party actions and does not need a PyPI API
+token or an npm token for subsequent trusted releases. Do not add permanent
+registry credentials to repository secrets for this route.
 
 ## Official Python route
 
-Create PyPI and TestPyPI accounts and configure pending trusted publishers for
-owner **GazeLei**, repository **GazeSync**, workflow **release.yml**, with the
-matching environment **pypi** or **testpypi**. Pending publishers can establish a
-new project on first upload. The workflow builds first and publishes the inspected
+Sign in separately to [PyPI](https://pypi.org/manage/account/publishing/) and
+[TestPyPI](https://test.pypi.org/manage/account/publishing/). Verify each account's
+email and enable 2FA; retain recovery codes outside the repository. Configure a
+pending publisher on each site with these exact values:
+
+| Field | PyPI | TestPyPI |
+| --- | --- | --- |
+| Project name | `gazesync` | `gazesync` |
+| Owner | `GazeLei` | `GazeLei` |
+| Repository | `GazeSync` | `GazeSync` |
+| Workflow filename | `release.yml` | `release.yml` |
+| Environment | `pypi` | `testpypi` |
+
+Adding a publisher grants this workflow publishing authority. It does not upload
+an artifact or reserve the name. Review the repository, workflow and environment
+before submitting. Pending publishers can establish a new project on first
+upload. The workflow builds first and publishes the inspected
 wheel/sdist through PyPA's action using OIDC and attestations. TestPyPI and PyPI
 are separate services. See [PyPA's official workflow guide](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/).
 
@@ -99,136 +133,53 @@ in-memory recorder needs external persistence and measured backpressure for long
 sessions. These limitations do not prevent source distribution with accurate
 scope and documentation.
 
-## Preparation status on 17 October 2026
+## Current preparation status: 18 October 2026
 
-Version 0.4.1 passes the test/type/conformance checks and isolated wheel, sdist
-and npm-tarball installation checks. Both registries returned HTTP 404 for
-`gazesync` on this date; this is an availability observation, not a reservation.
-GitHub reports the source repository as private and no release environments
-configured. No PyPI/npm account settings or publisher identities were verified.
-
-The remaining steps are concrete:
-
-| Item | State / next action |
+| Item | Verified state / next action |
 | --- | --- |
-| Source and package contents | Reviewed inventory; build and installation checks pass. |
-| Four manuscript authors | Finalized in the local metadata. |
-| Implementation preprint | Real arXiv ID remains unset; update citations after submission. |
-| Manuscript/figure publication rights | Maintainer/author approval still required under NOTICE. |
-| Repository visibility | Maintainer changes the private repository to public when ready. |
-| Registry ownership | Recheck the name and sign in to the intended maintainer accounts with 2FA. |
-| Python trusted publishers | Configure pending publishers separately on TestPyPI and PyPI for `GazeLei/GazeSync`, `release.yml`, and their matching environment names. |
-| npm first upload | Publish the reviewed tarball from the maintainer's authenticated session; then configure the package's trusted publisher. |
-| GitHub release environments | Create `testpypi`, `pypi`, `npm`, reviewer requirements and release-tag restrictions; currently absent. |
-| Enable and tag | Deliberately enable publication, update all versions/citations, rebuild, tag the exact verified commit, then dispatch the chosen destination. |
+| Source visibility | Public, changed by the maintainer. |
+| GitHub environments | All three exist with `GazeLei` review and `v*` tag restrictions. |
+| PyPI account | Maintainer logged in; email verified and TOTP enabled. |
+| PyPI pending publisher | Added for `gazesync`, `GazeLei/GazeSync`, `release.yml`, `pypi`. |
+| TestPyPI account and publisher | Setup in progress; must be verified separately. |
+| npm account and 2FA | Setup pending. CLI authentication must also be checked before bootstrap. |
+| npm trusted publisher | Requires the package to exist; configure after the approved first upload. |
+| arXiv | Optional for software release; retain the honest draft citation until submission. |
+| Package uploads | None. `publicationEnabled:false` and npm `private:true` remain set. |
 
-First npm upload, only after the earlier gates and explicit publication approval:
+The 0.5.1 audit passed the Node and Python suites, TypeScript consumer checks,
+86 cross-language configurations, wheel/sdist rebuilds and isolated npm installs.
+Actual archive inventories and file bytes are checked against the source, along
+with exported modules, declaration files, source-map targets and Markdown links.
+The browser content example was exercised from an installed tarball. See the
+[audit record](AUDIT.md) for the concrete findings and limits of that evidence.
+README assets are included in the npm inventory so its local image links resolve.
+
+A registry lookup returning 404 is an availability observation, not a reservation
+or an ownership check. Recheck immediately before the first upload.
+
+## First npm upload
+
+Complete the npm website account setup with a verified email and 2FA. Then use
+`npm login` in a local terminal and complete its browser authentication yourself;
+website login alone does not authenticate the CLI. `npm whoami` must identify the
+intended maintainer before publication. Passwords, tokens, OTPs and recovery codes
+must stay out of Git and chat.
+
+Only after explicit upload approval and rebuilding the enabled release:
 
 ```sh
-npm login
-npm publish ./artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz --access public --ignore-scripts --registry=https://registry.npmjs.org/
+npm login --registry=https://registry.npmjs.org/
+npm whoami --registry=https://registry.npmjs.org/
+npm publish ./artifacts/release/0.5.1/npm/gazesync-0.5.1.tgz \
+  --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
 
-The local bootstrap upload does not claim CI provenance. Subsequent trusted
-publishes use `--provenance` in the supported GitHub Actions environment; adding
-that flag to an ordinary local terminal does not supply the required CI identity.
+This local bootstrap does not claim CI provenance. After it establishes the
+package, configure the npm trusted publisher with the exact repository, workflow
+and environment above and **Allow npm publish**. Later workflow releases use
+`--provenance`; adding that flag to an ordinary local terminal does not supply
+the required CI identity. The publish job accepts exactly one inspected tarball
+and does not rebuild it or run package lifecycle scripts.
 
-An account token, OAuth grant, package-name claim, public upload and repository
-visibility change are not performed by the preparation tools. The Overleaf ZIP
-is a separate manuscript artifact and is not an npm or Python package.
-
-
-## Content manipulation preparation: 0.5.0
-
-Version 0.5.0 adds matching Python/TypeScript rotation and movement, a DOM surface
-helper and a runnable content example. `artifacts/release/0.5.0/` contains the
-local npm tarball and Python wheel/sdist after `tools/package_smoke.py` passes.
-Install these local artifacts to try the package before the public release.
-Publication remains disabled; the existing author/arXiv and registry checklist
-still applies. No tag or public package is created by the local build.
-
-
-## Current PyPI readiness: 18 October 2026, 0.5.1
-
-The release audit fixes input/state defects and adds actual wheel/sdist inventory
-and byte checks against `public-files.json`. The same check covers a wheel rebuilt
-from the sdist. Local artifacts use `artifacts/release/0.5.1/` and remain unpublished.
-The Python publication gate now leaves npm's `private:true` setting independent:
-`node tools/release-check.mjs --public --registry pypi` checks the Python route.
-
-Read-only verification on this date found the GitHub repository still private,
-zero configured GitHub environments, `publicationEnabled:false`, finalized author
-metadata, and no implementation arXiv ID. Both PyPI and TestPyPI JSON endpoints
-returned 404 for `gazesync`; a missing public project is not a name reservation or
-a guarantee that PyPI will allow the name. No maintainer account or publisher
-settings were inspected.
-
-Remaining steps for the first Python release:
-
-1. Confirm the intended PyPI/TestPyPI maintainer accounts and their 2FA; configure
-   pending publishers with owner `GazeLei`, repository `GazeSync`, workflow
-   `release.yml`, and environment `pypi` / `testpypi` respectively.
-2. Configure those GitHub environments with maintainer review and tag restrictions.
-   Make the repository public when the maintainer is ready, as required by the
-   existing workflow. This audit does not change visibility or permissions.
-3. Resolve the implementation preprint gate. It can remain until a real arXiv ID
-   exists, or be deliberately decoupled in a future release decision; PyPI itself
-   does not require a paper. Keep citation metadata accurate in either case.
-4. Enable publication, create the matching version tag from the verified commit,
-   run a maintainer-approved TestPyPI upload and install test, then approve the
-   PyPI upload. TestPyPI is a public service, so this is an actual publication step.
-
-The official [PyPA workflow guide](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
-and [pending-publisher documentation](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
-were checked for this audit. A pending publisher can create a new project on its
-first successful upload and does not reserve the name before then.
-
-
-## npm-specific readiness: 18 October 2026
-
-The package remains the unpublished 0.5.1 implementation. This pass changes
-packaging, documentation and release verification; it does not change the gaze
-algorithm or recording schema. The preceding tarball is retained under ignored
-`artifacts/audit-npm-20261018/before/` for comparison.
-
-Verified locally:
-
-- Actual npm archives contain 73 reviewed files; every payload matches the
-  checkout, and exported targets, source-map sources and local Markdown links
-  resolve inside the archive. Runtime dependencies and installation hooks are absent.
-- An isolated normal installation imports all four ESM entry points and runs a
-  1,150-observation content-motion case with exact replay. It does not resolve
-  modules through the original checkout. CommonJS dynamic import works; static
-  `require()` is intentionally unsupported and is documented.
-- The installed declarations pass NodeNext core checking without DOM declarations,
-  NodeNext browser checking and Bundler browser checking with TypeScript 7.0.2.
-- The installed browser example loads its packaged modules and responds to rotate,
-  zoom, keyboard movement and Home restoration in the in-app browser. This is not
-  certification of every browser or physical phone.
-- npm 11.21.0, run in an isolated tool installation, builds a verified archive and
-  completes `npm publish --dry-run --ignore-scripts`. The dry run is not a login,
-  upload, ownership check or provenance attestation. The machine's default npm
-  remains 10.9.2. The advisory check reports zero known dependency vulnerabilities
-  at the time of this audit; it is not a blanket security guarantee.
-
-Current external state: registry lookup for `gazesync` returns 404, `npm whoami`
-returns `ENEEDAUTH`, the GitHub repository is private, and no GitHub environments
-are configured. A 404 does not reserve the name. `private:true` and
-`publicationEnabled:false` remain in effect. The explicit `publishConfig` names
-the public npm registry but does not override either release lock.
-
-The first upload therefore still needs maintainer login/2FA, a final name and
-metadata check, the existing source-publication/arXiv decisions, and explicit
-publication approval. Configure the `npm` GitHub environment with reviewer and tag
-rules. After the initial approved upload establishes the package, configure its
-Trusted Publisher for `GazeLei/GazeSync`, `release.yml`, environment `npm`, and
-**Allow npm publish**. The [npm trust command](https://docs.npmjs.com/cli/v11/commands/npm-trust/)
-requires an existing package; it is not PyPI's pending-publisher bootstrap.
-The [current trusted-publishing guide](https://docs.npmjs.com/trusted-publishers/)
-explains the permission choice and the two-day initial-validation window.
-
-Before the first public tag, update the README's unpublished/private status and
-registry installation wording along with the other release metadata. Rebuild the
-reviewed archive after enabling the locks deliberately. The publish job accepts
-exactly one built tarball, uses the explicit registry and disables lifecycle
-scripts during upload. It does not rebuild code in the publishing job.
+The Overleaf ZIP is a separate manuscript artifact, not an npm or Python package.
