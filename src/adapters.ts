@@ -242,7 +242,20 @@ abstract class Adapter<T extends AdapterOptions> {
     context: Partial<AdapterContext> = {},
     metadata: Record<string, JSONValue> = {},
   ) {
-    const c = { ...this.options, ...context };
+    const c = { ...this.options, ...jsonRecord(context) };
+    for (const key of [
+      "clockId",
+      "clockEpoch",
+      "surfaceId",
+      "surfaceEpoch",
+    ] as const)
+      if (typeof c[key] !== "string" || !c[key])
+        throw new TypeError(key + " must be a nonempty string");
+    if (
+      c.calibrationId !== undefined &&
+      (typeof c.calibrationId !== "string" || !c.calibrationId)
+    )
+      throw new TypeError("calibrationId must be a nonempty string");
     return {
       id,
       captureId: id,

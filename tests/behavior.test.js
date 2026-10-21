@@ -235,3 +235,58 @@ test("behavior: affine clocks retain measured error bounds at large absolute ori
       }
     }
 });
+
+test("audit: large configured flushes preserve every pending observation", () => {
+  const count = 130000;
+  const s = new GazeSession({
+    reorderWindowMs: 0,
+    maxClockUncertaintyMs: 0,
+    maxPending: count,
+    maxRecords: count + 2,
+  });
+  s.registerSource({
+    id: "bulk",
+    adapter: "fixture",
+    kind: "custom",
+    trackingMode: "monocular",
+    eyes: ["left"],
+  });
+  s.present({
+    t: 0,
+    view: createView({
+      width: 100,
+      height: 100,
+      contentWidth: 100,
+      contentHeight: 100,
+    }),
+    surface: { id: "screen", epoch: "1" },
+  });
+  for (let i = 0; i < count; i++) {
+    const timeMs = i / 2;
+    s.gaze(
+      {
+        id: String(i),
+        sourceId: "bulk",
+        clockId: "session",
+        clockEpoch: "0",
+        surfaceId: "screen",
+        surfaceEpoch: "1",
+        eye: "left",
+        type: "pog2d",
+        space: "viewport",
+        point: { x: 50, y: 50 },
+        timeMs,
+        confidence: 1,
+        valid: true,
+      },
+      timeMs,
+    );
+  }
+  const rows = s.flush(count, { final: true });
+  assert.equal(rows.length, count);
+  assert.equal(s.pending.length, 0);
+  assert.equal(s.aligned.length, count);
+  assert.equal(s.alignedDropped, 0);
+  assert.equal(s.records.at(-1).type, "flush");
+  assert.ok(rows.every((row, i) => row.usable && row.sampleId === String(i)));
+});

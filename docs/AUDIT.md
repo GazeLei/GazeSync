@@ -367,3 +367,53 @@ Overleaf regression moved with its helper to the paper repository. Scientific
 source/data/PDF hashes were preserved, and the transferred pipeline reproduced
 all four figure PNGs, the table and saved data exactly. Runtime behavior, schema
 version, registry gates and existing release archives remain unchanged.
+
+
+## Project audit - 0.5.4 development, 21 October 2026
+
+The audit covered temporal association, affine/rigid geometry, independent eyes,
+source adapters, controller/browser interaction, JSON recording/replay, packaging
+and the manuscript-repository boundary. The initial 104 Node and 74 Python tests
+passed. The following reproductions exposed additional issues; focused new tests
+failed before their repairs.
+
+| Finding | Reproduction and repair |
+| --- | --- |
+| P2: a large TypeScript flush lost its pending batch on failure. | With `maxPending=130000`, one flush exceeded JavaScript's function-argument limit at `aligned.push(...results)`. Pending samples had already been removed and the watermark advanced. Append entries without spreading arguments; the regression drains all 130,000 observations and retains the flush record. |
+| P2: custom source-rate metadata differed between languages. | TypeScript accepted null, array and other malformed `eyeRatesHz` values that Python rejected with an attribute error. Both source-registration paths now require a mapping and reject before storing a descriptor. |
+| P2: invalid adapter context could consume a Pupil observation. | An empty surface epoch produced an invalid output but committed its deduplication key; retrying with the correct epoch returned no eye sample. Shared adapter code now validates clock/surface/calibration IDs before returning outputs. Undefined TypeScript overrides retain configured defaults. |
+| P2: Python CLI JSON depended on the host locale. | A UTF-8 recording containing non-ASCII IDs failed as a file and changed its IDs when piped under a non-UTF-8 locale. Decode JSON bytes independently of locale. File-access failures also return a concise input error. |
+| P2: pen gestures ignored selection-box mode. | A pen drag in box mode panned the view instead of selecting/zooming; the same happened with Shift-drag. Both controllers now treat pen and mouse box gestures consistently while retaining one-finger touch panning. |
+| P2: CLI replay lacked a cross-runtime comparison option. | A Chrome-generated mobile recording replayed exactly in Node but failed the Python CLI's exact check. Its 1,153 numeric differences were at most 4.55e-13, with no structural, flag or identity differences. Both CLIs now offer `--cross-language`, reporting exactness separately and tolerating geometry differences only. Timestamps, IDs, booleans, flags, keys and lengths remain exact; the default exact check and version/truncation guards remain active. |
+
+Local verification passes 110 Node tests, 82 Python tests, TypeScript declarations,
+the 78 baseline plus eight content-motion configurations, and wheel/sdist/npm clean
+installations. The matrix still receives 107,070 plus 6,516 observations with zero
+frame mismatches. The 600-second virtual-time retention fixture receives all
+216,000 observations with the configured bounds and expected retention losses.
+The TypeScript/Python geometry calculations were not changed. `npm audit` reports
+zero known advisories for the current lockfile.
+
+Live Chrome verification now supplements the DOM fixtures: mouse drag, wheel
+zoom, keyboard restore, box zoom, bounded movement, pen box zoom, and a 390 by
+844 mobile viewport with two-finger pinch/twist. The mobile gesture reached
+1.46x zoom and 20 degrees; the pen selection reached 2.00x. The desktop and mobile
+lab scenarios report zero frame mismatches. Downloaded browser recordings were
+read back and verified in both runtimes:
+
+- Mobile scripted replay: 3,364 raw records, 2,038 aligned observations, no pending
+  samples or dropped records. Node is exact; Python is geometry-conformant.
+- Live desktop pen interaction with simulated gaze: 252 raw records, 116 aligned
+  observations and two pending samples in the live snapshot. Pen and box-zoom
+  input events are present. Replay preserves the pending count, with exact Node
+  results and geometry-conformant Python results.
+
+Evidence, screenshots and before/after failures are retained in ignored
+`artifacts/project-audit-20261021/`. These browser checks use Chrome and emulation;
+physical phones, hardware eye trackers, Safari and Firefox remain separate
+validation work. Long-session persistence still belongs to the host application.
+
+The fixes use development implementation 0.5.4 with schema 2.1. The published
+GitHub 0.5.3 and TestPyPI 0.5.2 artifacts remain unchanged. No registry upload or
+new release tag is made. The manuscript PDF remains the sole file under `paper/`,
+and the separate paper repository retains its 0.5.3 sources and evidence.

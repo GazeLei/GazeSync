@@ -168,7 +168,14 @@ class _Adapter:
         context: Mapping[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        c = {**self._options, **(context or {})}
+        c = {**self._options, **json_record(dict(context or {}))}
+        for key in ("clockId", "clockEpoch", "surfaceId", "surfaceEpoch"):
+            if not isinstance(c[key], str) or not c[key]:
+                raise ValueError(f"{key} must be a nonempty string")
+        if "calibrationId" in c and (
+            not isinstance(c["calibrationId"], str) or not c["calibrationId"]
+        ):
+            raise ValueError("calibrationId must be a nonempty string")
         return {
             "id": sample_id,
             "captureId": sample_id,

@@ -226,3 +226,24 @@ test("binocular pairing separates content replacements within a layout epoch", (
   assert.equal(pairs.length, 2);
   assert.ok(pairs.every((pair) => pair.left === null || pair.right === null));
 });
+
+test("audit: malformed per-eye rate maps reject before source registration", () => {
+  const s = new GazeSession();
+  const source = {
+    id: "device",
+    kind: "tracker",
+    adapter: "fixture",
+    trackingMode: "monocular",
+    eyes: ["left"],
+  };
+  for (const eyeRatesHz of [null, [], false, 0, "120"]) {
+    assert.throws(
+      () => s.registerSource({ ...source, eyeRatesHz }),
+      /eyeRatesHz must be a mapping/,
+    );
+    assert.deepEqual(s.export().sources, []);
+  }
+  s.registerSource({ ...source, eyeRatesHz: { left: 120 } });
+  s.gaze(sample("left", 1), 1);
+  assert.equal(s.pending.length, 1);
+});

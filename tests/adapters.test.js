@@ -194,3 +194,61 @@ test("Tobii clock and boolean options reject typos before normalization", () => 
     1000,
   );
 });
+
+test("audit: adapter context validates identifiers and omits undefined overrides", () => {
+  const adapter = new ModelAdapter({
+    ...fixture.base,
+    type: "pog2d",
+    eye: "left",
+    timestampUnit: "ms",
+    calibrationId: "calibration-1",
+  });
+  const packet = { id: "context-check", timestamp: 1, point: [0.5, 0.5] };
+  for (const key of [
+    "clockId",
+    "clockEpoch",
+    "surfaceId",
+    "surfaceEpoch",
+    "calibrationId",
+  ])
+    for (const value of ["", null, 12])
+      assert.throws(
+        () => adapter.adapt(packet, { [key]: value }),
+        /nonempty string/,
+      );
+  const row = adapter.adapt(packet, {
+    clockId: undefined,
+    surfaceEpoch: undefined,
+    calibrationId: undefined,
+  }).samples[0];
+  assert.equal(row.clockId, fixture.base.clockId);
+  assert.equal(row.surfaceEpoch, fixture.base.surfaceEpoch);
+  assert.equal(row.calibrationId, "calibration-1");
+});
+
+test("audit: invalid Pupil context does not consume the eye sample", () => {
+  const adapter = new PupilCoreAdapter({
+    ...fixture.base,
+    frameId: "camera",
+    eyes: ["right"],
+  });
+  const packet = {
+    timestamp: 1,
+    topic: "gaze.3d.0.",
+    confidence: 0.9,
+    eye_center_3d: [-32, 0, 600],
+    gaze_normal_3d: [0, 0, -1],
+  };
+  assert.throws(
+    () => adapter.adapt(packet, { surfaceEpoch: "" }),
+    /surfaceEpoch/,
+  );
+  assert.equal(
+    adapter.adapt(packet, { surfaceEpoch: "new" }).samples.length,
+    1,
+  );
+  assert.equal(
+    adapter.adapt(packet, { surfaceEpoch: "new" }).samples.length,
+    0,
+  );
+});

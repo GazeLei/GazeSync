@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.4 - 2026-10-21 (development, not published)
+
+- Drain large configured TypeScript pending batches without exceeding the
+  JavaScript function-argument limit or losing pending observations.
+- Validate custom per-eye rate maps consistently in Python and TypeScript.
+- Honor box-selection mode and Shift-drag for pen input in both controllers.
+- Reject invalid adapter context before Pupil deduplication commits; preserve
+  defaults for omitted TypeScript context properties.
+- Decode Python CLI JSON files and piped input independently of the host locale;
+  report file access errors without a traceback.
+- Add explicit cross-language CLI replay comparison with geometry tolerance;
+  retain exact timestamps, identifiers and quality flags and report exactness separately.
+- Retain schema 2.1 and closed registry publishing gates.
+
 ## Unreleased repository maintenance - 2026-10-21
 
 - Keep the compiled manuscript PDF in the software repository; move LaTeX,

@@ -215,7 +215,7 @@ class ZoomController:
             self.gesture = {
                 "type": (
                     "box"
-                    if p["type"] == "mouse"
+                    if p["type"] in ("mouse", "pen")
                     and (self.mode == "box" or p["shiftKey"])
                     and p["button"] != 1
                     else "pan"

@@ -436,3 +436,137 @@ def test_diagnostic_observer_failure_count():
     )
     assert len(calls) > 1
     assert failed["count"] == len(calls)
+
+
+def test_audit_source_rate_map_validation_is_transactional():
+    s = GazeSession()
+    source = dict(
+        id="device",
+        kind="tracker",
+        adapter="fixture",
+        trackingMode="monocular",
+        eyes=["left"],
+    )
+    for value in (None, [], False, 0, "120"):
+        with pytest.raises(ValueError, match="eyeRatesHz must be a mapping"):
+            s.register_source({**source, "eyeRatesHz": value})
+        assert s.export()["sources"] == []
+    s.register_source({**source, "eyeRatesHz": {"left": 120}})
+    s.gaze(sample("left", 1), 1)
+    assert len(s.pending) == 1
+
+
+@pytest.mark.parametrize("via_stdin", [False, True], ids=["file", "stdin"])
+def test_audit_cli_preserves_unicode_under_non_utf8_locale(tmp_path, via_stdin):
+    import os
+    import subprocess
+    import sys
+
+    s = GazeSession()
+    s.input({"id": "事件-1", "kind": "marker", "t": 0, "label": "rotation θ"})
+    raw = json.dumps(s.export(), ensure_ascii=False).encode("utf-8")
+    path = tmp_path / "recording.json"
+    path.write_bytes(raw)
+    env = {
+        **os.environ,
+        "LC_ALL": "C",
+        "LANG": "C",
+        "PYTHONCOERCECLOCALE": "0",
+        "PYTHONUTF8": "0",
+        "PYTHONIOENCODING": "ascii:surrogateescape",
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-X",
+            "utf8=0",
+            "-m",
+            "gazesync",
+            "replay",
+            "-" if via_stdin else str(path),
+            "--full",
+        ],
+        input=raw if via_stdin else None,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["records"] == s.records
+
+
+def test_audit_cli_reports_unreadable_files_without_a_traceback(tmp_path):
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "gazesync", "replay", str(tmp_path / "missing.json")],
+        capture_output=True,
+    )
+    assert result.returncode == 2
+    assert b"GazeSync input error:" in result.stderr
+    assert b"Traceback" not in result.stderr
+
+
+def test_audit_pen_box_gestures_zoom_while_touch_still_pans():
+    from gazesync import zoom_level
+
+    for mode, shift_key in (("box", False), ("pan", True)):
+        c = ZoomController(create_view(100, 100, 100, 100, pan_bounds="none"))
+        c.set_mode(mode)
+        c.pointer_down(id=1, x=20, y=20, t=0, pointer_type="pen", shift_key=shift_key)
+        c.pointer_move(id=1, x=80, y=80, t=1)
+        assert c.selection == {"start": {"x": 20, "y": 20}, "end": {"x": 80, "y": 80}}
+        c.pointer_up(id=1, x=80, y=80, t=2)
+        assert zoom_level(c.view) == pytest.approx(5 / 3)
+        assert c.selection is None
+    touch = ZoomController(create_view(100, 100, 100, 100, pan_bounds="none"))
+    touch.set_mode("box")
+    touch.pointer_down(id=1, x=20, y=20, t=0, pointer_type="touch")
+    touch.pointer_up(id=1, x=80, y=80, t=1)
+    assert zoom_level(touch.view) == 1
+    assert touch.view["tx"] == 60
+
+
+def test_audit_cli_cross_language_tolerance_keeps_identity_and_time_exact(tmp_path):
+    import copy
+    import subprocess
+    import sys
+
+    s = setup()
+    s.gaze(sample("left", 20), 21)
+    s.flush(100)
+    original = s.export()
+    path = tmp_path / "session.json"
+
+    def run(recording, *flags):
+        path.write_text(json.dumps(recording), encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, "-m", "gazesync", "replay", str(path), *flags],
+            capture_output=True,
+        )
+
+    rounded = copy.deepcopy(original)
+    rounded["aligned"][0]["contentPoint"]["x"] += 1e-10
+    assert run(rounded).returncode == 2
+    compatible = run(rounded, "--cross-language")
+    assert compatible.returncode == 0, compatible.stderr
+    report = json.loads(compatible.stdout)
+    assert report["replayExact"] is False
+    assert report["replayConformant"] is True
+    row = original["aligned"][0]
+    changes = [
+        {"contentPoint": {**row["contentPoint"], "x": row["contentPoint"]["x"] + 1}},
+        {"captureTimeMs": row["captureTimeMs"] + 1e-10},
+        {"frameId": "different-frame"},
+        {"usable": 1},
+        {"flags": [*row["flags"], "off-content"]},
+    ]
+    for change in changes:
+        altered = copy.deepcopy(original)
+        altered["aligned"][0].update(change)
+        assert run(altered, "--cross-language").returncode == 2
+    raw_only = copy.deepcopy(original)
+    del raw_only["aligned"]
+    full = run(raw_only, "--full")
+    assert full.returncode == 0, full.stderr
+    assert json.loads(full.stdout)["aligned"] == original["aligned"]

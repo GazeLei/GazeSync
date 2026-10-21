@@ -224,7 +224,7 @@ export class ZoomController {
       }
       this.gesture = {
         type:
-          p.type === "mouse" &&
+          (p.type === "mouse" || p.type === "pen") &&
           (this.mode === "box" || p.shiftKey) &&
           p.button !== 1
             ? "box"

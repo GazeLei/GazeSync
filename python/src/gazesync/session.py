@@ -277,6 +277,8 @@ class GazeSession:
             raise ValueError("hardwareValidated must be boolean")
         if "expectedHz" in source:
             positive(source["expectedHz"], "expectedHz")
+        if "eyeRatesHz" in source and not isinstance(source["eyeRatesHz"], Mapping):
+            raise ValueError("eyeRatesHz must be a mapping")
         for eye, hz in source.get("eyeRatesHz", {}).items():
             if eye not in source["eyes"]:
                 raise ValueError("eyeRatesHz must describe declared eyes")

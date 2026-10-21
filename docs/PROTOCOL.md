@@ -116,3 +116,24 @@ six-coefficient `matrix` remains authoritative, so schema 2.1 is unchanged.
 Exact replay checks implementation version; use 0.4.1 for its original recordings.
 Each rotated/moved presentation is a new state in the existing timeline. It does
 not alter the metric screen-plane pose or independently move children of a group.
+
+
+## Cross-language CLI comparison (0.5.4)
+
+Replay checks remain exact by default. For a browser/TypeScript recording analyzed
+in Python, or a Python recording checked by the Node tool, select the explicit
+cross-language comparison mode:
+
+```sh
+gazesync replay session.json --cross-language
+node tools/replay.mjs session.json --cross-language
+```
+
+Only `viewportPoint`, `contentPoint` and numeric `rayHit` values use a tolerance:
+absolute difference must be at most `1e-8 + 1e-12 * max(abs(a), abs(b))`.
+Timestamps, IDs, booleans, quality flags, array lengths and object keys still
+match exactly. The report separates `replayExact` from `replayConformant`; a
+rounding-level difference is never reported as exact. Schema/version and
+truncation checks still apply. `--full` on the Python CLI recomputes the complete
+recording from raw records without comparing stored alignments. JSON file and
+pipe inputs are decoded independently of the system locale.

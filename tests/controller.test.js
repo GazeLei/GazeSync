@@ -287,3 +287,44 @@ test("another view command breaks a touch double-tap sequence", () => {
     assert.deepEqual(c.view, before);
   }
 });
+
+test("audit: pen box gestures zoom the selection while one-finger touch still pans", () => {
+  for (const [mode, shiftKey] of [
+    ["box", false],
+    ["pan", true],
+  ]) {
+    const c = new ZoomController(
+      createView({
+        width: 100,
+        height: 100,
+        contentWidth: 100,
+        contentHeight: 100,
+        panBounds: "none",
+      }),
+    );
+    c.setMode(mode);
+    c.pointerDown({ id: 1, x: 20, y: 20, t: 0, pointerType: "pen", shiftKey });
+    c.pointerMove({ id: 1, x: 80, y: 80, t: 1 });
+    assert.deepEqual(c.selection, {
+      start: { x: 20, y: 20 },
+      end: { x: 80, y: 80 },
+    });
+    c.pointerUp({ id: 1, x: 80, y: 80, t: 2 });
+    near(zoomLevel(c.view), 5 / 3);
+    assert.equal(c.selection, null);
+  }
+  const touch = new ZoomController(
+    createView({
+      width: 100,
+      height: 100,
+      contentWidth: 100,
+      contentHeight: 100,
+      panBounds: "none",
+    }),
+  );
+  touch.setMode("box");
+  touch.pointerDown({ id: 1, x: 20, y: 20, t: 0, pointerType: "touch" });
+  touch.pointerUp({ id: 1, x: 80, y: 80, t: 1 });
+  near(zoomLevel(touch.view), 1);
+  near(touch.view.tx, 60);
+});

@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-SCHEMA = json.loads((Path(__file__).parent / "fixtures/gaze.schema.json").read_text())
 from gazesync import ModelAdapter, TobiiProAdapter, EyeLinkAdapter, PupilCoreAdapter
 
+SCHEMA = json.loads((Path(__file__).parent / "fixtures/gaze.schema.json").read_text())
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures/adapter-fixtures.json").read_text()
 )
@@ -200,3 +200,38 @@ def test_tobii_timestamp_and_boolean_configuration_reject_typos():
         ][0]["timeMs"]
         == 1000
     )
+
+
+def test_audit_adapter_context_requires_nonempty_identifiers():
+    adapter = ModelAdapter(
+        {
+            **FIXTURE["base"],
+            "type": "pog2d",
+            "eye": "left",
+            "timestampUnit": "ms",
+            "calibrationId": "calibration-1",
+        }
+    )
+    packet = {"id": "context-check", "timestamp": 1, "point": [0.5, 0.5]}
+    for key in ("clockId", "clockEpoch", "surfaceId", "surfaceEpoch", "calibrationId"):
+        for value in ("", None, 12):
+            with pytest.raises(ValueError, match="nonempty string"):
+                adapter.adapt(packet, {key: value})
+    assert adapter.adapt(packet)["samples"][0]["calibrationId"] == "calibration-1"
+
+
+def test_audit_invalid_pupil_context_does_not_consume_the_eye_sample():
+    adapter = PupilCoreAdapter(
+        {**FIXTURE["base"], "frameId": "camera", "eyes": ["right"]}
+    )
+    packet = {
+        "timestamp": 1,
+        "topic": "gaze.3d.0.",
+        "confidence": 0.9,
+        "eye_center_3d": [-32, 0, 600],
+        "gaze_normal_3d": [0, 0, -1],
+    }
+    with pytest.raises(ValueError, match="surfaceEpoch"):
+        adapter.adapt(packet, {"surfaceEpoch": ""})
+    assert len(adapter.adapt(packet, {"surfaceEpoch": "new"})["samples"]) == 1
+    assert len(adapter.adapt(packet, {"surfaceEpoch": "new"})["samples"]) == 0

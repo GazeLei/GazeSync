@@ -3,15 +3,69 @@
 from __future__ import annotations
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
 from .adapters import ModelAdapter, TobiiProAdapter, EyeLinkAdapter, PupilCoreAdapter
 from .experiments import generate_experiment, execute_experiment, summarize_experiment
 from .session import replay
 
+GEOMETRY_ABS_TOLERANCE = 1e-8
+GEOMETRY_REL_TOLERANCE = 1e-12
+
+
+def _same_value(actual, expected, approximate=False):
+    if isinstance(actual, bool) or isinstance(expected, bool):
+        return type(actual) is type(expected) and actual == expected
+    if isinstance(actual, (int, float)) or isinstance(expected, (int, float)):
+        if not isinstance(actual, (int, float)) or not isinstance(
+            expected, (int, float)
+        ):
+            return False
+        try:
+            if not math.isfinite(actual) or not math.isfinite(expected):
+                return False
+            tolerance = (
+                GEOMETRY_ABS_TOLERANCE
+                + GEOMETRY_REL_TOLERANCE * max(abs(actual), abs(expected))
+                if approximate
+                else 0
+            )
+            return abs(actual - expected) <= tolerance
+        except OverflowError:
+            return False
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(actual, dict):
+        return actual.keys() == expected.keys() and all(
+            _same_value(actual[key], expected[key], approximate) for key in actual
+        )
+    if isinstance(actual, list):
+        return len(actual) == len(expected) and all(
+            _same_value(a, b, approximate) for a, b in zip(actual, expected)
+        )
+    return actual == expected
+
+
+def _cross_language_match(actual, expected):
+    if not isinstance(expected, list) or len(actual) != len(expected):
+        return False
+    geometry = {"viewportPoint", "contentPoint", "rayHit"}
+    return all(
+        isinstance(b, dict)
+        and a.keys() == b.keys()
+        and all(_same_value(a[key], b[key], key in geometry) for key in a)
+        for a, b in zip(actual, expected)
+    )
+
 
 def _read(path):
-    return json.load(sys.stdin) if path == "-" else json.loads(Path(path).read_text())
+    # Decode JSON bytes independently of the host locale, including piped input.
+    return (
+        json.load(getattr(sys.stdin, "buffer", sys.stdin))
+        if path == "-"
+        else json.loads(Path(path).read_bytes())
+    )
 
 
 def main():
@@ -20,6 +74,11 @@ def main():
     p = sub.add_parser("replay")
     p.add_argument("file")
     p.add_argument("--full", action="store_true")
+    p.add_argument(
+        "--cross-language",
+        action="store_true",
+        help="allow small geometry differences while keeping timestamps, IDs and flags exact",
+    )
     p = sub.add_parser("align-events")
     p.add_argument("file", nargs="?", default="-")
     p.add_argument("--aligned-only", action="store_true")
@@ -56,18 +115,38 @@ def main():
         if args.command == "replay":
             source = _read(args.file)
             session = replay(source)
-            result = (
-                session.export()
-                if args.full
-                else {
+            if args.full:
+                result = session.export()
+            else:
+                aligned = session.aligned
+                exact = _same_value(aligned, source["aligned"])
+                conformant = exact or _cross_language_match(aligned, source["aligned"])
+                result = {
                     "schemaVersion": source["schemaVersion"],
-                    "alignedSamples": len(session.aligned),
+                    "alignedSamples": len(aligned),
                     "pendingSamples": len(session.pending),
-                    "replayExact": session.aligned == source["aligned"],
+                    "replayExact": exact,
+                    "replayConformant": conformant,
+                    "comparison": "cross-language" if args.cross_language else "exact",
+                    **(
+                        {
+                            "geometryTolerance": {
+                                "absolute": GEOMETRY_ABS_TOLERANCE,
+                                "relative": GEOMETRY_REL_TOLERANCE,
+                            }
+                        }
+                        if args.cross_language
+                        else {}
+                    ),
                 }
-            )
-            if not args.full and not result["replayExact"]:
-                raise ValueError("Replayed alignments differ")
+                accepted = conformant if args.cross_language else exact
+                if not accepted:
+                    if conformant:
+                        raise ValueError(
+                            "Replayed geometry differs numerically; use --cross-language "
+                            "to check the documented geometry tolerance"
+                        )
+                    raise ValueError("Replayed alignments differ")
         elif args.command == "align-events":
             session = execute_experiment(_read(args.file))
             result = (
@@ -131,7 +210,7 @@ def main():
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(session.export(), allow_nan=False))
         print(json.dumps(result, allow_nan=False, separators=(",", ":")))
-    except (ValueError, TypeError, KeyError) as error:
+    except (OSError, ValueError, TypeError, KeyError) as error:
         print(f"GazeSync input error: {error}", file=sys.stderr)
         return 2
     return 0

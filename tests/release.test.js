@@ -15,6 +15,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDemoServer } from "../tools/server.mjs";
 import { checkRelease } from "../tools/release-check.mjs";
+import { GazeSession, createView } from "../dist/index.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // npm's Windows entry point is a command script, not a directly spawnable executable.
@@ -270,5 +271,80 @@ test("release: a tarball-installed consumer resolves ESM and TypeScript exports 
     assert.equal(report.replayExact, true);
   } finally {
     await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("audit: replay CLI allows only explicit cross-language geometry tolerance", async () => {
+  const folder = await mkdtemp(resolve(tmpdir(), "gazesync-cli-replay-"));
+  try {
+    const session = new GazeSession();
+    session.present({
+      t: 0,
+      view: createView({
+        width: 100,
+        height: 100,
+        contentWidth: 100,
+        contentHeight: 100,
+      }),
+      surface: { id: "screen", epoch: "1" },
+    });
+    session.gaze(
+      {
+        id: "gaze",
+        sourceId: "source",
+        clockId: "session",
+        clockEpoch: "0",
+        surfaceId: "screen",
+        surfaceEpoch: "1",
+        eye: "left",
+        type: "pog2d",
+        space: "viewport",
+        point: { x: 50, y: 50 },
+        timeMs: 20,
+        confidence: 1,
+        valid: true,
+      },
+      21,
+    );
+    session.flush(100);
+    const original = session.export(),
+      file = resolve(folder, "session.json");
+    const rounded = structuredClone(original);
+    rounded.aligned[0].contentPoint.x += 1e-10;
+    await writeFile(file, JSON.stringify(rounded));
+    const run = (extra = []) =>
+      execFileSync(
+        process.execPath,
+        [resolve(root, "tools/replay.mjs"), file, ...extra],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+    assert.throws(() => run());
+    const report = JSON.parse(run(["--cross-language"]));
+    assert.equal(report.replayExact, false);
+    assert.equal(report.replayConformant, true);
+    for (const change of [
+      (row) => {
+        row.contentPoint.x += 1;
+      },
+      (row) => {
+        row.captureTimeMs += 1e-10;
+      },
+      (row) => {
+        row.frameId = "different-frame";
+      },
+      (row) => {
+        row.usable = 1;
+      },
+      (row) => {
+        row.flags.push("off-content");
+      },
+    ]) {
+      const altered = structuredClone(original);
+      change(altered.aligned[0]);
+      await writeFile(file, JSON.stringify(altered));
+      assert.throws(() => run(["--cross-language"]));
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
   }
 });

@@ -307,6 +307,13 @@ export class GazeSession {
       throw new TypeError("hardwareValidated must be boolean");
     if (source.expectedHz !== undefined)
       positive(source.expectedHz, "expectedHz");
+    if (
+      source.eyeRatesHz !== undefined &&
+      (source.eyeRatesHz === null ||
+        typeof source.eyeRatesHz !== "object" ||
+        Array.isArray(source.eyeRatesHz))
+    )
+      throw new TypeError("eyeRatesHz must be a mapping");
     if (source.eyeRatesHz)
       for (const [eye, hz] of Object.entries(source.eyeRatesHz)) {
         if (!source.eyes.includes(eye as import("./types.js").Eye))
@@ -683,7 +690,8 @@ export class GazeSession {
     this.pending = this.pending.filter((p) => !selected.has(p));
     for (const p of ready) this.pendingKeys.delete(observationKey(p.sample));
     this.lastFlush = now;
-    this.aligned.push(...results);
+    // Configurable batches can exceed the engine's function-argument limit.
+    for (const result of results) this.aligned.push(result);
     for (const a of results)
       this.diagnostics.aligned(
         a.flags,

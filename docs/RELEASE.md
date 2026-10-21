@@ -32,6 +32,16 @@ a later registry release needs a new reviewed version/tag with its own approval.
 The registry setup and completed TestPyPI 0.5.2 run below remain historical
 preparation evidence.
 
+## Current development source: 0.5.4
+
+The 21 October audit fixes large TypeScript flushes, source/context validation,
+Python CLI Unicode handling, pen box-selection gestures and cross-language CLI
+replay comparison. These changes are on main. The immutable
+GitHub 0.5.3 release and TestPyPI 0.5.2 artifacts remain unchanged. Version 0.5.4
+has no release tag or registry upload; publication remains disabled. Exact replay
+continues to require the implementation version recorded in the session. The
+separate manuscript describes 0.5.3 and keeps its original citation version.
+
 ## What can be built now
 
 ```sh

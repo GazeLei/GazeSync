@@ -114,3 +114,11 @@ mapping, but do not establish physical calibration accuracy.
 Tobii `timestamp` accepts only `device` or `system`; a spelling error is rejected
 instead of selecting a clock implicitly. `includeRay` must be an actual boolean.
 The selected timestamp still requires its own measured session-clock mapping.
+
+
+Per-packet clock, surface and calibration identifiers must be nonempty strings.
+Invalid context is rejected before Pupil commits its per-eye duplicate history,
+so a corrected packet can be retried. TypeScript omits `undefined` context
+properties and retains the configured defaults; explicit null identifiers are
+rejected. A source descriptor's `eyeRatesHz` must be a mapping of declared eye
+names to positive rates, including when registering a custom source directly.

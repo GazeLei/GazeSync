@@ -11,8 +11,8 @@ python -m pip install https://github.com/GazeLei/GazeSync/releases/download/v0.5
 gazesync simulate --width 390 --height 844 --display-hz 120 --gaze-hz 600 --right-gaze-hz 120 --mode binocular-independent
 ```
 
-For development, clone the repository and run `pip install -e ./python` from its
-root. PyPI publication is deferred; GitHub is the initial distribution channel.
+For the 0.5.4 development fixes, clone the main branch and run
+`pip install -e ./python` from its root. PyPI publication is deferred; GitHub is the initial distribution channel.
 
 ```python
 from gazesync import GazeSession, create_view, logging_observer
@@ -70,3 +70,14 @@ permits free movement at fit; the default `"content"` bounds the rotated rectang
 axis-aligned envelope. Home/reset restores original fit, centre and orientation.
 Native hosts supply GUI callbacks; the package does not read the operating system.
 See the repository's `docs/INTERACTION.md` for touch, clipping and timing details.
+
+
+For a recording exported by the browser or TypeScript, the 0.5.4 development CLI
+can verify geometry within the documented cross-language tolerance:
+
+```sh
+gazesync replay session.json --cross-language
+```
+
+It reports exact equality separately and keeps timestamps, identifiers and
+quality flags exact. The default replay check remains exact.

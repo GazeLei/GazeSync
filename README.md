@@ -8,6 +8,8 @@ share a versioned recording contract and reproducible conformance tests.
 through [GitHub Releases](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3).
 PyPI and npm registry publication is deferred while the technical report is
 prepared for arXiv.
+The main branch contains the **0.5.4 development fixes** described in
+[the changelog](https://github.com/GazeLei/GazeSync/blob/main/CHANGELOG.md); the downloadable GitHub preview remains 0.5.3.
 
 ![Screen changes enter a session timeline; gaze retains its capture time, selects the captured view and maps independent eyes into content coordinates.](docs/assets/overview.svg)
 
@@ -164,7 +166,7 @@ The library does not hook the OS or record unrelated applications.
 Use [the coordinate-frame guide](docs/COORDINATES.md) to distinguish camera, eye,
 active display, viewport and content origins. It includes measured-extrinsic
 conversion, named rigid-transform helpers and the full-display/cropped-viewport
-contract. Ray hits retain their metric frame ID. Version 0.5.3 uses schema 2.1;
+contract. Ray hits retain their metric frame ID. The 0.5.4 development version uses schema 2.1;
 older recordings require their original implementation.
 
 ## Adapt a source and investigate warnings
