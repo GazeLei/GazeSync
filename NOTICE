@@ -1,16 +1,15 @@
 GazeSync software
 Copyright (C) 2026 GazeSync contributors
 
-The software, documentation, README assets, examples, tests and figure-generation
-scripts are licensed under GPL-3.0-only. The complete license is in LICENSE. No
-vendor SDK or binary is included. Those SDKs remain subject to their respective
-licenses.
+The software, documentation, README assets, examples, tests and synthetic
+fixtures are licensed under GPL-3.0-only. The complete license is in LICENSE.
+No vendor SDK or binary is included. Those SDKs remain subject to their
+respective licenses.
 
-The manuscript and generated manuscript figures in paper/ are research publication
-material; their publication rights are reserved by the authors. The
-machine-readable synthetic validation data in paper/data/ are provided under
-GPL-3.0-only alongside the software. Third-party papers and original private
-project materials are not distributed here.
+The manuscript PDF at paper/GazeSync-implementation.pdf is research publication
+material; its publication rights are reserved by the authors. Manuscript source
+and figure assets are maintained separately in GazeLei/GazeSync-paper.
+Third-party papers and original private project materials are not distributed here.
 
 Academic citation is requested in CITATION.cff and CITATION.bib; it is not an
 additional condition on the GPL license. GPL does not require modifications to

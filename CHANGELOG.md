@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.5.3 - 2026-10-18 (development, not published)
+## Unreleased repository maintenance - 2026-10-21
+
+- Keep the compiled manuscript PDF in the software repository; move LaTeX,
+  figure assets, paper data and manuscript tools to GazeSync-paper.
+- Move author-finalization and optional preprint metadata into release.json.
+  Preserve publication gates and keep existing release packages unchanged.
+
+## 0.5.3 - 2026-10-18 (GitHub research preview)
 
 - Ignore superseded equal-time snapshots when checking temporal ambiguity.
 - Reject misspelled Tobii clock choices and non-boolean ray options.
@@ -9,7 +16,7 @@
 - Invoke npm consumer checks through its JS CLI on Windows to avoid executable-resolution failures.
 - Retain schema 2.1, require original implementations for prior recordings, and disable uploads for this new candidate.
 
-## 0.5.2 - 2026-10-18 (development, not published)
+## 0.5.2 - 2026-10-18 (TestPyPI validation release)
 
 - Keep binocular pairs within one content identity.
 - Reject degenerate Pupil homographies and preserve projective scale invariance.

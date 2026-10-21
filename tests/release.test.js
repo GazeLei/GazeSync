@@ -53,6 +53,13 @@ test("release: npm archive contains only reviewed package files", async () => {
 });
 
 test("release: every declared import stays within the standalone package", async () => {
+  const manifest = JSON.parse(
+    await readFile(resolve(root, "public-files.json"), "utf8"),
+  );
+  assert.deepEqual(
+    manifest.repositoryFiles.filter((name) => name.startsWith("paper/")),
+    ["paper/GazeSync-implementation.pdf"],
+  );
   const summary = await checkRelease(root);
   assert.equal(summary.runtimeDependencies, 0);
   assert.equal(
@@ -75,10 +82,14 @@ test("release: publication gates allow a pending preprint and reject inconsisten
       await mkdir(dirname(resolve(temp, name)), { recursive: true });
       await copyFile(resolve(root, name), resolve(temp, name));
     }
-    const releasePath = resolve(temp, "release.json"),
-      paperPath = resolve(temp, "paper/metadata.json");
+    const releasePath = resolve(temp, "release.json");
     const release = JSON.parse(await readFile(releasePath, "utf8"));
-    const paper = JSON.parse(await readFile(paperPath, "utf8"));
+    const enabled = {
+      ...release,
+      publicationEnabled: true,
+      authorsFinalized: true,
+      implementationArxivId: null,
+    };
     // Exercise the closed gate even when the checkout is an approved Python release.
     await writeFile(
       releasePath,
@@ -98,26 +109,17 @@ test("release: publication gates allow a pending preprint and reject inconsisten
         /publicationEnabled must be boolean/,
       );
     }
-    await writeFile(
-      releasePath,
-      JSON.stringify({ ...release, publicationEnabled: true }),
-    );
-    await writeFile(
-      paperPath,
-      JSON.stringify({ ...paper, authorsFinalized: "false" }),
-    );
-    await assert.rejects(
-      checkRelease(temp),
-      /authorsFinalized must be boolean/,
-    );
-    await writeFile(
-      paperPath,
-      JSON.stringify({
-        ...paper,
-        authorsFinalized: true,
-        arxivId: null,
-      }),
-    );
+    for (const value of ["false", "true", 1, null]) {
+      await writeFile(
+        releasePath,
+        JSON.stringify({ ...enabled, authorsFinalized: value }),
+      );
+      await assert.rejects(
+        checkRelease(temp),
+        /authorsFinalized must be boolean/,
+      );
+    }
+    await writeFile(releasePath, JSON.stringify(enabled));
     assert.equal(
       (await checkRelease(temp, { publication: true, registry: "pypi" }))
         .publicationEnabled,
@@ -129,22 +131,19 @@ test("release: publication gates allow a pending preprint and reject inconsisten
       true,
     );
     await writeFile(
-      paperPath,
-      JSON.stringify({ ...paper, authorsFinalized: false, arxivId: null }),
+      releasePath,
+      JSON.stringify({ ...enabled, authorsFinalized: false }),
     );
     await assert.rejects(
       checkRelease(temp, { publication: true, registry: "pypi" }),
       /Public release is disabled/,
     );
     await writeFile(
-      paperPath,
-      JSON.stringify({ ...paper, authorsFinalized: true, arxivId: "pending" }),
+      releasePath,
+      JSON.stringify({ ...enabled, implementationArxivId: "pending" }),
     );
     await assert.rejects(checkRelease(temp), /optional arXiv identifier/);
-    await writeFile(
-      paperPath,
-      JSON.stringify({ ...paper, authorsFinalized: true, arxivId: null }),
-    );
+    await writeFile(releasePath, JSON.stringify(enabled));
     await assert.rejects(
       checkRelease(temp, { publication: true, registry: "npm" }),
       /Public release is disabled/,

@@ -17,7 +17,8 @@ The [0.5.3 research preview](https://github.com/GazeLei/GazeSync/releases/tag/v0
 provides the verified Python wheel/sdist, npm tarball and `SHA256SUMS.txt`.
 Install the GitHub artifacts using the commands in the repository and Python
 READMEs. The [manuscript PDF](../paper/GazeSync-implementation.pdf) remains a
-repository file; submission archives can be generated from the paper sources.
+repository file. LaTeX sources, figure assets and submission tools are maintained
+in [GazeSync-paper](https://github.com/GazeLei/GazeSync-paper).
 
 On 21 October 2026, the maintainer requested removal of the manuscript PDF,
 arXiv ZIP and Overleaf ZIP attachments from the release. The checksum file now
@@ -52,16 +53,16 @@ the checkout and rebuilds the wheel from the sdist. These are local artifacts.
 
 `public-files.json` is an explicit reviewed repository inventory and browser
 allowlist. `npm run export -- --out /new/directory` exports only that inventory,
-including paper source/figures and SHA-256 hashes. Build outputs are reconstructed
+including the manuscript PDF and SHA-256 hashes. Paper sources are excluded. Build outputs are reconstructed
 from source. No parent checkout, Git history, credentials or raw participant data
 are copied. Re-review the inventory when adding a source file.
 
 ## Gates before any registry upload
 
 Software publication does **not** require an arXiv identifier. The maintainer
-explicitly chose to add it after submission. Keep `paper/metadata.json.arxivId`
+explicitly chose to add it after submission. Keep `release.json.implementationArxivId`
 null and the implementation citation labelled as a technical report until a real identifier
-exists; then update the paper and citation files together. A supplied identifier
+exists; then update the citation files and the paper repository's metadata together. A supplied identifier
 is checked for format, not independently authenticated by the release tool.
 
 The release workflow runs only by manual dispatch on a version tag in a public
@@ -69,7 +70,7 @@ repository. The completed TestPyPI 0.5.2 validation used
 `publicationEnabled:true`; npm retained `private:true`. Version 0.5.3 keeps
 registry publication disabled and is distributed through GitHub. Any later
 registry upload requires a new maintainer decision and reviewed version/tag.
-Author metadata is finalized.
+Author metadata is finalized (`release.json.authorsFinalized:true`).
 
 1. Review the exact release commit, package contents, copyright and name
    availability. The four implementation authors are finalized. Manuscript and

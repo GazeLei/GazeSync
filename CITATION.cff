@@ -54,5 +54,5 @@ references:
     given-names: Xinya
   - family-names: Ye
     given-names: Juan
-  url: https://github.com/GazeLei/GazeSync/tree/main/paper
+  url: https://github.com/GazeLei/GazeSync/blob/main/paper/GazeSync-implementation.pdf
   notes: Technical report 0.5.3; arXiv submission pending.

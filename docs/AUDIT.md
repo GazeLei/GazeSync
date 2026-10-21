@@ -166,7 +166,7 @@ dynamically created source IDs; profile TypeScript array rollover before changin
 the array API; strengthen Python static input types if parity with TypeScript's
 validity-dependent union is required. Runtime validation remains decisive.
 Paper-specific findings and proposed small experiments are in
-[the review](../paper/reviewer-notes.txt); those experiments are not completed results.
+[the paper repository review](https://github.com/GazeLei/GazeSync-paper/blob/main/reviewer-notes.txt); those experiments are not completed results.
 
 
 ## Content manipulation audit: 0.5.0, 18 October 2026
@@ -353,3 +353,17 @@ clock ticks, disposal, competing mounts and callback failures. Live browser
 interaction for 0.5.3 remains pending because a browser-control connection was
 unavailable for this pass. Physical phones, Safari/Firefox, and hardware eye
 trackers have not been certified by these automated results.
+
+
+## Repository separation: 21 October 2026
+
+The manuscript repository now owns LaTeX, figure source assets, saved paper data,
+Blender scenes and manuscript build/sync tools. The software repository retains
+only `paper/GazeSync-implementation.pdf`; citation entries stay with the package.
+Release checks read `authorsFinalized` and `implementationArxivId` from
+`release.json`, so code verification no longer depends on manuscript sources.
+Their strict boolean and optional-identifier validation is preserved. The
+Overleaf regression moved with its helper to the paper repository. Scientific
+source/data/PDF hashes were preserved, and the transferred pipeline reproduced
+all four figure PNGs, the table and saved data exactly. Runtime behavior, schema
+version, registry gates and existing release archives remain unchanged.

@@ -22,7 +22,7 @@ const option = (key) => {
 const destination = option("--out");
 if (!destination || destination.startsWith("--"))
   throw new Error(
-    "Use --out /path/to/new-directory; exports the reviewed code and paper sources",
+    "Use --out /path/to/new-directory; exports reviewed code and the manuscript PDF",
   );
 const out = resolve(destination),
   root = resolve(dirname(fileURLToPath(import.meta.url)), "..");

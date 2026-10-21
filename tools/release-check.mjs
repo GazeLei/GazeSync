@@ -19,8 +19,7 @@ export async function checkRelease(
   const json = async (name) =>
     JSON.parse(await readFile(await reviewedFile(root, name), "utf8"));
   const pkg = await json("package.json"),
-    release = await json("release.json"),
-    paper = await json("paper/metadata.json");
+    release = await json("release.json");
   const py = await readFile(
     await reviewedFile(root, "python/pyproject.toml"),
     "utf8",
@@ -35,11 +34,9 @@ export async function checkRelease(
   if (
     pkg.version !== IMPLEMENTATION_VERSION ||
     release.version !== pkg.version ||
-    paper.implementationVersion !== pkg.version ||
     !py.includes(`version = "${pkg.version}"`) ||
     pythonValue("IMPLEMENTATION_VERSION") !== pkg.version ||
     pythonValue("SCHEMA_VERSION") !== SCHEMA_VERSION ||
-    paper.schemaVersion !== SCHEMA_VERSION ||
     lock.version !== pkg.version ||
     lock.packages?.[""]?.version !== pkg.version
   )
@@ -86,14 +83,14 @@ export async function checkRelease(
       throw new Error(`Unexpected npm installation hook: ${hook}`);
   if (typeof release.publicationEnabled !== "boolean")
     throw new Error("publicationEnabled must be boolean");
-  if (typeof paper.authorsFinalized !== "boolean")
+  if (typeof release.authorsFinalized !== "boolean")
     throw new Error("authorsFinalized must be boolean");
   if (!release.publicationEnabled && pkg.private !== true)
     throw new Error("Disabled release requires npm private:true");
   if (
-    paper.arxivId != null &&
-    (typeof paper.arxivId !== "string" ||
-      !/^\d{4}\.\d{4,5}(v\d+)?$/.test(paper.arxivId))
+    release.implementationArxivId != null &&
+    (typeof release.implementationArxivId !== "string" ||
+      !/^\d{4}\.\d{4,5}(v\d+)?$/.test(release.implementationArxivId))
   )
     throw new Error(
       "An optional arXiv identifier must use the arXiv ID format",
@@ -102,7 +99,7 @@ export async function checkRelease(
     publication &&
     (!release.publicationEnabled ||
       (registry === "npm" && pkg.private !== false) ||
-      !paper.authorsFinalized)
+      !release.authorsFinalized)
   )
     throw new Error(
       "Public release is disabled: finalize author metadata and enable release.json; npm also requires private:false",

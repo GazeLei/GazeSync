@@ -13,7 +13,9 @@ an explicit migration preserving provenance. Do not silently relabel old logs.
 Prefer short pure adapters with synthetic fixtures. Do not commit participant
 records, camera frames, tokens, SDK binaries, model weights or local machine
 paths. Generated working output belongs in ignored `artifacts/`. Reviewed
-aggregate synthetic paper data is deliberately included in `paper/data/`.
+aggregate manuscript data and figure sources are maintained in
+[the paper repository](https://github.com/GazeLei/GazeSync-paper). Keep only the
+compiled manuscript PDF under `paper/` in this software repository.
 
 Format TypeScript/JavaScript with `npm run format`; format Python with
 `ruff format python tools/*.py` (tested formatter 0.15.5). Re-review and update

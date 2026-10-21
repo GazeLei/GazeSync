@@ -58,7 +58,7 @@ CommonJS callers can use `await import('gazesync')` inside an async function. St
 use `moduleResolution: "NodeNext"` or `"Bundler"`; browser code also needs the DOM
 library. Core/model/simulation types can be used without DOM declarations.
 The package ships `docs/` integration guides and copyable `examples/`. Repository
-commands such as `npm start`, `npm test`, and figure generation belong to a source
+commands such as `npm start` and `npm test` belong to a source
 checkout; the installed library needs no build step or install-time script.
 
 ## Start from source
@@ -194,11 +194,17 @@ npm run release:check
 npm run bench
 ```
 
-The recorded validation covers 78 configurations and 107,070 observations,
-including 30–240 Hz displays and 30–2,000 Hz gaze. All capture-frame selections
-match the synthetic reference. This measures software consistency, not human
-behavioral validity or hardware accuracy. Configuration, result data and figure
-sources are included in [the implementation paper](https://github.com/GazeLei/GazeSync/blob/main/paper/README.md).
+The baseline validation covers 78 configurations and 107,070 observations,
+including 30–240 Hz displays and 30–2,000 Hz gaze. Eight additional cases exercise
+combined movement, scaling and rotation. All 86 configurations select the
+reference capture frame; they contain 113,586 observations in total. The tests
+write their configuration and result reports to `artifacts/validation/`.
+
+Read the [implementation manuscript](https://github.com/GazeLei/GazeSync/blob/main/paper/GazeSync-implementation.pdf) for the
+method and synthetic evaluation. Its LaTeX sources, plotting data, figure assets
+and build tools are maintained in the separate
+[paper repository](https://github.com/GazeLei/GazeSync-paper). This software
+repository keeps only the manuscript PDF in `paper/`.
 
 ## Citation, licensing and release
 
@@ -227,7 +233,7 @@ its geometry and its verification.
   author = {Lei, Yaxiong and He, Shijing and Gong, Xinya and Ye, Juan},
   year = {2026},
   howpublished = {Technical report, version 0.5.3},
-  url = {https://github.com/GazeLei/GazeSync/tree/main/paper},
+  url = {https://github.com/GazeLei/GazeSync/blob/main/paper/GazeSync-implementation.pdf},
   note = {Technical report; arXiv submission pending. Update with the preprint identifier after submission.}
 }
 ```

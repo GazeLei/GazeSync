@@ -24,7 +24,6 @@ python/dist/
 *.blg
 *.bcf
 *.run.xml
-paper/main.pdf
 
 .ruff_cache/
 
