@@ -14,9 +14,15 @@ SDK into a distributed application; the shipped normalizers bundle no SDK.
 The maintainer selected GitHub for initial distribution on 18 October 2026 and
 will submit the technical report to arXiv. PyPI and npm publication is deferred.
 The [0.5.3 research preview](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3)
-provides the verified Python wheel/sdist, npm tarball, paper PDF, Overleaf and
-arXiv source archives, and `SHA256SUMS.txt`. Install the GitHub artifacts using
-the commands in the repository and Python READMEs.
+provides the verified Python wheel/sdist, npm tarball and `SHA256SUMS.txt`.
+Install the GitHub artifacts using the commands in the repository and Python
+READMEs. The [manuscript PDF](../paper/GazeSync-implementation.pdf) remains a
+repository file; submission archives can be generated from the paper sources.
+
+On 21 October 2026, the maintainer requested removal of the manuscript PDF,
+arXiv ZIP and Overleaf ZIP attachments from the release. The checksum file now
+lists only the three software distributions. Their bytes and the version tag
+remain unchanged.
 
 `publicationEnabled:false` and npm `private:true` remain set: they guard registry
 uploads and do not prevent building or distributing archives through GitHub.

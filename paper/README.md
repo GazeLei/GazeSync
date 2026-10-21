@@ -14,8 +14,9 @@ implementation report is prepared for arXiv; its identifier will be added to
 Implementation 0.5.3 uses recording schema 2.1. Initial software distribution is
 through [GitHub Releases](https://github.com/GazeLei/GazeSync/releases/tag/v0.5.3);
 PyPI and npm publication is deferred.
-The current manuscript is maintained on the main branch; the software release's
-PDF and ZIP assets retain their original snapshot.
+The manuscript PDF and sources are maintained here on the main branch.
+Release assets contain the software distributions and their checksums;
+submission archives can be generated locally with the commands below.
 
 ## Rebuild the report
 
